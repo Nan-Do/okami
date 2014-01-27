@@ -12,6 +12,7 @@ import sys
 import logging
 
 from BuildRulesTable import buildRulesTable
+from RuleDecomposer import decomposeRulesFromFile, saveDecomposedRules
 from GenerateRules import generateRules, printRewritingEquations
 from PredicateOrder import predicateOrder
 from c_Backend import generate_code_from_template
@@ -29,6 +30,8 @@ if __name__ == '__main__':
     parser.add_argument("-v", "--verbosity", type=str, choices=['minimum', 'info', 'debug'],
                                 help="set output verbosity default is info")
     parser.add_argument("-p", "--print-variables", help='indicate which variables, separated by commas, will be printed if not indicated all the intensional predicates will be printed')
+    parser.add_argument("-r", "--decompose-program", help='it takes the specified datalog program and generates a decomposed version of it',
+                        action="store_true")
     parser.add_argument("-n", "--no-code", help='option for debugging purposes, when activated doesn\'t emit source code',
                         action="store_true")
     
@@ -49,6 +52,18 @@ if __name__ == '__main__':
         
     logging.info("Filename:%s", source_file)
     logging.info("Destination Directory:%s", dest_dir)
+    
+    # Check if we have to decompose the specified program
+    if args.decompose_program:
+        pos = source_file.rfind(".")
+        dest_file = source_file[:pos] + "-decomposed" + source_file[pos:]
+        logging.info("Decomposing {}".format(source_file))
+        logging.info("Storing result at {}".format(dest_file))
+        
+        decomposedRules = decomposeRulesFromFile(source_file)
+        saveDecomposedRules(decomposedRules, dest_file)
+        
+        sys.exit(0)
     
     # Get the equations table
     rulesTable, predicateTypes, dependencyGraph = \
