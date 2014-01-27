@@ -4,6 +4,8 @@ Created on Jan 27, 2014
 @author: nando
 '''
 
+from itertools import repeat
+
 def removeRuleSpaces(rule):
     return "".join([x for x in rule if x != " " and x != " \t" and x != "\n"])
 
@@ -61,9 +63,15 @@ def parseRule(rule, check_restricted=False):
     if not v:
         raise ValueError('Head separator not found')
     
-    # Get the body. Here we can only have two predicates
+    # Get the body.
     body = []
-    for _ in xrange(2):
+    # Check if we are parsing a restricted body or not
+    if check_restricted:
+        r = repeat(True, 2)
+    else:
+        r = repeat(True)
+        
+    for _ in r:
         body_element, position = get_predicate(rule, position)
         if body_element == None:
             raise ValueError('Incorrect body')
