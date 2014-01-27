@@ -1,0 +1,2 @@
+Reaches(x, y) :- Flights(a,x,y,d,r).
+Reaches(x, y) :- Reaches(x, z), Reaches(z, y).

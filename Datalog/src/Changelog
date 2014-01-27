@@ -1,0 +1,13 @@
+====================
+17-01-14:
+- Added support to store every answer in its own tuple file
+- Added an option to emit to stdout the selected answers
+====================
+27-09-13: 
+-Fixed the build rules module to support rules
+in wich a predicate has duplicated variables.
+-Fixed printRewriting function to show the
+iterating variables properly.
+TODO: Fix the code emiter module to support
+equations with duplicated variables.
+====================

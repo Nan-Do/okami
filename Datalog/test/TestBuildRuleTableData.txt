@@ -1,0 +1,58 @@
+# Test 1
+A(X, Z) :- B(X, Z).
+# Output
+[LogicRule(head=('A', ['X', 'Z']), body=[('B', ['X', 'Z'])], type=1, lineno=1, rule='A(X, Z) :- B(X, Z).\n')]
+PredicateTypes(intensional=set(['A']), extensional=set(['B']))
+{'B': {'A': 0}}
+
+# Test 2
+A(X, Z) :- B(X, Z).
+A(X, Z) :- C(X, Z).
+# Output
+[LogicRule(head=('A', ['X', 'Z']), body=[('B', ['X', 'Z'])], type=1, lineno=1, rule='A(X, Z) :- B(X, Z).\n'),
+ LogicRule(head=('A', ['X', 'Z']), body=[('C', ['X', 'Z'])], type=1, lineno=2, rule='A(X, Z) :- C(X, Z).\n')]
+PredicateTypes(intensional=set(['A']), extensional=set(['B', 'C']))
+{'B': {'A': 0}, 'C': {'A': 0}}
+
+# Test 3 (Incontextual Pointer Analysis used decomposition)
+vP(X, Y) :- vP0(X, Y).
+vP(X, Y) :- A(X, Z), vP(Z, Y).
+temp1(Z, Y, S) :- S(X, S, Z), vP(X, Y).
+hP(Y, S, T) :- temp1(Z, Y, S), vP(Z, T).
+temp2(Y, S, Z) :- L(X, S, Z), vP(X, Y).
+vP(Z, T) :- temp2(Y, S, Z), hP(Y, S, T).
+# Output
+[LogicRule(head=('vP', ['X', 'Y']), body=[('vP0', ['X', 'Y'])], type=1, lineno=1, rule='vP(X, Y) :- vP0(X, Y).\n'),
+ LogicRule(head=('vP', ['X', 'Y']), body=[('A', ['X', 'Z']), ('vP', ['Z', 'Y'])], type=2, lineno=2, rule=''),
+ LogicRule(head=('temp1', ['Z', 'Y', 'S']), body=[('S', ['X', 'S', 'Z']), ('vP', ['X', 'Y'])], type=2, lineno=3, rule=''),
+ LogicRule(head=('hP', ['Y', 'S', 'T']), body=[('temp1', ['Z', 'Y', 'S']), ('vP', ['Z', 'T'])], type=2, lineno=4, rule=''),
+ LogicRule(head=('temp2', ['Y', 'S', 'Z']), body=[('L', ['X', 'S', 'Z']), ('vP', ['X', 'Y'])], type=2, lineno=5, rule=''),
+ LogicRule(head=('vP', ['Z', 'T']), body=[('temp2', ['Y', 'S', 'Z']), ('hP', ['Y', 'S', 'T'])], type=2, lineno=6, rule='')]
+PredicateTypes(intensional=set(['vP', 'temp1', 'hP', 'temp2']), extensional=set(['vP0', 'A', 'S', 'L']))
+{'vP0': {'vP': 0}, 
+ 'vP': {'vP': 0, 'hP': 0,'temp1': 0, 'temp2': 0}, 
+ 'temp1': {'hP': 0}, 'temp2': {'vP': 0}, 
+ 'A': {'vP': 0}, 'S': {'temp1': 0}, 
+ 'L':{'temp2': 0}, 'hP': {'vP': 0}}
+
+# Test 4 (Incontextual Pointer Analysis another decomposition)
+vP(X, Y) :- vP0(X, Y).
+vP(X, Y) :- A(X, Z), vP(Z, Y).
+Temp1(X, S, T) :- S(X, S, Z), vP(Z, T).
+hP(Y, S, T) :- Temp1(X, S, T), vP(X, Y).
+Temp2(Y, S, Z) :- L(X, S, Z), vP(X, Y).
+vP(Z, T) :- Temp2(Y, S, Z), hP(Y, S, T).
+# Output
+[LogicRule(head=('vP', ['X', 'Y']), body=[('vP0', ['X', 'Y'])], type=1, lineno=1, rule=''),
+ LogicRule(head=('vP', ['X', 'Y']), body=[('A', ['X', 'Z']), ('vP', ['Z', 'Y'])], type=2, lineno=2, rule=''),
+ LogicRule(head=('Temp1', ['X', 'S', 'T']), body=[('S', ['X', 'S', 'Z']), ('vP', ['Z', 'T'])], type=2, lineno=3, rule=''),
+ LogicRule(head=('hP', ['Y', 'S', 'T']), body=[('Temp1', ['X', 'S', 'T']), ('vP', ['X', 'Y'])], type=2, lineno=4, rule=''),
+ LogicRule(head=('Temp2', ['Y', 'S', 'Z']), body=[('L', ['X', 'S', 'Z']), ('vP', ['X', 'Y'])], type=2, lineno=5, rule=''),
+ LogicRule(head=('vP', ['Z', 'T']), body=[('Temp2', ['Y', 'S', 'Z']), ('hP', ['Y', 'S', 'T'])], type=2, lineno=6, rule='')]
+PredicateTypes(intensional=set(['vP', 'Temp1', 'hP', 'Temp2']), extensional=set(['vP0', 'A', 'S', 'L']))
+{'vP0': {'vP': 0}, 
+ 'vP': {'vP': 0, 'hP': 0,'Temp1': 0, 'Temp2': 0}, 
+ 'Temp1': {'hP': 0}, 'Temp2': {'vP': 0}, 
+ 'A': {'vP': 0}, 'S': {'Temp1': 0}, 
+ 'L':{'Temp2': 0}, 'hP': {'vP': 0}}
+ 

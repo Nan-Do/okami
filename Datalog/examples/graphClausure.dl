@@ -1,0 +1,2 @@
+Path(X,Y) :- Edge(X,Y).
+Path(X,Y) :- Path(X,Z), Edge(Z, Y).
