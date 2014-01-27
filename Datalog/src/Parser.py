@@ -90,7 +90,8 @@ def parseRule(rule, check_restricted=False):
         if v == False:
             raise ValueError('Incorrect body')
 
-    # Check that we don't have more than three hypothesis in the rule
+    # Check, if we have to, that we don't have more than two hypothesis in 
+    # the rule
     if check_restricted and rule[position] != '.':
         raise ValueError('The body of a rule can at max have only two hypothesis')
     
