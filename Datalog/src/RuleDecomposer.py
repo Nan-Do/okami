@@ -9,7 +9,8 @@ import logging
 
 from Parser import parseRule
 from Utils import LogicRule
-from DecomposeMethods import ruleLeftMostOuterDecomposeMethod, ruleLeftMostOuterDecomposeMethod
+from DecomposeMethods import ruleRightMostOuterDecomposeMethod, ruleLeftMostOuterDecomposeMethod,\
+    mostCommonVariablesDecomposeMethod
 
 #===============================================================================
 # This module is used to decompose a Datalog program right now only the 
@@ -20,7 +21,8 @@ from DecomposeMethods import ruleLeftMostOuterDecomposeMethod, ruleLeftMostOuter
 
 def getDecomposerRuleMethod(method):
     buildingRulesAlgorithims = {'leftMostOuter' : ruleLeftMostOuterDecomposeMethod,
-                                'rigthMostOuter': ruleLeftMostOuterDecomposeMethod}
+                                'rigthMostOuter': ruleRightMostOuterDecomposeMethod,
+                                'mostCommonVariables': mostCommonVariablesDecomposeMethod}
     
     if method not in buildingRulesAlgorithims:
         logging.error("{} is an unknown method to decompose the rules".format(method))
@@ -28,7 +30,7 @@ def getDecomposerRuleMethod(method):
     
     return buildingRulesAlgorithims[method]
     
-def decomposeRulesFromFile(filename, method='rigthMostOuter'):
+def decomposeRulesFromFile(filename, method='mostCommonVariables'):
     decomposeRule = getDecomposerRuleMethod(method)
     logging.info("Using method {}".format(method))
     
@@ -47,7 +49,7 @@ def decomposeRulesFromFile(filename, method='rigthMostOuter'):
             
         logic_rule = LogicRule(rule[0], rule[1], None, None, line)
         if (len(logic_rule.body) > 2):
-            newRules.extend(decomposeRule(logic_rule))
+            newRules.extend( decomposeRule(logic_rule) )
         else:
             newRules.append(logic_rule)
 
@@ -63,4 +65,9 @@ def saveDecomposedRules(logicRules, filename):
         f.write(head_str + " :- " + body_str + ".\n")
         
     f.close()
+    
+if __name__ == '__main__':
+    rules = decomposeRulesFromFile('test.dl')
+    print rules
+    saveDecomposedRules(rules, 'test-new.dl')
             
