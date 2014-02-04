@@ -8,7 +8,8 @@ from Utils import LogicRule
 from itertools import combinations
 import re
 
-UNIQUEVAR_REGEXP = r"(.+)#UniqueVar-(?:\d)+"
+UNIQUEVAR_TEXT = "#UniqueVar-"
+UNIQUEVAR_REGEXP = r"(.+)" + UNIQUEVAR_TEXT + r"(?:\d)+"
 
 decomposed_rules = 0
 
@@ -85,15 +86,15 @@ def get_rule_punctuation(rule, punctuation):
     
     return head, punctuation + new_punctuation
 
-def generate_new_rules(rule, rules):
+def generate_logic_rules(rule, rules):
     if isinstance(rule[0][1], list) and isinstance(rule[1][1], list):
         first, second  = rule[0], rule[1]
     elif len(rule[0]) == 2 and isinstance(rule[0][1], tuple):
-        first = generate_new_rules(rule[0], rules)
-        second = generate_new_rules(rule[1], rules)
+        first = generate_logic_rules(rule[0], rules)
+        second = generate_logic_rules(rule[1], rules)
     else:
         first = rule[0]
-        second = generate_new_rules(rule[1], rules)
+        second = generate_logic_rules(rule[1], rules)
         
     head = generate_new_head(first, second)
     #rules.append( (head, [(first, second)] ) )
@@ -105,8 +106,6 @@ def generate_new_rules(rule, rules):
         second = ( match.group(1), second[1] )
     
     rules.append( LogicRule(head, [first, second], None, None, "")) 
-    
-    
     return head
 
 def reconstruct_rule(answer, predToVars):
@@ -124,46 +123,61 @@ def reconstruct_rule(answer, predToVars):
     
 def commonVariablesDecomposingMethod(logic_rule):
     global decomposed_rules
-    # Get the name of the body predicates
-    #answers = [ [ predicate[0] for predicate in logic_rule.body ] ]
-    #predToVars = dict(logic_rule.body)
-    answers = [] 
+    
+    # Process the body of the rule to get only the predicate names.
+    # We do this to save memory as we have to store all the possible
+    # combinations in order to check for duplicates. Also at this point
+    # we deal with the problem of duplicated variables names if we
+    # we detect a duplicated name we add a long chunk of text and
+    # integer (its position in the original rule) to make it unique.
+    body_predicates = [] 
     predToVars = {}
-    for (p, (name, vars)) in enumerate(logic_rule.body):
+    for (position, (name, vars)) in enumerate(logic_rule.body):
         if name in predToVars:
-            name = name + "#UniqueVar-" + str(p)
-        answers.append(name)
+            name = name + UNIQUEVAR_TEXT + str(position)
+        body_predicates.append(name)
         predToVars[name] = vars
     
-    answers = [ answers ]
-    print answers
-    print predToVars                  
-            
-    # Get all the posible combinations
-    while not all(map((lambda x: len(x)==2), answers)):
-        new_answers = set()
-        for answer in answers:
-            for c in combinations(xrange(len(answer)), 2):
-                    first, second = answer[c[0]], answer[c[1]]
-                    rest = [answer[x] for x in set(xrange(len(answer))).difference(c)]
-                    new_answers.add(tuple(sorted([(first, second)] + rest)))
-        answers = new_answers
-    # At this point we have all the possible combinations computed
-    # Now obtain the punctuation and choose the best one
+    # Get all the possible unique combinations that can be generated
+    # using the given body of the rule. As stated in the formula this
+    # number is ((2 * h) - 3))!!. Being h the length of the body. It
+    # is equivalent to build all the possible (un)balanced fully rooted
+    # binary trees with h children 
+    body_combinations = [ body_predicates ]    
+    while not all(map((lambda x: len(x)==2), body_combinations)):
+        temp_combinations = set()
+        for combination in body_combinations:
+            for c in combinations(xrange(len(combination)), 2):
+                    first, second = combination[c[0]], combination[c[1]]
+                    rest = [combination[x] for x in set(xrange(len(combination))).difference(c)]
+                    temp_combinations.add(tuple(sorted([(first, second)] + rest)))
+        body_combinations = temp_combinations
+    
+    # At this point we have computed all the possible unique combinations
+    # Now we have to obtain the punctuation for every possible combination
+    # and keep the best one. The score function maximizes the total number
+    # of common variables used while minimizing the length of the generated
+    # heads. To do it we reconstruct the rule building again the atoms and
+    # compute the punctuation for that combination
     old_value = decomposed_rules
-    best_punctuation, best_answer = float("inf"), None 
-    for answer in answers:
+    best_punctuation, best_combination = float("inf"), None 
+    for answer in body_combinations:
         rule = reconstruct_rule(answer, predToVars)
         _, punctuation = get_rule_punctuation(rule, 0)
         if punctuation <= best_punctuation:
-            best_answer = rule
+            best_combination = rule
             best_punctuation = punctuation
     decomposed_rules = old_value
+    
+    # Once we have the best answer we have to generate all the logical rules
+    # that can be derived from the best computed combination
     new_rules = []
-    print best_answer
-    generate_new_rules(best_answer, new_rules)
+    generate_logic_rules(best_combination, new_rules)
+    # The previous function generated one more head than needed we have to fix
+    # it here and replace the last generated head with the proper rule head
     decomposed_rules -= 1 
     # Modify the last header
     last_rule = new_rules.pop()
     new_rules.append(last_rule._replace(head = logic_rule.head))
+    
     return new_rules
