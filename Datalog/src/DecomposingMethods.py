@@ -19,7 +19,7 @@ def generate_new_head(first, second):
     new_head_preds = list(set(first[1]).symmetric_difference(second[1]))
     return (new_head_name, new_head_preds)
    
-def ruleLeftMostOuterDecomposeMethod(logic_rule):
+def leftMostDecomposingMethod(logic_rule):
     answers = []
     original_rule = logic_rule.rule
     body = logic_rule.body
@@ -42,7 +42,7 @@ def ruleLeftMostOuterDecomposeMethod(logic_rule):
     answers.insert(0, logic_rule)
     return answers
 
-def ruleRightMostOuterDecomposeMethod(logic_rule):
+def rightMostDecomposingMethod(logic_rule):
     answers = []
     original_rule = logic_rule.rule
     body = logic_rule.body
@@ -122,7 +122,7 @@ def reconstruct_rule(answer, predToVars):
         
     return (first, second)
     
-def mostCommonVariablesDecomposeMethod(logic_rule):
+def commonVariablesDecomposingMethod(logic_rule):
     global decomposed_rules
     # Get the name of the body predicates
     #answers = [ [ predicate[0] for predicate in logic_rule.body ] ]

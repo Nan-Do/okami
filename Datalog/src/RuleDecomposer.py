@@ -9,8 +9,8 @@ import logging
 
 from Parser import parseRule
 from Utils import LogicRule
-from DecomposeMethods import ruleRightMostOuterDecomposeMethod, ruleLeftMostOuterDecomposeMethod,\
-    mostCommonVariablesDecomposeMethod
+from DecomposingMethods import rightMostDecomposingMethod, leftMostDecomposingMethod,\
+    commonVariablesDecomposingMethod
 
 #===============================================================================
 # This module is used to decompose a Datalog program right now only the 
@@ -20,9 +20,9 @@ from DecomposeMethods import ruleRightMostOuterDecomposeMethod, ruleLeftMostOute
 
 
 def getDecomposerRuleMethod(method):
-    buildingRulesAlgorithims = {'leftMostOuter' : ruleLeftMostOuterDecomposeMethod,
-                                'rigthMostOuter': ruleRightMostOuterDecomposeMethod,
-                                'mostCommonVariables': mostCommonVariablesDecomposeMethod}
+    buildingRulesAlgorithims = {'leftMost' : leftMostDecomposingMethod,
+                                'rigthMost': rightMostDecomposingMethod,
+                                'commonVariables': commonVariablesDecomposingMethod}
     
     if method not in buildingRulesAlgorithims:
         logging.error("{} is an unknown method to decompose the rules".format(method))
@@ -30,7 +30,7 @@ def getDecomposerRuleMethod(method):
     
     return buildingRulesAlgorithims[method]
     
-def decomposeRulesFromFile(filename, method='mostCommonVariables'):
+def decomposeRulesFromFile(filename, method='commonVariables'):
     decomposeRule = getDecomposerRuleMethod(method)
     logging.info("Using method {}".format(method))
     
