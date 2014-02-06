@@ -10,7 +10,7 @@ import logging
 from Parser import parseRule
 from Utils import LogicRule
 from DecomposingMethods import rightMostDecomposingMethod, leftMostDecomposingMethod,\
-    commonVariablesDecomposingMethod
+    commonVariablesDecomposingMethod, randomDecomposingMethod
 
 #===============================================================================
 # This module is used to decompose a Datalog program right now only the 
@@ -22,6 +22,7 @@ from DecomposingMethods import rightMostDecomposingMethod, leftMostDecomposingMe
 def getDecomposerRuleMethod(method):
     buildingRulesAlgorithims = {'leftMost' : leftMostDecomposingMethod,
                                 'rigthMost': rightMostDecomposingMethod,
+                                'random': randomDecomposingMethod,
                                 'commonVariables': commonVariablesDecomposingMethod}
     
     if method not in buildingRulesAlgorithims:
@@ -30,7 +31,7 @@ def getDecomposerRuleMethod(method):
     
     return buildingRulesAlgorithims[method]
     
-def decomposeRulesFromFile(filename, method='commonVariables'):
+def decomposeRulesFromFile(filename, method='random'):
     decomposeRule = getDecomposerRuleMethod(method)
     logging.info("Using method {}".format(method))
     
