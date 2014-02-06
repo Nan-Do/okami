@@ -9,7 +9,6 @@ from itertools import combinations
 
 import re
 import random
-from numpy.matlib import rand
 
 UNIQUEVAR_TEXT = "#UniqueVar-"
 UNIQUEVAR_REGEXP = r"(.+)" + UNIQUEVAR_TEXT + r"(?:\d)+"
@@ -24,10 +23,10 @@ def generate_new_head(first, second):
     return (new_head_name, new_head_preds)
    
 def leftMostDecomposingMethod(logic_rule):
-    answers = []
-    original_rule = logic_rule.rule
-    body = logic_rule.body
     global last_decomposed_rule
+    answers = []
+    body = logic_rule.body
+    
     while len(body) > 2:
         # Get the atoms that will be extracted from the current rule to create
         # a new rule
@@ -41,16 +40,16 @@ def leftMostDecomposingMethod(logic_rule):
         
         # Create the new rule
         new_body = (first, second)
-        answers.append(LogicRule(new_head, new_body, None, None, original_rule))
+        answers.append(LogicRule(new_head, new_body, None, None, logic_rule.rule))
         
     answers.insert(0, logic_rule)
     return answers
 
 def rightMostDecomposingMethod(logic_rule):
-    answers = []
-    original_rule = logic_rule.rule
-    body = logic_rule.body
     global last_decomposed_rule
+    answers = []
+    body = logic_rule.body
+    
     while len(body) > 2:
         # Get the atoms that will be extracted from the current rule to create
         # a new rule
@@ -64,16 +63,16 @@ def rightMostDecomposingMethod(logic_rule):
         
         # Create the new rule
         new_body = (first, second)
-        answers.append(LogicRule(new_head, new_body, None, None, original_rule))
+        answers.append(LogicRule(new_head, new_body, None, None, logic_rule.rule))
         
     answers.insert(0, logic_rule)
     return answers
 
 def randomDecomposingMethod(logic_rule):
-    answers = []
-    original_rule = logic_rule.rule
-    body = logic_rule.body
     global last_decomposed_rule
+    answers = []
+    body = logic_rule.body
+    
     while len(body) > 2:
         # Get the atoms that will be extracted from the body to create
         # a new rule
@@ -88,7 +87,7 @@ def randomDecomposingMethod(logic_rule):
         
         # Create the new rule
         new_body = (first, second)
-        answers.append(LogicRule(new_head, new_body, None, None, original_rule))
+        answers.append(LogicRule(new_head, new_body, None, None, logic_rule.rule))
     
     answers.insert(0, logic_rule)
     return answers
