@@ -67,7 +67,7 @@ def saveDecomposedRules(logicRules, filename):
     f.close()
     
 if __name__ == '__main__':
-    rules = decomposeRulesFromFile('test.dl')
+    rules = decomposeRulesFromFile('test3.dl')
     print rules
     saveDecomposedRules(rules, 'test-new.dl')
             

@@ -6,7 +6,10 @@ Created on Feb 3, 2014
 
 from Utils import LogicRule
 from itertools import combinations
+
 import re
+import random
+from numpy.matlib import rand
 
 UNIQUEVAR_TEXT = "#UniqueVar-"
 UNIQUEVAR_REGEXP = r"(.+)" + UNIQUEVAR_TEXT + r"(?:\d)+"
@@ -66,6 +69,29 @@ def rightMostDecomposingMethod(logic_rule):
     answers.insert(0, logic_rule)
     return answers
 
+def randomDecomposingMethod(logic_rule):
+    answers = []
+    original_rule = logic_rule.rule
+    body = logic_rule.body
+    global last_decomposed_rule
+    while len(body) > 2:
+        # Get the atoms that will be extracted from the body to create
+        # a new rule
+        first = body.pop(random.randint(0, len(body)-1))
+        second = body.pop(random.randint(0, len(body)-1))
+        
+        # Create the new atom header
+        new_head = generate_new_head(first, second)
+        
+        # Reinsert the new atom
+        body.append(new_head)
+        
+        # Create the new rule
+        new_body = (first, second)
+        answers.append(LogicRule(new_head, new_body, None, None, original_rule))
+    
+    answers.insert(0, logic_rule)
+    return answers
 
 def get_punctuation(first, second):
     return len(set(first[1]).intersection(second[1]))
