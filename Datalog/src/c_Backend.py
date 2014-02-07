@@ -357,7 +357,7 @@ def fillSolverCompute(outfile):
                     
                 outfile.write('\t\t\t}\n\n')
         
-        if rule.type == 2:
+        if rule.type == 2 and predsToViewNames[predicate]:
             outfile.write('\n#ifdef NDEBUG\n')
             
             for view in predsToViewNames[rule.leftSideName]:
