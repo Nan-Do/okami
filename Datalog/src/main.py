@@ -130,7 +130,7 @@ if __name__ == '__main__':
     #pp._indent_per_level = 2
     #pp.pprint(dependencyGraph)
 
-    ordering_for_blocks = predicateOrder(dependencyGraph)
+    ordering_for_blocks = predicateOrder(dependencyGraph, predicateTypes.intensional)
     #ordering_for_blocks[0].append('A')
         
     logging.debug("Block order:")

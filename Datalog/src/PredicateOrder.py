@@ -89,7 +89,7 @@ def orderThirdBlock(block_1, block_2, block_3, dependencyGraph):
     
     return answer
         
-def predicateOrder(dependencyGraph):
+def predicateOrder(dependencyGraph, intensionalPredicates):
     block1 = list()
     block2 = list()
 
@@ -114,7 +114,7 @@ def predicateOrder(dependencyGraph):
             block1.append(node)
         else: block2.append(node)
         
-    block3 = list(set(dependencyGraph.keys()).difference(markedNodes))
+    block3 = list(set(dependencyGraph.keys()).union(intensionalPredicates).difference(markedNodes))
     block3 = orderThirdBlock(block1, block2, block3, dependencyGraph)
     
     predecessors = dict()
