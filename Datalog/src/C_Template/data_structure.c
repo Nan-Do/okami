@@ -11,6 +11,9 @@
 
 
 static Pvoid_t  root;
+/* This variable is made to scan the level 0 */
+Word_t Index;
+
 
 /* Nodes for the different levels of the data structure*/
 %% fill_DsLevelNodes
@@ -32,6 +35,29 @@ void Ds_free(){
 }
 
 %% fill_DsInsertFunctions
+
+void Ds_get_intValues_Level0_init(){
+        Index = 0;
+}
+
+int Ds_get_intValues_Level0(int *value){
+        Word_t * PValue;
+
+        if (Index == 0){
+                JLF(PValue, root, Index);
+        }
+        else{
+                JLN(PValue, root, Index);
+        }
+
+        (*value) = Index;
+
+        if (PValue){
+                return 1;
+        }
+
+    return 0;
+}
 
 %% fill_DsGetIntListFunctions
 
