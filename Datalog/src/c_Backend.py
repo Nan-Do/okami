@@ -48,6 +48,7 @@ def getPredicateMaximumLength():
     
 
 # utils.h
+
 def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
     
@@ -70,7 +71,8 @@ def fillAccessViews(outfile):
 def fillRewritingVariable(outfile):
     outfile.write('\tunsigned char PREDICATE;\n\n')
     
-    max_length = max(len(x.leftSideCons) for x in GenerationData.equationsTable)
+    max_length = max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable), 
+                           (len(x.rightSideCons) for x in GenerationData.equationsTable)))
     for p in xrange(1, max_length+1):
         outfile.write('\tunsigned int VAR_{};\n'.format(str(p)))
         
@@ -179,7 +181,6 @@ def fillPrintAnswer(outfile):
         outfile.write('\t\tfprintf(file, "{}({}).\\n", {});\n'.format(pred_name, formatting, variables))
         i += 1
 
-
 def fillSolverInit(outfile):
     extensional = GenerationData.blocksOrder[0]
     #equationsTable = GenerationData.equationsTable
@@ -224,7 +225,6 @@ def fillSolverInit(outfile):
     for pos, predicate in enumerate(outputTuples):
         outfile.write('\tfp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(predicate, str(pos)))
     
-
 def fillSolverCompute(outfile):
     def printtemp():
         # Do we have to store the answer??
@@ -633,7 +633,6 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         outfile.write('}\n')
         
         outfile.write('}\n\n')
-        
         
 def fillDataStructureInitLevelFunctions(outfile):
     equationsTable = GenerationData.equationsTable
