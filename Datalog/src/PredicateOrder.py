@@ -31,22 +31,22 @@ def computePredecessors(node, dependencyGraph):
             
         return answer
 
-def orderFirstBlock(block1, block2, dependencyGraph):
-    def computePredecessors(node, dependencyGraph):
-        answer = set([x for x in dependencyGraph[node].keys() if x != node])
-        working_set = deepcopy(answer)
-        
-        while working_set:
-            current_node = working_set.pop()
-            temp_set = set([x for x in dependencyGraph[current_node].keys() if x not in answer and x != node])
-            answer |= temp_set
-            working_set |= temp_set
-            
-        return answer
-        
-    predecessors = dict()
-    for node in block2:
-        predecessors[node] = computePredecessors(node, dependencyGraph)
+def orderFirstBlock(block1, block2, predecessors):
+#     def computePredecessors(node, dependencyGraph):
+#         answer = set([x for x in dependencyGraph[node].keys() if x != node])
+#         working_set = deepcopy(answer)
+#         
+#         while working_set:
+#             current_node = working_set.pop()
+#             temp_set = set([x for x in dependencyGraph[current_node].keys() if x not in answer and x != node])
+#             answer |= temp_set
+#             working_set |= temp_set
+#             
+#         return answer
+#         
+#     predecessors = dict()
+#     for node in block2:
+#         predecessors[node] = computePredecessors(node, dependencyGraph)
         
     answer = []
     #print predecessors, block1
@@ -122,6 +122,7 @@ def predicateOrder(dependencyGraph, intensionalPredicates):
         predecessors[node] = computePredecessors(node, dependencyGraph)
         
     block2 = orderSecondBlock(block2, predecessors)
+    #block1 = orderFirstBlock(block1, block2, dependencyGraph)
     block1 = orderFirstBlock(block1, block2, predecessors)
     
     return (block1, block2, block3)
