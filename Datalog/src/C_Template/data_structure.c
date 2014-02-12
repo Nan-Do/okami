@@ -13,6 +13,7 @@
 static Pvoid_t  root;
 /* This variable is made to scan the level 0 */
 Word_t Index;
+short first_value;
 
 
 /* Nodes for the different levels of the data structure*/
@@ -38,12 +39,14 @@ void Ds_free(){
 
 void Ds_get_intValues_Level0_init(){
         Index = 0;
+        first_value = 1;
 }
 
 int Ds_get_intValues_Level0(int *value){
         Word_t * PValue;
 
-        if (Index == 0){
+        if (first_value){
+        		first_value = 0;
                 JLF(PValue, root, Index);
         }
         else{

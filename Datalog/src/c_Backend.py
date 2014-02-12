@@ -39,12 +39,16 @@ def getPredicateLength(predicate):
     return None
 
 def getPredicateMinimumLength():
-    return min(min(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)), 
-                    min(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    #return min(min(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)), 
+    #                min(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    return min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2), 
+                     (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
 
 def getPredicateMaximumLength():
-    return max(max(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)),
-                    max(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    #return max(max(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)),
+    #                max(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    return max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2), 
+                     (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
     
 
 # utils.h
@@ -312,18 +316,28 @@ def fillSolverCompute(outfile):
                 
                 args_common = ', '.join(['current->b.VAR_{}'.format(str(x[1])) for x in rule.common_vars])
                 
-                outfile.write('\t\t\tt1 = Ds_get_intList_{}({}, {});\n'
+                if commonVars_len == 0:
+                    outfile.write('\t\t\tDs_get_intValues_Level0_init();\n')
+                    outfile.write('\t\t\twhile(Ds_get_intValues_Level0(&t0)){\n')                    
+                else:
+                    outfile.write('\t\t\tt1 = Ds_get_intList_{}({}, {});\n'
                               .format(commonVars_len,
                                       aliasToViewNames[rule.aliasName],
                                       args_common))
-                
-                outfile.write('\t\t\tfor (; t1; t1 = t1->next){\n')
-                
+                    
+                    outfile.write('\t\t\tfor (; t1; t1 = t1->next){\n')
+                    
                 for x in xrange(commonVars_len+1, len(rule.consultingValues)):
-                    args = args_common + ', '
-                    args += ', '.join(['t{}->value'.format(str(i)) 
+                    if commonVars_len == 0:
+                        args = 't0'
+                        if x > 1: args += ', '
+                        tabs = '\t\t\t' + '\t' * x
+                    else:
+                        args = args_common + ', '
+                        tabs = '\t\t\t' + '\t' * (x - 1)
+                        
+                    args += ', '.join(['t{}->value'.format(str(i))
                                        for i in xrange(1, x)])
-                    tabs = '\t\t\t' + '\t' * (x - 1)
                     outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
                                   .format(tabs, x, x,
                                           aliasToViewNames[rule.aliasName],
@@ -344,7 +358,13 @@ def fillSolverCompute(outfile):
                     if isinstance(var, str):
                         t_index = rule.consultingValues.index(var) + 1\
                                    - commonVars_len
-                        outfile.write('t{}->value;\n'.format(str(t_index)))
+                        if commonVars_len == 0:
+                            if t_index == 1:
+                                outfile.write('t0;\n')
+                            else:
+                                outfile.write('t{}->value;\n'.format(str(t_index-1)))
+                        else:
+                            outfile.write('t{}->value;\n'.format(str(t_index)))
                     else:
                         outfile.write('current->b.VAR_{};\n'.format(str(var)))
                         
@@ -390,9 +410,30 @@ def fillSolverFree(outfile):
   
 def fillIntList(outfile):
     equationsTable = GenerationData.equationsTable
-    max_length = max(len(x.common_vars) for x in equationsTable if x.type == 2)
-    args = ', '.join(['*t{}'.format(str(x+1)) for x in xrange(max_length)])
     
+    # Check if there is a rule without common variables if that is the case we
+    # need to iterate over the first level of the data structure at some point
+    # and we need an extra variable to deal with it as we don't store list
+    # of integers for the first level.
+    requires_t0 = any(len(x.common_vars) == 0 for x in equationsTable if x.type == 2)
+    # Obtain the number of variables we have to iterate over to generate new 
+    # answers. That value is the number of consulting values in a rule minus 
+    # the number of common variables 
+    length = max(len(x.consultingValues) - len(x.common_vars) for x in equationsTable if x.type == 2)
+    
+    # In case there is a rule with no common variables
+    if requires_t0:
+        outfile.write('\tint t0;\n')
+        
+        # Check if the length of the comes from a rule with no common variables
+        # in that case we have to subtract 1 to the value as we are already 
+        # using t0. 
+        no_cvars_max_length = max(len(x.consultingValues) for x in equationsTable
+                                  if x.type == 2 and len(x.common_vars) == 0)
+        if no_cvars_max_length == length:
+            length -= 1
+            
+    args = ', '.join(['*t{}'.format(str(x+1)) for x in xrange(length)])
     outfile.write('\tintList {};\n'.format(args))
 
 def fillDataStructureLevelNodes(outfile):
@@ -414,10 +455,13 @@ def fillDataStructureLevelNodes(outfile):
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
     viewsData = []
     
-    min_value = min(min(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)), 
-                    min(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    max_value = max(max(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)),
-                    max(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    
+    #min_value = min(min(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)), 
+    #                min(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    #max_value = max(max(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)),
+    #                max(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    min_value = getPredicateMinimumLength()
+    max_value = getPredicateMaximumLength()
     
     lengths = list(xrange(min_value, max_value+1))
     for length in lengths:
@@ -430,14 +474,23 @@ def fillDataStructureLevelNodes(outfile):
         outfile.write('struct DsData_Level_{}'.format(length))
         outfile.write('{\n')
         tabs = '\t'
-        outfile.write('{}intList *m[{}];\n'.format(tabs,
-                                                   number_of_views_for_this_level))
+        # If the number of views for this level is 0 we don't have to emit code
+        # to store the intList for the current level, also it would output m[0]
+        # forbidden by ISO C and with no sense.
+        if number_of_views_for_this_level:
+            outfile.write('{}intList *m[{}];\n'.format(tabs,
+                                                       number_of_views_for_this_level))
         for pred in lengthToPreds[length]:
             if pred in answersToStore:
                 outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred))
                 
         if pos != len(lengths) - 1:
-            outfile.write('\n{}Pvoid_t level{};\n'.format(tabs, length+1))
+            # This is purely esthetic if we have some views in the level we 
+            # print a blank line to split the intList declaration from the
+            # level declaration clearly
+            if number_of_views_for_this_level:
+                outfile.write('\n')
+            outfile.write('{}Pvoid_t level{};\n'.format(tabs, length+1))
             
         outfile.write('};\n')
         outfile.write('typedef struct DsData_Level_{0} DsData_{0};\n\n'.format(length))
@@ -450,8 +503,15 @@ def fillDataStructureLevelNodes(outfile):
     outfile.write('\n')
     
 def fillDataStructureInsertFunctions(outfile):
-    min_length = getPredicateMinimumLength()
-    max_length = getPredicateMaximumLength()
+    #min_length = getPredicateMinimumLength()
+    #max_length = getPredicateMaximumLength()
+    
+    # Here we emit code to deal with the views. The length of the views is the same of the
+    # length of the predicate it represents. Views can only exist for predicates on the 
+    # right side of the rules so we take the minimum and maximum lengths of the predicates
+    # of right side of the rules and emit functions for those values and the values in between
+    min_length = min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    max_length = max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)))
     
     #for length in xrange(2, max_pred_len+1):
     for length in xrange(min_length, max_length+1):
@@ -499,11 +559,34 @@ def fillDataStructureInsertFunctions(outfile):
         outfile.write('}\n\n')
         
 def fillDataStructureGetIntListFunctions(outfile):
-    min_length = getPredicateMinimumLength()
-    max_length = getPredicateMaximumLength()
+    #min_length = getPredicateMinimumLength()
+    #max_length = getPredicateMaximumLength()
+    equationsTable = GenerationData.equationsTable
     
+    # Here we emit source code for the functions to retrieve the lists we need
+    # to iterate to obtain new solutions basically we have to add a new 
+    # function for every variable previously emitted in the fillIntList 
+    # function in this module. As we have to emit code for those variables the
+    # way in which the value is computed is the same. May be this functionality
+    # could be refactored into a new function. For more detailed explanation on
+    # how to compute those values please check the fillIntList function
+    
+    requires_t0 = any(len(x.common_vars) == 0 for x in equationsTable if x.type == 2)
+    length = max(len(x.consultingValues) - len(x.common_vars) for x in equationsTable if x.type == 2)
+    
+    if requires_t0:
+        no_cvars_max_length = max(len(x.consultingValues) for x in equationsTable
+                                  if x.type == 2 and len(x.common_vars) == 0)
+        if no_cvars_max_length == length:
+            length -= 1
+            
     #for length in xrange(1, max_pred_len):
-    for length in xrange(min_length-1, max_length):
+    #for length in xrange(min_length-1, max_length):
+    # This loop is in charge to emit the source code of the different functions 
+    # required to retrieve the different lists. We add one to the length as the
+    # xrange functions goes to length - 1. We start in 1 as the 0 value is
+    # reserved in the template to retrieve the values of the root.
+    for length in xrange(1, length+1):
         args_to_function = ('int x_{}'.format(str(v+1)) for v in xrange(length))
         outfile.write('intList * Ds_get_intList_{}(int pos, {})'.format(length,
                                                               ", ".join(args_to_function)))
@@ -688,9 +771,10 @@ def fillDataStructureInitLevelFunctions(outfile):
         outfile.write('}\n')
    
 def fillDataStructureLevelNewNodeFunctions(outfile):
-    equationsTable = GenerationData.equationsTable
+    #equationsTable = GenerationData.equationsTable
     #lengths = set(len(x.leftSideCons) for x in equationsTable)
-    lengths = set(len(x.rightSideCons) for x in equationsTable)
+    #lengths = set(len(x.rightSideCons) for x in equationsTable)
+    lengths = list(xrange(getPredicateMinimumLength(), getPredicateMaximumLength()+1))
     
     for length in lengths:
         node = 'DsData_{}'.format(length)
@@ -708,7 +792,8 @@ def fillDataStructureLevelFreeFunctions(outfile):
     equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
     #lengths = set(len(x.leftSideCons) for x in equationsTable)
-    lengths = set(len(x.rightSideCons) for x in equationsTable)
+    #lengths = set(len(x.rightSideCons) for x in equationsTable)
+    lengths = list(xrange(getPredicateMinimumLength(), getPredicateMaximumLength()+1))
     
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
