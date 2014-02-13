@@ -16,7 +16,8 @@ SHOW_SHELL = True
 Datalog_Examples = ['flights.datalog',
                     'graphClausure.dl',
                     'one-rule.dl',
-                    'pointerAnalysis.dl']
+                    'pointerAnalysis.dl',
+                    'noCommonVars.dl']
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s",
