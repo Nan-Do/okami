@@ -41,6 +41,11 @@ DEBUG = 0
 TESTRUN = 0
 PROFILE = 0
 
+# Specifing the options for the logging module
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(levelname)s %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S")
+
 class CLIError(Exception):
     '''Generic exception to raise and log different fatal errors.'''
     def __init__(self, msg):
