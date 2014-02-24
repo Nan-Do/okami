@@ -10,6 +10,7 @@ from itertools import chain
 
 TMP_DIR = '/tmp'
 GENERATED_DIR = 'Solver_C_code'
+COMPILER_NAME = 'dcompiler.py'
 COMPILED_FILENAME = 'solver'
 SHOW_SHELL = True
 
@@ -38,7 +39,7 @@ for example in Datalog_Examples:
     # program
     os.chdir(compiler_dir)
     logging.info("Emitting code for: " + example)
-    command = 'python main.py -d ' + TMP_DIR + ' ../examples/' + example
+    command = 'python ' + COMPILER_NAME + ' -d ' + TMP_DIR + ' ../examples/' + example
     subprocess.call(command, shell=SHOW_SHELL)
     if os.path.isdir(solver_dir):
         logging.info("Code emitted successfully")
