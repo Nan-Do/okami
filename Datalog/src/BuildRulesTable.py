@@ -24,7 +24,11 @@ def buildRulesTable(filename, test=False):
        is can be found in the Utils.py file. This function also returns the
        dependency graph. A dependency graph is a dict containing the dependency
        information in a bottom-up fashion. The predicateTypes is a tuple which
-       separates the set of intenstional and extensional."""    
+       separates the set of intenstional and extensional."""
+    # This line is to handle testing properly.
+    # When we are testing we pass a stream otherwise we pass the file name.
+    # We do this as the filename is handled (opened and closed) inside this 
+    # function.   
     if test: f = filename
     else : f = open(filename, 'r')
     
