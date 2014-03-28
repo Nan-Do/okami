@@ -41,11 +41,6 @@ DEBUG = 0
 TESTRUN = 0
 PROFILE = 0
 
-# Specifing the options for the logging module
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(levelname)s %(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S")
-
 class CLIError(Exception):
     '''Generic exception to raise and log different fatal errors.'''
     def __init__(self, msg):
@@ -105,11 +100,16 @@ USAGE
         
         # Check the verbosity
         if (args.verbosity == 'minimum'):
-            logging.basicConfig(level=logging.WARNING)
+            logging_level = logging.WARNING
         elif (args.verbosity == 'debug'):
-            logging.basicConfig(level=logging.DEBUG)
+            logging_level = logging.DEBUG
         else:
-            logging.basicConfig(level=logging.INFO)
+            logging_level = logging.INFO
+            
+        # Specifing the options for the logging module
+        logging.basicConfig(level=logging_level,
+                            format="%(asctime)s %(levelname)s %(message)s",
+                            datefmt="%Y-%m-%d %H:%M:%S")
         
         # Options for the pretty printer to work nicely
         # with the compiler defined types
