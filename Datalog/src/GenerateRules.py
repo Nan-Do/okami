@@ -45,6 +45,7 @@ def generateRuleType_1(rule, rule_number):
     head, body = rule.head, rule.body[0]
     d = buildDictWithVars(body[1])
     
+    used_vars = {}    
     left_constants = []
     right_constants = []
 
@@ -52,7 +53,11 @@ def generateRuleType_1(rule, rule_number):
         right_constants.append(d[var])
     
     for pos, var in enumerate(body[1], start=1):
-        left_constants.append((var, pos))
+        if var in used_vars:
+            left_constants.append((var, used_vars[var]))
+        else:
+            used_vars[var] = pos 
+            left_constants.append((var, pos))
         
     return RewritingRule1(rule_number, 1, body[0], 
                           left_constants, head[0], 
