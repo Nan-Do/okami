@@ -333,9 +333,10 @@ def fillSolverCompute(outfile):
         for rule in rules:
             if rule.type == 1:
                 outfile.write('\t\t\tVAR.PREDICATE = {};\n'.format(rule.rightSideName))
-                for l, s in zip(rule.leftSideCons, rule.rightSideCons):
-                    outfile.write('\t\t\tVAR.VAR_{} = current->b.VAR_{};\n'.format(str(l[1]), 
-                                                                                   str(s)))
+                for pos, answer_pos in enumerate(rule.rightSideCons, 1):
+                    outfile.write('\t\t\tVAR.VAR_{} = current->b.VAR_{};\n'.format(str(pos),
+                                                                                   str(answer_pos)))
+
                 printtemp()
                     
             if rule.type == 2:
