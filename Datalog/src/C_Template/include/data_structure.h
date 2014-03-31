@@ -12,6 +12,8 @@ extern void Ds_free();
 extern void Ds_get_intValues_Level0_init();
 extern int Ds_get_intValues_Level0(int *);
 
-%% fill_DsHeaderFunctions
+%% fill_DsQueryHeaderFunctions
+
+%% fill_DsSolutionHeaderFunctions
 
 #endif /* DATA_STRUCTURE_H_ */

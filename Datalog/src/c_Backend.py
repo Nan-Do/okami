@@ -11,6 +11,7 @@ import sys
 from collections import namedtuple, defaultdict
 from itertools import count, chain
 from datetime import datetime
+from functools import wraps
 
 # Settings for the parser
 DELIMITER = '%%'
@@ -38,18 +39,42 @@ def getPredicateLength(predicate):
                    
     return None
 
-def getPredicateMinimumLength():
+def getPredicateMinimumLength(check_only_type2_rules=True):
     #return min(min(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)), 
     #                min(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    return min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2), 
-                     (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    if check_only_type2_rules:
+        return min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2),
+                         (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    else:
+        return min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable),
+                         (len(x.rightSideCons) for x in GenerationData.equationsTable))) 
 
-def getPredicateMaximumLength():
+def getPredicateMaximumLength(check_only_type2_rules=True):
     #return max(max(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)),
     #                max(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    return max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2), 
-                     (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    if check_only_type2_rules:
+        return max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2),
+                         (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    else:
+        return max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable),
+                         (len(x.rightSideCons) for x in GenerationData.equationsTable)))
+        
     
+
+# This is a closure to check if we have predicates of type 2, some functions
+# like the ones handling the requests to the data structures should not be 
+# executed if we don't have predicates of type 2 in the source datalog program.
+# Instead of checking that behavior explicitly in the destiny functions 
+# this behavior has been extracted as a decorator.
+def check_for_predicates_of_type2(view_func):
+    def _decorator(request, *args, **kwargs):
+        response = None
+        # Make sure we don't call the function if we don't have predicates of type 2
+        if len([x for x in GenerationData.equationsTable if x.type == 2]):
+            response = view_func(request, *args, **kwargs)
+        return response
+    return wraps(view_func)(_decorator)
+
 
 # utils.h
 
@@ -81,7 +106,8 @@ def fillRewritingVariable(outfile):
         outfile.write('\tunsigned int VAR_{};\n'.format(str(p)))
         
 # data_structure.h
-def fillDataStructureHeaderFunctions(outfile):
+@check_for_predicates_of_type2
+def fillDataStructureQueryHeaderFunctions(outfile):
     min_length = getPredicateMinimumLength()
     max_length = getPredicateMaximumLength()
     
@@ -90,6 +116,13 @@ def fillDataStructureHeaderFunctions(outfile):
         outfile.write('extern void Ds_insert_{}({});\n'.format(str(value), ', '.join(ints)))
         
     outfile.write('\n')
+            
+    ints = ['int', 'int']
+    for p in xrange(max_length-1):
+        outfile.write('extern intList * Ds_get_intList_{}({});\n'.format(str(p+1), ', '.join(ints)))
+        ints.append('int')
+        
+def fillDataStructureSolutionHeaderFunctions(outfile):
     for answer in GenerationData.answersToStore:
         length = getPredicateLength(answer)
         ints = ['int' for _ in xrange(length)]
@@ -97,11 +130,6 @@ def fillDataStructureHeaderFunctions(outfile):
         outfile.write('extern int  Ds_contains_solution_{}({});\n'.format(answer, ', '.join(ints)))
         outfile.write('extern void Ds_append_solution_{}({});\n'.format(answer, ', '.join(ints)))
     outfile.write('\n')
-        
-    ints = ['int', 'int']
-    for p in xrange(max_length-1):
-        outfile.write('extern intList * Ds_get_intList_{}({});\n'.format(str(p+1), ', '.join(ints)))
-        ints.append('int')
 
 # solver.c
 def fillInputTuplesFiles(outfile):
@@ -407,7 +435,8 @@ def fillSolverFree(outfile):
     
     for predicate in outputTuples:
         outfile.write('\tfclose(fp_{});\n'.format(predicate))
-  
+
+@check_for_predicates_of_type2  
 def fillIntList(outfile):
     equationsTable = GenerationData.equationsTable
     
@@ -448,9 +477,11 @@ def fillDataStructureLevelNodes(outfile):
         #lengthToPreds[len(rule.leftSideCons)].add(rule.leftSideName)
         #if rule.type == 2:
         #    lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
+        
+        lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
         if rule.type == 2:
             lengthToPreds[len(rule.leftSideCons)].add(rule.leftSideName)
-            lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
+            
             
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
     viewsData = []
@@ -460,8 +491,8 @@ def fillDataStructureLevelNodes(outfile):
     #                min(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
     #max_value = max(max(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)),
     #                max(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    min_value = getPredicateMinimumLength()
-    max_value = getPredicateMaximumLength()
+    min_value = getPredicateMinimumLength(check_only_type2_rules=False)
+    max_value = getPredicateMaximumLength(check_only_type2_rules=False)
     
     lengths = list(xrange(min_value, max_value+1))
     for length in lengths:
@@ -501,7 +532,8 @@ def fillDataStructureLevelNodes(outfile):
         outfile.write('\n\n')
         
     outfile.write('\n')
-    
+
+@check_for_predicates_of_type2    
 def fillDataStructureInsertFunctions(outfile):
     #min_length = getPredicateMinimumLength()
     #max_length = getPredicateMaximumLength()
@@ -557,7 +589,8 @@ def fillDataStructureInsertFunctions(outfile):
             outfile.write(' *PValue{})->m[pos], x_{});\n'.format(x-1, x))
             
         outfile.write('}\n\n')
-        
+
+@check_for_predicates_of_type2        
 def fillDataStructureGetIntListFunctions(outfile):
     #min_length = getPredicateMinimumLength()
     #max_length = getPredicateMaximumLength()
@@ -716,7 +749,8 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         outfile.write('}\n')
         
         outfile.write('}\n\n')
-        
+
+@check_for_predicates_of_type2        
 def fillDataStructureInitLevelFunctions(outfile):
     equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
@@ -774,7 +808,8 @@ def fillDataStructureLevelNewNodeFunctions(outfile):
     #equationsTable = GenerationData.equationsTable
     #lengths = set(len(x.leftSideCons) for x in equationsTable)
     #lengths = set(len(x.rightSideCons) for x in equationsTable)
-    lengths = list(xrange(getPredicateMinimumLength(), getPredicateMaximumLength()+1))
+    lengths = list(xrange(getPredicateMinimumLength(check_only_type2_rules=False),
+                          getPredicateMaximumLength(check_only_type2_rules=False)+1))
     
     for length in lengths:
         node = 'DsData_{}'.format(length)
@@ -787,13 +822,14 @@ def fillDataStructureLevelNewNodeFunctions(outfile):
         outfile.write('{}memset(temp, 0, sizeof({}));\n\n'.format(tabs, node))
         outfile.write('{}return temp;\n'.format(tabs))
         outfile.write('}\n\n')
-        
+
 def fillDataStructureLevelFreeFunctions(outfile):
     equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
     #lengths = set(len(x.leftSideCons) for x in equationsTable)
     #lengths = set(len(x.rightSideCons) for x in equationsTable)
-    lengths = list(xrange(getPredicateMinimumLength(), getPredicateMaximumLength()+1))
+    lengths = list(xrange(getPredicateMinimumLength(check_only_type2_rules=False), 
+                          getPredicateMaximumLength(check_only_type2_rules=False)+1))
     
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
@@ -843,7 +879,8 @@ fill_template = {
      'fill_SolverCompute'       : fillSolverCompute,
      'fill_SolverFree'          : fillSolverFree,
      'fill_IntList'             : fillIntList,
-     'fill_DsHeaderFunctions' : fillDataStructureHeaderFunctions,
+     'fill_DsQueryHeaderFunctions' : fillDataStructureQueryHeaderFunctions,
+     'fill_DsSolutionHeaderFunctions' : fillDataStructureSolutionHeaderFunctions,
      'fill_DsLevelNodes'  : fillDataStructureLevelNodes,
      'fill_DsInsertFunctions' : fillDataStructureInsertFunctions,
      'fill_DsGetIntListFunctions': fillDataStructureGetIntListFunctions,
