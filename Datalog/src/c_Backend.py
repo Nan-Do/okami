@@ -258,11 +258,11 @@ def fillSolverInit(outfile):
         outfile.write('\tfp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(predicate, str(pos)))
     
 def fillSolverCompute(outfile):
-    def printtemp():
+    def printtemp(tabs):
         # Do we have to store the answer??
         if rule.rightSideName in answersToStore:
             pred = rule.rightSideName
-            tabs = '\t\t\t'
+            #tabs = '\t\t\t'
 
             if rule.type == 2:
                 tabs += '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x) 
@@ -330,14 +330,38 @@ def fillSolverCompute(outfile):
         outfile.write(output_string)
         outfile.write('#endif\n')
                 
+        tabs = '\t\t\t'
         for rule in rules:
             if rule.type == 1:
-                outfile.write('\t\t\tVAR.PREDICATE = {};\n'.format(rule.rightSideName))
+                # Do we have equal cards? If so we need to be sure they match before process the variable 
+                do_we_have_equal_cards = (len(set(rule.leftSideCons)) != len(rule.leftSideCons))
+                if do_we_have_equal_cards:
+                        temp_dict = defaultdict(list)
+                        for rule_pos, (var_name, _) in enumerate(rule.leftSideCons, 1):
+                            temp_dict[var_name].append(rule_pos)
+                            
+                        lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                        
+                        outfile.write('{}if('.format(tabs))
+                        for pos, l in enumerate(lists_of_duplicated_vars):
+                            t = ['current->b.VAR_{}'.format(x) for x in l]
+                            outfile.write('{}'.format(' == '.join(t)))
+                            if pos != len(lists_of_duplicated_vars)-1:
+                                outfile.write(' &&\n{}   '.format(tabs))
+                        outfile.write('){\n')
+                        tabs += '\t'
+                        
+                outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightSideName))
                 for pos, answer_pos in enumerate(rule.rightSideCons, 1):
-                    outfile.write('\t\t\tVAR.VAR_{} = current->b.VAR_{};\n'.format(str(pos),
-                                                                                   str(answer_pos)))
-
-                printtemp()
+                    outfile.write('{}VAR.VAR_{} = current->b.VAR_{};\n'.format(tabs,
+                                                                               str(pos),
+                                                                               str(answer_pos)))
+                    
+                printtemp(tabs)
+                
+                if do_we_have_equal_cards:
+                    tabs = tabs[:-1]
+                    outfile.write('{}}}\n'.format(tabs, tabs))
                     
             if rule.type == 2:
                 left_pred_len = len(rule.leftSideCons)
@@ -397,7 +421,7 @@ def fillSolverCompute(outfile):
                     else:
                         outfile.write('current->b.VAR_{};\n'.format(str(var)))
                         
-                printtemp()
+                printtemp(tabs[:-1])
                 
                 for x in xrange(commonVars_len+1, len(rule.consultingValues)):
                     tabs = tabs[:-1]
