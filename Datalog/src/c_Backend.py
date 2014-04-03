@@ -39,27 +39,13 @@ def getPredicateLength(predicate):
                    
     return None
 
-def getPredicateMinimumLength(check_only_type2_rules=True):
-    #return min(min(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)), 
-    #                min(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    if check_only_type2_rules:
-        return min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2),
+def getPredicateMinimumLength():
+    return min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2),
                          (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    else:
-        return min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable),
-                         (len(x.rightSideCons) for x in GenerationData.equationsTable))) 
 
-def getPredicateMaximumLength(check_only_type2_rules=True):
-    #return max(max(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)),
-    #                max(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    if check_only_type2_rules:
-        return max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2),
-                         (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    else:
-        return max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable),
-                         (len(x.rightSideCons) for x in GenerationData.equationsTable)))
-        
-    
+def getPredicateMaximumLength():
+    return max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2),
+                     (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
 
 # This is a closure to check if we have predicates of type 2, some functions
 # like the ones handling the requests to the data structures should not be 
@@ -77,7 +63,6 @@ def check_for_predicates_of_type2(view_func):
 
 
 # utils.h
-
 def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
     
@@ -215,13 +200,9 @@ def fillPrintAnswer(outfile):
 
 def fillSolverInit(outfile):
     extensional = GenerationData.blocksOrder[0]
-    #equationsTable = GenerationData.equationsTable
     outputTuples = GenerationData.answersToStore
     
     for pos, predicate in enumerate(extensional):
-        #Get the length of the predicate raises an error if the element is not found
-        #length = len(next((x.leftSideCons for x in equationsTable
-        #               if x.leftSideName == predicate), None))
         length = getPredicateLength(predicate)
         
         outfile.write('\tfp = fopen(tuples_input_files[{}], "r");\n'.format(pos))
@@ -262,7 +243,6 @@ def fillSolverCompute(outfile):
         # Do we have to store the answer??
         if rule.rightSideName in answersToStore:
             pred = rule.rightSideName
-            #tabs = '\t\t\t'
 
             if rule.type == 2:
                 tabs += '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x) 
@@ -493,40 +473,36 @@ def fillIntList(outfile):
 def fillDataStructureLevelNodes(outfile):
     equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
-    #lengths = set(len(x.leftSideCons) for x in equationsTable)
     viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
-
     
+    # Store the answers by length. This will be used to know in which level node store the
+    # answers
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
-        #lengthToPreds[len(rule.leftSideCons)].add(rule.leftSideName)
-        #if rule.type == 2:
-        #    lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
-        
-        lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
-        if rule.type == 2:
-            lengthToPreds[len(rule.leftSideCons)].add(rule.leftSideName)
+        if len(rule.rightSideCons) > 1:
+            lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
             
             
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
     viewsData = []
     
-    
-    #min_value = min(min(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)), 
-    #                min(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    #max_value = max(max(set(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)),
-    #                max(set(len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    min_value = getPredicateMinimumLength(check_only_type2_rules=False)
-    max_value = getPredicateMaximumLength(check_only_type2_rules=False)
+    # In order to get the minimum node and the maximum node we have to check the right side
+    # of every rule to store the answers and the left side of the rule of type 2
+    min_value = min(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
+                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
+    max_value = max(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
+                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
+    if min_value == 1:
+        min_value += 1
     
     lengths = list(xrange(min_value, max_value+1))
     for length in lengths:
         viewsData.append((length, viewLengths.count(length)))
-    
 
     for pos, length in enumerate(lengths):
         number_of_views_for_this_level = sum((x[1]) for x in viewsData 
                                              if x[0] >= length)
+
         outfile.write('struct DsData_Level_{}'.format(length))
         outfile.write('{\n')
         tabs = '\t'
@@ -560,9 +536,6 @@ def fillDataStructureLevelNodes(outfile):
 
 @check_for_predicates_of_type2    
 def fillDataStructureInsertFunctions(outfile):
-    #min_length = getPredicateMinimumLength()
-    #max_length = getPredicateMaximumLength()
-    
     # Here we emit code to deal with the views. The length of the views is the same of the
     # length of the predicate it represents. Views can only exist for predicates on the 
     # right side of the rules so we take the minimum and maximum lengths of the predicates
@@ -617,8 +590,6 @@ def fillDataStructureInsertFunctions(outfile):
 
 @check_for_predicates_of_type2        
 def fillDataStructureGetIntListFunctions(outfile):
-    #min_length = getPredicateMinimumLength()
-    #max_length = getPredicateMaximumLength()
     equationsTable = GenerationData.equationsTable
     
     # Here we emit source code for the functions to retrieve the lists we need
@@ -638,8 +609,6 @@ def fillDataStructureGetIntListFunctions(outfile):
         if no_cvars_max_length == length:
             length -= 1
             
-    #for length in xrange(1, max_pred_len):
-    #for length in xrange(min_length-1, max_length):
     # This loop is in charge to emit the source code of the different functions 
     # required to retrieve the different lists. We add one to the length as the
     # xrange functions goes to length - 1. We start in 1 as the 0 value is
@@ -690,9 +659,10 @@ def fillDataStructureContainSolutionFunctions(outfile):
                                                                ', '.join(args)))
         outfile.write('{\n')
         tabs = '\t'
-        values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
-        outfile.write('{}Word_t {};\n\n'.format(tabs,
-                                              ', '.join(values)))
+        if length > 1:
+            values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
+            outfile.write('{}Word_t {};\n\n'.format(tabs,
+                                                    ', '.join(values)))
         
         for x in xrange(1, length):
             if x == 1:
@@ -700,16 +670,19 @@ def fillDataStructureContainSolutionFunctions(outfile):
             else:
                 node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
                 
-            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))\n'.format(tabs, x, 
-                                                                         node))
+            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))\n'.format(tabs, x,
+                                                                           node))
             tabs += '\t'
             outfile.write('{}return FALSE;\n'.format(tabs))
             tabs = tabs[:-1]
             
-        outfile.write('\n')
-        node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
-                                                       str(length-1),
-                                                       answer)
+        if length > 1:
+            outfile.write('\n')
+            node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
+                                                           str(length-1),
+                                                           answer)
+        else:
+            node = 'R{}'.format(answer)
         outfile.write('{}return Judy1Test({}, x_{}, PJE0);\n'.format(tabs, node,
                                                                    length))
         
@@ -726,9 +699,10 @@ def fillDataStructureAppendSolutionFunctions(outfile):
                                                                ', '.join(args)))
         outfile.write('{\n')
         tabs = '\t'
-        values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
-        outfile.write('{}Word_t {};\n\n'.format(tabs,
-                                              ', '.join(values)))
+        if length > 1:
+            values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
+            outfile.write('{}Word_t {};\n\n'.format(tabs,
+                                                    ', '.join(values)))
         for x in xrange(1, length):
             if x == 1:
                 node = 'root'
@@ -756,10 +730,13 @@ def fillDataStructureAppendSolutionFunctions(outfile):
             tabs = tabs[:-1]
             outfile.write('{}'.format(tabs))
             outfile.write('}\n\n')
-            
-        node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
-                                                      str(length-1),
-                                                      answer)
+        
+        if length > 1:
+            node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
+                                                           str(length-1),
+                                                           answer)
+        else:
+            node = 'R{}'.format(answer)
         
         outfile.write('{}if (Judy1Set(&{}, x_{}, PJE0) == JERR)'.format(tabs,
                                                                         node,
@@ -775,21 +752,16 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         
         outfile.write('}\n\n')
 
-@check_for_predicates_of_type2        
+@check_for_predicates_of_type2  
 def fillDataStructureInitLevelFunctions(outfile):
     equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
-    #lengths = set(len(x.leftSideCons) for x in equationsTable)
     viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
 
-    
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
-        #lengthToPreds[len(rule.leftSideCons)].add(rule.leftSideName)
-        #if rule.type == 2:
-        #    lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
-        lengthToPreds[len(rule.leftSideCons)].add(rule.leftSideName)
-        lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
+        if len(rule.rightSideCons) > 1:
+            lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
         
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
     viewsData = []
@@ -830,11 +802,14 @@ def fillDataStructureInitLevelFunctions(outfile):
         outfile.write('}\n')
    
 def fillDataStructureLevelNewNodeFunctions(outfile):
-    #equationsTable = GenerationData.equationsTable
-    #lengths = set(len(x.leftSideCons) for x in equationsTable)
-    #lengths = set(len(x.rightSideCons) for x in equationsTable)
-    lengths = list(xrange(getPredicateMinimumLength(check_only_type2_rules=False),
-                          getPredicateMaximumLength(check_only_type2_rules=False)+1))
+    min_value = min(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
+                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
+    max_value = max(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
+                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
+    # This checks that we don't handle level 1 nodes as for the current generation model doesn't 
+    # contemplate the possibility of having a level 1 node. 
+    if min_value == 1: min_value += 1
+    lengths = xrange(min_value, max_value + 1)
     
     for length in lengths:
         node = 'DsData_{}'.format(length)
@@ -851,14 +826,18 @@ def fillDataStructureLevelNewNodeFunctions(outfile):
 def fillDataStructureLevelFreeFunctions(outfile):
     equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
-    #lengths = set(len(x.leftSideCons) for x in equationsTable)
-    #lengths = set(len(x.rightSideCons) for x in equationsTable)
-    lengths = list(xrange(getPredicateMinimumLength(check_only_type2_rules=False), 
-                          getPredicateMaximumLength(check_only_type2_rules=False)+1))
+
+    min_value = min(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
+                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
+    max_value = max(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
+                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
+    # This checks that we don't handle level 1 nodes as for the current generation model doesn't 
+    # contemplate the possibility of having a level 1 node.
+    if min_value == 1: min_value += 1
+    lengths = xrange(min_value, max_value + 1)
     
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
-        #lengthToPreds[len(rule.leftSideCons)].add(rule.leftSideName)
         lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
     
     for pos, length in enumerate(lengths):
@@ -888,7 +867,25 @@ def fillDataStructureLevelFreeFunctions(outfile):
                                                                           pred))
         
         outfile.write('}\n\n')
+
+# As the level 0 is currently handled outside the level nodes this is necessary to store
+# the answers formed by only one predicate
+def fillDataStructureRootAnswers(outfile):
+    answers_of_length_1 = set()
+    for rule in GenerationData.equationsTable:
+        if len(rule.rightSideCons) == 1:
+            answers_of_length_1.add(rule.rightSideName)
             
+    if answers_of_length_1:
+        line = ', '.join(['R{}'.format(answer) for answer in answers_of_length_1])
+        outfile.write('static Pvoid_t {};\n'.format(line))
+        
+# This function only should be executed if there are predicates of length 2
+# If we only have type 1 rules we don't have level 2 nodes so this will
+# cause an error
+@check_for_predicates_of_type2        
+def fillDataStructureLevel2Line(outfile):
+    outfile.write('\t\tDsData_Level_2_free((DsData_2 *) *PValue);\n')    
 
 # Function mapping for directives
 fill_template = {
@@ -913,7 +910,9 @@ fill_template = {
      'fill_DsAppendSolutionFunctions'  : fillDataStructureAppendSolutionFunctions,
      'fill_DsLevelInitLevelFunctions' : fillDataStructureInitLevelFunctions,
      'fill_DsLevelNewNodeFunctions' : fillDataStructureLevelNewNodeFunctions,
-     'fill_DsLevelFreeFunctions' : fillDataStructureLevelFreeFunctions
+     'fill_DsLevelFreeFunctions' : fillDataStructureLevelFreeFunctions,
+     'fill_DsRootAnswers'        : fillDataStructureRootAnswers,
+     'fill_DsFreeLevel2Line'     : fillDataStructureLevel2Line
      }
 
  

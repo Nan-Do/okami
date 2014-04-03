@@ -9,8 +9,9 @@
 #include "data_structure.h"
 #include "mem.h"
 
-
-static Pvoid_t  root;
+/* Root level */
+static Pvoid_t root;
+%% fill_DsRootAnswers
 /* This variable is made to scan the level 0 */
 Word_t Index;
 short first_value;
@@ -29,7 +30,7 @@ void Ds_free(){
 	JLF(PValue, root, index);
 	while (PValue != NULL)
 	{
-		DsData_Level_2_free((DsData_2 *) *PValue);
+%% fill_DsFreeLevel2Line
 		JudyLDel(&root, index, PJE0);
 		JLN(PValue, root, index); 
 	}
