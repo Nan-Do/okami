@@ -18,7 +18,9 @@ Datalog_Examples = ['flights.datalog',
                     'graphClausure.dl',
                     'one-rule.dl',
                     'pointerAnalysis.dl',
-                    'noCommonVars.dl']
+                    'noCommonVars.dl',
+                    'EqualCardsType1.dl'
+                    ]
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s",
