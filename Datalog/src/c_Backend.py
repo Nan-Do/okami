@@ -39,19 +39,18 @@ def getPredicateLength(predicate):
                    
     return None
 
-def getPredicateMinimumLength():
-    return min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2),
-                         (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+def getQueryMinimumLength():
+    return min(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)
 
-def getPredicateMaximumLength():
-    return max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2),
-                     (len(x.rightSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+def getQueryMaximumLength():
+    return max(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)
 
 # This is a closure to check if we have predicates of type 2, some functions
 # like the ones handling the requests to the data structures should not be 
 # executed if we don't have predicates of type 2 in the source datalog program.
 # Instead of checking that behavior explicitly in the destiny functions 
 # this behavior has been extracted as a decorator.
+
 def check_for_predicates_of_type2(view_func):
     def _decorator(request, *args, **kwargs):
         response = None
@@ -63,6 +62,7 @@ def check_for_predicates_of_type2(view_func):
 
 
 # utils.h
+
 def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
     
@@ -93,8 +93,8 @@ def fillRewritingVariable(outfile):
 # data_structure.h
 @check_for_predicates_of_type2
 def fillDataStructureQueryHeaderFunctions(outfile):
-    min_length = getPredicateMinimumLength()
-    max_length = getPredicateMaximumLength()
+    min_length = getQueryMinimumLength()
+    max_length = getQueryMaximumLength()
     
     for value in xrange(min_length, max_length+1):
         ints = ['int' for _ in xrange(value+1)]
@@ -766,7 +766,7 @@ def fillDataStructureInitLevelFunctions(outfile):
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
     viewsData = []
     
-    lengths = list(xrange(getPredicateMinimumLength(), getPredicateMaximumLength()+1))
+    lengths = list(xrange(getQueryMinimumLength(), getQueryMaximumLength()+1))
     
     for length in lengths:
         viewsData.append((length, viewLengths.count(length)))
@@ -788,8 +788,9 @@ def fillDataStructureInitLevelFunctions(outfile):
                 if i != (number_of_views_for_this_level-1):
                     outfile.write('{}'.format(tabs));
                 
-        if (((number_of_views_for_this_level-1) % 4) != 0):
-            outfile.write('NULL;\n');
+        if (((number_of_views_for_this_level-1) % 4) != 0 or
+            (number_of_views_for_this_level == 1)):
+                outfile.write('NULL;\n');
             
         outfile.write('\n')
         if pos != len(lengths)-1:
@@ -839,7 +840,7 @@ def fillDataStructureLevelFreeFunctions(outfile):
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
         lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
-    
+        
     for pos, length in enumerate(lengths):
         outfile.write('void DsData_Level_{0}_free(DsData_{0} *d)'.format(length))
         tabs = '\t'
