@@ -87,11 +87,11 @@ def generateRuleType_2a(rule, rule_number):
     # it is a repeated variable in that case use the first position in which
     # appears 
     left_constants = []
-    for pos, var in enumerate(hyp1[1], start=1):
-        if var not in hyp2[1][:pos]:
-            left_constants.append((var,pos))
+    for pos, var in enumerate(hyp1[1], start=0):
+        if var not in hyp1[1][:pos]:
+            left_constants.append((var,pos+1))
         else:
-            left_constants.append((var,hyp2[1].index(var)+1))
+            left_constants.append((var,hyp1[1].index(var)+1))
         
     # Get the view name
     view = []
@@ -132,9 +132,9 @@ def generateRuleType_2b(rule, rule_number):
     # it is a repeated variable in that case use the first position in which
     # appears 
     left_constants = []
-    for pos, var in enumerate(hyp2[1], start=1):
+    for pos, var in enumerate(hyp2[1], start=0):
         if var not in hyp2[1][:pos]:
-            left_constants.append((var,pos))
+            left_constants.append((var,pos+1))
         else:
             left_constants.append((var,hyp2[1].index(var)+1))
             
