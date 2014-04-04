@@ -347,27 +347,45 @@ def fillSolverCompute(outfile):
                 left_pred_len = len(rule.leftSideCons)
                 commonVars_len = len(rule.common_vars)
                 
+                do_we_have_equal_cards_var = (len(set(rule.leftSideCons)) != len(rule.leftSideCons))
+                if do_we_have_equal_cards_var:
+                    temp_dict = defaultdict(list)
+                    for rule_pos, (var_name, _) in enumerate(rule.leftSideCons, 1):
+                        temp_dict[var_name].append(rule_pos)
+                            
+                    lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                        
+                    outfile.write('{}if('.format(tabs))
+                    for pos, l in enumerate(lists_of_duplicated_vars):
+                        t = ['current->b.VAR_{}'.format(x) for x in l]
+                        outfile.write('{}'.format(' == '.join(t)))
+                        if pos != len(lists_of_duplicated_vars)-1:
+                            outfile.write(' &&\n{}   '.format(tabs))
+                    outfile.write('){\n')
+                    tabs += '\t'
+                
                 args_common = ', '.join(['current->b.VAR_{}'.format(str(x[1])) for x in rule.common_vars])
                 
                 if commonVars_len == 0:
-                    outfile.write('\t\t\tDs_get_intValues_Level0_init();\n')
-                    outfile.write('\t\t\twhile(Ds_get_intValues_Level0(&t0)){\n')                    
+                    outfile.write('{}Ds_get_intValues_Level0_init();\n'.format(tabs))
+                    outfile.write('{}while(Ds_get_intValues_Level0(&t0)){{\n'.format(tabs))                    
                 else:
-                    outfile.write('\t\t\tt1 = Ds_get_intList_{}({}, {});\n'
-                              .format(commonVars_len,
+                    outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
+                              .format(tabs,
+                                      commonVars_len,
                                       aliasToViewNames[rule.aliasName],
                                       args_common))
                     
-                    outfile.write('\t\t\tfor (; t1; t1 = t1->next){\n')
+                    outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
                     
                 for x in xrange(commonVars_len+1, len(rule.consultingValues)):
                     if commonVars_len == 0:
                         args = 't0'
                         if x > 1: args += ', '
-                        tabs = '\t\t\t' + '\t' * x
+                        tabs = tabs + '\t' * x
                     else:
                         args = args_common + ', '
-                        tabs = '\t\t\t' + '\t' * (x - 1)
+                        tabs = tabs + '\t' * (x - 1)
                         
                     args += ', '.join(['t{}->value'.format(str(i))
                                        for i in xrange(1, x)])
@@ -378,14 +396,36 @@ def fillSolverCompute(outfile):
                     outfile.write('{}for (; t{}; t{} = t{}->next)'.format(tabs,
                                                                           x, x, x))
                     outfile.write('{\n')
-                    
-                tabs = '\t\t\t'
+                
+                if do_we_have_equal_cards_var:
+                    tabs = '\t\t\t\t'
+                else:
+                    tabs = '\t\t\t'
                 tabs += '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x) 
                                         for x in rule.consultingValues))
                 
                 outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
                                                                rule.rightSideName))
-
+                
+                do_we_have_equal_cards_query = (len(set(rule.consultingValues)) != len(rule.consultingValues))
+                if do_we_have_equal_cards_query:
+                    temp_dict = defaultdict(list)
+                    first_var_position = 0
+                    for rule_pos, var_name in enumerate(rule.consultingValues, 1):
+                        if type(var_name) == int:
+                            first_var_position += 1 
+                        temp_dict[var_name].append(rule_pos - first_var_position)
+                            
+                    lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                    outfile.write('{}if('.format(tabs))
+                    for pos, l in enumerate(lists_of_duplicated_vars):
+                        t = ['t{}->value'.format(x) for x in l]
+                        outfile.write('{}'.format(' == '.join(t)))
+                        if pos != len(lists_of_duplicated_vars)-1:
+                            outfile.write(' &&\n{}   '.format(tabs))
+                    outfile.write('){\n')
+                    tabs += '\t'
+                
                 for pos, var in enumerate(rule.rightSideCons, start=1):
                     outfile.write('{}VAR.VAR_{} = '.format(tabs, pos))
                     if isinstance(var, str):
@@ -400,8 +440,19 @@ def fillSolverCompute(outfile):
                             outfile.write('t{}->value;\n'.format(str(t_index)))
                     else:
                         outfile.write('current->b.VAR_{};\n'.format(str(var)))
-                        
-                printtemp(tabs[:-1])
+                
+                if do_we_have_equal_cards_query:
+                    printtemp(tabs[:-2])
+                else:
+                    printtemp(tabs[:-1])
+                
+                if do_we_have_equal_cards_var:
+                    tabs = tabs[:-1]
+                    outfile.write('{}}}\n'.format(tabs, tabs))
+                    
+                if do_we_have_equal_cards_query:
+                    tabs = tabs[:-1]
+                    outfile.write('{}}}\n'.format(tabs, tabs))
                 
                 for x in xrange(commonVars_len+1, len(rule.consultingValues)):
                     tabs = tabs[:-1]
