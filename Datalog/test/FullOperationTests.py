@@ -20,7 +20,8 @@ Datalog_Examples = ['flights.datalog',
                     'pointerAnalysis.dl',
                     'noCommonVars.dl',
                     'EqualCardsType1.dl',
-		    'EqualCardsType2.dl'
+                    'EqualCardsType2.dl',
+                    'example10.dl'
                     ]
 
 logging.basicConfig(level=logging.INFO,
