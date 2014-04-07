@@ -652,7 +652,8 @@ def fillDataStructureGetIntListFunctions(outfile):
     # how to compute those values please check the fillIntList function
     
     requires_t0 = any(len(x.common_vars) == 0 for x in equationsTable if x.type == 2)
-    length = max(len(x.consultingValues) - len(x.common_vars) for x in equationsTable if x.type == 2)
+    #length = max(len(x.consultingValues) - len(x.common_vars) for x in equationsTable if x.type == 2)
+    length = getQueryMaximumLength() - 1
     
     if requires_t0:
         no_cvars_max_length = max(len(x.consultingValues) for x in equationsTable
