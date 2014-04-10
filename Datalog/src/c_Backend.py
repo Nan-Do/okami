@@ -45,7 +45,9 @@ def getQueryMinimumLength():
 def getQueryMaximumLength():
     return max(len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)
 
-def getNodesMaximumLength():
+# In order to get the minimum node and the maximum node we have to check the right side
+# of every rule to store the answers and the left side of the rule of type 2
+def getDataStructureNodesMaximumLength():
     return  max(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
                       [len(x.rightSideCons) for x in GenerationData.equationsTable]))
 
@@ -54,7 +56,6 @@ def getNodesMaximumLength():
 # executed if we don't have predicates of type 2 in the source datalog program.
 # Instead of checking that behavior explicitly in the destiny functions 
 # this behavior has been extracted as a decorator.
-
 def check_for_predicates_of_type2(view_func):
     def _decorator(request, *args, **kwargs):
         response = None
@@ -537,21 +538,12 @@ def fillDataStructureLevelNodes(outfile):
         if len(rule.rightSideCons) > 1:
             lengthToPreds[len(rule.rightSideCons)].add(rule.rightSideName)
             
-            
+    
+    viewsData = []        
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
-    viewsData = []
+    number_of_data_structure_nodes = getDataStructureNodesMaximumLength()
     
-    # In order to get the minimum node and the maximum node we have to check the right side
-    # of every rule to store the answers and the left side of the rule of type 2
-    #min_value = min(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
-    #                      [len(x.rightSideCons) for x in GenerationData.equationsTable]))
-    max_value = max(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
-                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
-    #if min_value == 1:
-    #    min_value += 1
-    
-    #lengths = list(xrange(min_value, max_value+1))
-    lengths = list(xrange(2, max_value+1))
+    lengths = list(xrange(2, number_of_data_structure_nodes+1))
     for length in lengths:
         viewsData.append((length, viewLengths.count(length)))
 
@@ -657,7 +649,6 @@ def fillDataStructureGetIntListFunctions(outfile):
     # how to compute those values please check the fillIntList function
     
     requires_t0 = any(len(x.common_vars) == 0 for x in equationsTable if x.type == 2)
-    #length = max(len(x.consultingValues) - len(x.common_vars) for x in equationsTable if x.type == 2)
     length = getQueryMaximumLength() - 1
     
     if requires_t0:
@@ -860,15 +851,12 @@ def fillDataStructureInitLevelFunctions(outfile):
         outfile.write('}\n')
    
 def fillDataStructureLevelNewNodeFunctions(outfile):
-    #min_value = min(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
-    #                      [len(x.rightSideCons) for x in GenerationData.equationsTable]))
-    max_value = max(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
-                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
+    number_of_data_structure_nodes = getDataStructureNodesMaximumLength()
     # This checks that we don't handle level 1 nodes as for the current generation model doesn't 
     # contemplate the possibility of having a level 1 node. 
     #if min_value == 1: min_value += 1
-    #lengths = xrange(min_value, max_value + 1)
-    lengths = xrange(2, max_value + 1)
+    #lengths = xrange(min_value, number_of_data_structure_nodes + 1)
+    lengths = xrange(2, number_of_data_structure_nodes + 1)
     
     for length in lengths:
         node = 'DsData_{}'.format(length)
@@ -886,15 +874,12 @@ def fillDataStructureLevelFreeFunctions(outfile):
     equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
 
-    #min_value = min(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
-    #                      [len(x.rightSideCons) for x in GenerationData.equationsTable]))
-    max_value = max(chain([len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2],
-                          [len(x.rightSideCons) for x in GenerationData.equationsTable]))
+    number_of_data_structure_nodes = getDataStructureNodesMaximumLength()
     # This checks that we don't handle level 1 nodes as for the current generation model doesn't 
     # contemplate the possibility of having a level 1 node.
     #if min_value == 1: min_value += 1
     #lengths = xrange(min_value, max_value + 1)
-    lengths = xrange(2, max_value + 1)
+    lengths = xrange(2, number_of_data_structure_nodes + 1)
     
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
