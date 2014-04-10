@@ -21,7 +21,8 @@ Datalog_Examples = ['flights.datalog',
                     'noCommonVars.dl',
                     'EqualCardsType1.dl',
                     'EqualCardsType2.dl',
-                    'example10.dl'
+                    'example10.dl',
+                    'example11.dl',
                     ]
 
 logging.basicConfig(level=logging.INFO,
