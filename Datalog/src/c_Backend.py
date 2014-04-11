@@ -910,7 +910,8 @@ def fillDataStructureLevelFreeFunctions(outfile):
             if pred in answersToStore:
                 outfile.write('{}Judy1FreeArray(&d->R{}, PJE0);\n'.format(tabs,
                                                                           pred))
-        
+                
+        outfile.write('{}*&d = NULL;\n'.format(tabs))        
         outfile.write('}\n\n')
 
 # As the level 0 is currently handled outside the level nodes this is necessary to store
