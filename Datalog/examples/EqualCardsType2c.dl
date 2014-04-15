@@ -1,0 +1,1 @@
+v(Z, X, J) :- z(X, X, L, J, J, L, S), l(X, Z, J).
