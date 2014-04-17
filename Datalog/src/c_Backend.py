@@ -65,9 +65,31 @@ def check_for_predicates_of_type2(view_func):
         return response
     return wraps(view_func)(_decorator)
 
+# This function checks to see if there are predicates that appearing in some
+# rule being all its variables equal cards. 
+# The function returns a set of strings, every string represents the name of
+# a predicate having all variables as equal cards.
+def getPredicatesWithAllVariablesBeingTheSameEqualCard():
+    answers = set()
+    for rule in GenerationData.equationsTable:
+        if (rule.leftSideName not in GenerationData.answersToStore) and\
+                len(set(rule.leftSideCons)) == 1 and\
+                rule.type == 2:
+            answers.add(rule.leftSideName)
+    return answers
+
+
+# This function get the solutions of the Datalog program. It returns a set
+# containing the union of all the answers that must be stored represented by the 
+# set of answersToStore and all the predicates having all its variables being 
+# the same equal card.
+def getAllSolutions():
+    solutions = set()
+    solutions |= GenerationData.answersToStore
+    solutions |= getPredicatesWithAllVariablesBeingTheSameEqualCard()
+    return solutions
 
 # utils.h
-
 def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
     
@@ -113,12 +135,14 @@ def fillDataStructureQueryHeaderFunctions(outfile):
         ints.append('int')
         
 def fillDataStructureSolutionHeaderFunctions(outfile):
-    for answer in GenerationData.answersToStore:
-        length = getPredicateLength(answer)
+    for solution_predicate in getAllSolutions():
+        length = getPredicateLength(solution_predicate)
         ints = ['int' for _ in xrange(length)]
          
-        outfile.write('extern int  Ds_contains_solution_{}({});\n'.format(answer, ', '.join(ints)))
-        outfile.write('extern void Ds_append_solution_{}({});\n'.format(answer, ', '.join(ints)))
+        outfile.write('extern int  Ds_contains_solution_{}({});\n'.format(solution_predicate,
+                                                                          ', '.join(ints)))
+        outfile.write('extern void Ds_append_solution_{}({});\n'.format(solution_predicate,
+                                                                        ', '.join(ints)))
     outfile.write('\n')
 
 # solver.c
@@ -424,6 +448,26 @@ def fillSolverCompute(outfile):
                             outfile.write(' &&\n{}   '.format(tabs))
                     outfile.write('){\n')
                     tabs += '\t'
+                    
+                    # Here we have to add the solution to the data structure if the predicate has all variables
+                    # the same equal card. We check that if turning the list of leftSideCons into a set the
+                    # length is 1.
+                    if len(set(rule.leftSideCons)) == 1:
+                        args = ['current->b.VAR_{}'.format(x) for x in l]
+                        outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
+                                                                                     rule.leftSideName,
+                                                                                     ", ".join(args)))
+                        tabs += '\t'
+                        outfile.write("#ifdef NDEBUG\n")
+                        outfile.write("{}fprintf(stderr, \"\\tAdding solution -> \");\n".format(tabs))
+                        outfile.write("{}print_rewriting_variable(stderr, &current->b);\n".format(tabs))
+                        outfile.write("{}fprintf(stderr, \"\\n\");\n".format(tabs))
+                        outfile.write("#endif\n")
+                        outfile.write("{}Ds_append_solution_{}({});\n".format(tabs,
+                                                                             rule.leftSideName,
+                                                                             ", ".join(args)))
+                        tabs = tabs[:-1]
+                        outfile.write("{}}}\n".format(tabs))
                 
                 # Here we emit code to iterate over the necessary variables in order to get the desired 
                 # solutions, first we have to check if we are dealing with the case in which the set of
@@ -456,15 +500,27 @@ def fillSolverCompute(outfile):
                                                  for x in rule.consultingValues[:number_of_common_vars]])
                         int_length = number_of_common_vars
                         commonVars_len = number_of_common_vars
+                     
+                    # Here we have to check if the predicate we are consulting is the type that has all its variables
+                    # the same equal card in that case we have to check against the solutions instead of iterating over
+                    # the integer list of successors which doesn't make any sense as the predicate is true or false that means
+                    # that contributes only with one solution or with none.
+                    # If we turn the list of consulting values into a set and the length is 1 that means that the predicate
+                    # has all its variables the same equal card
+                    if (len(set(rule.consultingValues)) != 1):
+                        # Here we just emit code for t1 using the computed values
+                        outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
+                                      .format(tabs,
+                                              int_length,
+                                              aliasToViewNames[rule.aliasName],
+                                              args_common))
                         
-                    # Here we just emit code for t1 using the computed values
-                    outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
-                                    .format(tabs,
-                                            int_length,
-                                            aliasToViewNames[rule.aliasName],
-                                            args_common))
-
-                    outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
+                        outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
+                    else:
+                        outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
+                                                                                     rule.consultingPred,
+                                                                                     args_common))
+                        
                 
                 # Here we emit code for the rest of the required t levels that value is the number
                 # of consulting values minus the number of common variables which has already been
@@ -533,7 +589,7 @@ def fillSolverCompute(outfile):
                     # variables
                     lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
                     
-                    # We only have to iterate over the list, emitting code for every list.
+                    # We only have to iterate over each list emitting code appropriately 
                     outfile.write('{}if('.format(tabs))
                     for pos, l in enumerate(lists_of_duplicated_vars):
                         t = ['t{}->value'.format(x) for x in l]
@@ -693,8 +749,16 @@ def fillDataStructureLevelNodes(outfile):
         if number_of_views_for_this_level:
             outfile.write('{}intList *m[{}];\n'.format(tabs,
                                                        number_of_views_for_this_level))
+        
+        # Emit code to store the answers required by the level node
         for pred in lengthToPreds[length]:
             if pred in answersToStore:
+                outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred))
+                
+        # Check if we have to add a new solution because there is a predicate having
+        # all the variables the same Equal card
+        for pred in getPredicatesWithAllVariablesBeingTheSameEqualCard():
+            if pred not in answersToStore and getPredicateLength(pred) == length:
                 outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred))
                 
         if pos != len(lengths) - 1:
@@ -830,13 +894,11 @@ def fillDataStructureGetIntListFunctions(outfile):
         outfile.write('}\n\n')
         
 def fillDataStructureContainSolutionFunctions(outfile):
-    answersToStore = GenerationData.answersToStore
-    
-    for answer in answersToStore:
+    for solution_predicate in getAllSolutions():
         # Get the length of the predicate
-        length = getPredicateLength(answer)
+        length = getPredicateLength(solution_predicate)
         args = ('int x_{}'.format(str(x)) for x in xrange(1, length+1))
-        outfile.write('int Ds_contains_solution_{}({})'.format(answer,
+        outfile.write('int Ds_contains_solution_{}({})'.format(solution_predicate,
                                                                ', '.join(args)))
         outfile.write('{\n')
         tabs = '\t'
@@ -861,22 +923,20 @@ def fillDataStructureContainSolutionFunctions(outfile):
             outfile.write('\n')
             node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
                                                            str(length-1),
-                                                           answer)
+                                                           solution_predicate)
         else:
-            node = 'R{}'.format(answer)
+            node = 'R{}'.format(solution_predicate)
         outfile.write('{}return Judy1Test({}, x_{}, PJE0);\n'.format(tabs, node,
                                                                    length))
         
         outfile.write('}\n\n')
         
 def fillDataStructureAppendSolutionFunctions(outfile):
-    answersToStore = GenerationData.answersToStore
-    
-    for answer in answersToStore:
+    for solution_predicate in getAllSolutions():
         # Get the length of the predicate
-        length = getPredicateLength(answer)
+        length = getPredicateLength(solution_predicate)
         args = ('int x_{}'.format(str(x)) for x in xrange(1, length+1))
-        outfile.write('void Ds_append_solution_{}({})'.format(answer,
+        outfile.write('void Ds_append_solution_{}({})'.format(solution_predicate,
                                                                ', '.join(args)))
         outfile.write('{\n')
         tabs = '\t'
@@ -915,9 +975,9 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         if length > 1:
             node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
                                                            str(length-1),
-                                                           answer)
+                                                           solution_predicate)
         else:
-            node = 'R{}'.format(answer)
+            node = 'R{}'.format(solution_predicate)
         
         outfile.write('{}if (Judy1Set(&{}, x_{}, PJE0) == JERR)'.format(tabs,
                                                                         node,
