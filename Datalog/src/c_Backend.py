@@ -570,29 +570,33 @@ def fillSolverCompute(outfile):
                 # invalid answers not honoring the equal cards. To do so we have to check
                 # which of the variables not in the set of the common variables are repeated
                 if equal_cards_query_not_common_vars:
-                    # The key of the dict will be the name of the variable.
-                    # The value of the dict will be a list containing the positions in which
-                    # the variable appears repeated
-                    temp_dict = defaultdict(list)
-                    # Here we compute the first occurrence of the variables.
-                    # We compute where the first string appears in the list.
-                    number_of_common_vars = sum(1 for x in rule.consultingValues if isinstance(x, int))
-                    # Here we iterate over the list of variables that are not in the set of common variables. The
-                    # variables start after the variables that belong to the set of common variables and are represented 
-                    # by its string name. We have to subtract the number of common variables as the first iterating variable
-                    # is always t1 and not t? being ? the position its the list of consultingValues
-                    for rule_pos, var_name in enumerate(rule.consultingValues[number_of_common_vars:], number_of_common_vars+1):
-                        temp_dict[var_name].append(rule_pos - number_of_common_vars)
-                          
-                    # Here we create a lists of lists removing the lists of only one member as that implies 
-                    # that is not a duplicated variable. Every list will contain the position of the duplicated 
-                    # variables
-                    lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
-                    
+                    if len(set(rule.consultingValues)) != 1:
+                        # The key of the dict will be the name of the variable.
+                        # The value of the dict will be a list containing the positions in which
+                        # the variable appears repeated
+                        temp_dict = defaultdict(list)
+                        # Here we compute the first occurrence of the variables.
+                        # We compute where the first string appears in the list.
+                        number_of_common_vars = sum(1 for x in rule.consultingValues if isinstance(x, int))
+                        # Here we iterate over the list of variables that are not in the set of common variables. The
+                        # variables start after the variables that belong to the set of common variables and are represented 
+                        # by its string name. We have to subtract the number of common variables as the first iterating variable
+                        # is always t1 and not t? being ? the position its the list of consultingValues
+                        for rule_pos, var_name in enumerate(rule.consultingValues[number_of_common_vars:], number_of_common_vars+1):
+                            temp_dict[var_name].append(rule_pos - number_of_common_vars)
+                              
+                        # Here we create a lists of lists removing the lists of only one member as that implies 
+                        # that is not a duplicated variable. Every list will contain the position of the duplicated 
+                        # variables
+                        lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                    else:
+                        lists_of_duplicated_vars = [list(xrange(len(rule.consultingValues)))]
+                        
                     # We only have to iterate over each list emitting code appropriately 
                     outfile.write('{}if('.format(tabs))
                     for pos, l in enumerate(lists_of_duplicated_vars):
-                        t = ['t{}->value'.format(x) for x in l]
+                        t = ['t{}'.format(x) for x in l]
+                        t = map(lambda x: x if (x == "t0") else x + "->value", t)
                         outfile.write('{}'.format(' == '.join(t)))
                         if pos != len(lists_of_duplicated_vars)-1:
                             outfile.write(' &&\n{}   '.format(tabs))
