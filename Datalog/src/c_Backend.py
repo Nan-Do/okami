@@ -658,26 +658,37 @@ def fillSolverCompute(outfile):
             # This is the debugging part
             outfile.write('\n#ifdef NDEBUG\n')
             
-            for view in predsToViewNames[rule.leftSideName]:
-                args = ', '.join('current->b.VAR_{}'.format(x) for 
-                            x in viewNamesToCombinations[view])
-                formatting = ', '.join(('%i' for _ in viewNamesToCombinations[view]))
-                
-                outfile.write('\t\tfprintf(stderr, "\\tData structure: ')
-                outfile.write('Adding {}({})\\n", {});\n'.format(view,
-                                                                formatting,
-                                                                args)) 
+            # Debug information: If the predicate has length 1 the it becomes a solution and has to be
+            # treated as such. Otherwise we insert a value into the list as normal
+            if left_pred_len == 1:
+                outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
+                outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(rule.leftSideName))
+            else:
+                for view in predsToViewNames[rule.leftSideName]:
+                    args = ', '.join('current->b.VAR_{}'.format(x) for
+                                     x in viewNamesToCombinations[view])
+                    formatting = ', '.join(('%i' for _ in viewNamesToCombinations[view]))
+
+                    outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
+                    outfile.write('Adding {}({})\\n", {});\n'.format(view,
+                                                                    formatting,
+                                                                    args))
             
             outfile.write('#endif\n')
             
-            # This is part in which we add the solution to the data structure        
-            for view in predsToViewNames[predicate]:
-                args = ', '.join('current->b.VAR_{}'.format(x) for 
-                            x in viewNamesToCombinations[view])
+            # This is part in which we add the solution to the data structure. If the predicate has length
+            # 1 we have to add directly the solution, as by convention there is no level node of length 0
+            # and the predicates of length 1 are turned into solutions
+            if left_pred_len == 1:
+                outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(rule.leftSideName))
+            else:
+                for view in predsToViewNames[predicate]:
+                    args = ', '.join('current->b.VAR_{}'.format(x) for
+                                     x in viewNamesToCombinations[view])
                 
-                outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(left_pred_len,
-                                                                       view,
-                                                                       args))
+                    outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(left_pred_len,
+                                                                         view,
+                                                                         args))
                 
         outfile.write('\t\t}\n\n')
         
@@ -789,11 +800,11 @@ def fillDataStructureInsertFunctions(outfile):
     # length of the predicate it represents. Views can only exist for predicates on the 
     # right side of the rules so we take the minimum and maximum lengths of the predicates
     # of right side of the rules and emit functions for those values and the values in between
-    min_length = min(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)))
-    max_length = max(chain((len(x.leftSideCons) for x in GenerationData.equationsTable if x.type == 2)))
+    # As we don't store a level0 type of node the minimum length we can have here is 2, that 
+    # is the reason why the max value between the minimum query value and 2 is used.
+    lengths = xrange(max(getQueryMinimumLength(), 2), getQueryMaximumLength()+1)
     
-    #for length in xrange(2, max_pred_len+1):
-    for length in xrange(min_length, max_length+1):
+    for length in lengths:
         args_to_function = ('int x_{}'.format(str(v+1)) for v in xrange(length))
         outfile.write('void Ds_insert_{}(int pos, {})'.format(length,
                                                               ", ".join(args_to_function)))
@@ -1011,8 +1022,9 @@ def fillDataStructureInitLevelFunctions(outfile):
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
     viewsData = []
     
-    lengths = list(xrange(getQueryMinimumLength(), getQueryMaximumLength()+1))
-    
+    # As we don't store a level0 type of node the minimum length we can have here is 2, that 
+    # is the reason why the max value between the minimum query value and 2 is used.
+    lengths = xrange(max(getQueryMinimumLength(), 2), getQueryMaximumLength()+1)
     for length in lengths:
         viewsData.append((length, viewLengths.count(length)))
 
@@ -1112,17 +1124,27 @@ def fillDataStructureLevelFreeFunctions(outfile):
         outfile.write('}\n\n')
 
 # As the level 0 is currently handled outside the level nodes this is necessary to store
-# the answers formed by only one predicate
-def fillDataStructureRootAnswers(outfile):
+# the answers formed by predicates with only one variable, also if we have predicates
+# of length 1 in the rules they became solutions as we don't have a level 0
+def fillDataStructureRootSolutions(outfile):
     answers_of_length_1 = set()
+    predicates_in_rules_of_length_1 = set()
     for rule in GenerationData.equationsTable:
         if len(rule.rightSideCons) == 1:
             answers_of_length_1.add(rule.rightSideName)
+        if len(rule.leftSideCons) == 1:
+            predicates_in_rules_of_length_1.add(rule.leftSideName)
             
     if answers_of_length_1:
+        outfile.write("/* Solution of length 1 */\n")
         line = ', '.join(['R{}'.format(answer) for answer in answers_of_length_1])
         outfile.write('static Pvoid_t {};\n'.format(line))
         
+    if predicates_in_rules_of_length_1:
+        outfile.write("/* Predicates of length 1*/\n")
+        line = ', '.join(['R{}'.format(answer) for answer in predicates_in_rules_of_length_1])
+        outfile.write('static Pvoid_t {};\n'.format(line))
+
 # This function only should be executed if there are predicates of length 2
 # If we only have type 1 rules we don't have level 2 nodes so this will
 # cause an error
@@ -1154,7 +1176,7 @@ fill_template = {
      'fill_DsLevelInitLevelFunctions' : fillDataStructureInitLevelFunctions,
      'fill_DsLevelNewNodeFunctions' : fillDataStructureLevelNewNodeFunctions,
      'fill_DsLevelFreeFunctions' : fillDataStructureLevelFreeFunctions,
-     'fill_DsRootAnswers'        : fillDataStructureRootAnswers,
+     'fill_DsRootAnswers'        : fillDataStructureRootSolutions,
      'fill_DsFreeLevel2Line'     : fillDataStructureLevel2Line
      }
 
