@@ -702,7 +702,7 @@ def fillIntList(outfile):
     
     # In case there is a rule with no common variables
     if requires_t0:
-        outfile.write('\tint t0;\n')
+        outfile.write('\tunsigned int t0;\n')
         
         # Check if the length of the comes from a rule with no common variables
         # in that case we have to subtract 1 to the value as we are already 

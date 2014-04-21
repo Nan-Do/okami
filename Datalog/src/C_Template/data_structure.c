@@ -43,7 +43,7 @@ void Ds_get_intValues_Level0_init(){
         first_value = 1;
 }
 
-int Ds_get_intValues_Level0(int *value){
+short Ds_get_intValues_Level0(unsigned int *value){
         Word_t * PValue;
 
         if (first_value){

@@ -10,7 +10,7 @@ extern void Ds_init();
 extern void Ds_free();
 
 extern void Ds_get_intValues_Level0_init();
-extern int Ds_get_intValues_Level0(int *);
+extern short Ds_get_intValues_Level0(unsigned int *);
 
 %% fill_DsQueryHeaderFunctions
 
