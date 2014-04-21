@@ -26,6 +26,7 @@ Datalog_Examples = ['flights.datalog',
                     'EqualCardsType2c.dl',
                     'EqualCardsType2d.dl',
                     'EqualCardsType2e.dl',
+                    'EqualCardsType2f.dl',
                     'example10.dl',
                     'example11.dl',
                     ]
