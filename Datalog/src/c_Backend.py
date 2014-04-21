@@ -123,12 +123,16 @@ def fillDataStructureQueryHeaderFunctions(outfile):
     min_length = getQueryMinimumLength()
     max_length = getQueryMaximumLength()
     
-    for value in xrange(min_length, max_length+1):
-        ints = ['int' for _ in xrange(value+1)]
-        outfile.write('extern void Ds_insert_{}({});\n'.format(str(value), ', '.join(ints)))
+    for length in xrange(min_length, max_length+1):
+        if length == 1:
+            ints = ['int' for _ in xrange(length)]
+        else:
+            ints = ['int' for _ in xrange(length + 1)]
+
+        outfile.write('extern void Ds_insert_{}({});\n'.format(str(length), ', '.join(ints)))
         
     outfile.write('\n')
-            
+
     ints = ['int', 'int']
     for p in xrange(max_length-1):
         outfile.write('extern intList * Ds_get_intList_{}({});\n'.format(str(p+1), ', '.join(ints)))
@@ -483,7 +487,13 @@ def fillSolverCompute(outfile):
                 # list of common variables taking the position.
                 if commonVars_len == 0:
                     outfile.write('{}Ds_get_intValues_Level0_init();\n'.format(tabs))
-                    outfile.write('{}while(Ds_get_intValues_Level0(&t0)){{\n'.format(tabs))                    
+                    outfile.write('{}while(Ds_get_intValues_Level0(&t0)'.format(tabs))
+                    # If the length of the predicate is one we also have to make sure that the value we obtain
+                    # is valid as we won't iterate to obtain more values
+                    if len(rule.consultingValues) == 1:
+                        outfile.write(' && (Ds_contains_solution_{}(t0))'.format(rule.consultingPred))
+                    outfile.write('){\n')
+
                 else:
                     # We don't have equal cards in the set of common variables, we just iterate over the set
                     # emitting code appropriately. 
@@ -634,14 +644,14 @@ def fillSolverCompute(outfile):
                     printtemp(tabs[:-2])
                 else:
                     printtemp(tabs[:-1])
-                
+
                 if equal_cards_rewriting_variable:
                     tabs = tabs[:-1]
-                    outfile.write('{}}}\n'.format(tabs, tabs))
+                    outfile.write('{}}}\n'.format(tabs))
                     
                 if equal_cards_query_not_common_vars:
                     tabs = tabs[:-1]
-                    outfile.write('{}}}\n'.format(tabs, tabs))
+                    outfile.write('{}}}\n'.format(tabs))
                 
                 for x in xrange(commonVars_len+1, len(rule.consultingValues)):
                     tabs = tabs[:-1]
@@ -681,6 +691,7 @@ def fillSolverCompute(outfile):
             # and the predicates of length 1 are turned into solutions
             if left_pred_len == 1:
                 outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(rule.leftSideName))
+                outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n'.format(rule.leftSideName))
             else:
                 for view in predsToViewNames[predicate]:
                     args = ', '.join('current->b.VAR_{}'.format(x) for
@@ -796,15 +807,44 @@ def fillDataStructureLevelNodes(outfile):
 
 @check_for_predicates_of_type2    
 def fillDataStructureInsertFunctions(outfile):
+    def print_code_for_Ds_insert_1():
+        tabs = '\t'
+        outfile.write('void Ds_insert_1(int x_1){\n')
+        outfile.write('{}Word_t * PValue1;\n\n'.format(tabs))
+        outfile.write('{}if (!(JLG(PValue1, root, x_1))){{\n'.format(tabs))
+        tabs += '\t'
+        outfile.write('{}JLI(PValue1, root, x_1);\n'.format(tabs))
+        outfile.write('{}if (PValue1 == PJERR){{\n'.format(tabs))
+        tabs += '\t'
+        outfile.write('{}fprintf(stderr, "Solver: Error allocating '.format(tabs))
+        outfile.write('memory %s:%i\\n", __FILE__, __LINE__);\n')
+        outfile.write('{}abort();\n'.format(tabs))
+        tabs = tabs[:-1]
+        outfile.write('{}}}\n'.format(tabs))
+        outfile.write('{}(*PValue1) = ((Word_t) DsData_Level_2_new_node());\n'.format(tabs))
+        tabs = tabs[:-1]
+        outfile.write('{}}}\n'.format(tabs))
+        outfile.write('}\n')
+
     # Here we emit code to deal with the views. The length of the views is the same of the
     # length of the predicate it represents. Views can only exist for predicates on the 
     # right side of the rules so we take the minimum and maximum lengths of the predicates
     # of right side of the rules and emit functions for those values and the values in between
-    # As we don't store a level0 type of node the minimum length we can have here is 2, that 
-    # is the reason why the max value between the minimum query value and 2 is used.
-    lengths = xrange(max(getQueryMinimumLength(), 2), getQueryMaximumLength()+1)
+    # As we don't store a level 1 node if the minimum length we have is 1, we need to
+    # emit slightly different code that is why the auxiliary function print_code_for_Ds_insert_1()
+    # is created and called if we detect a minimum length of 1
+    lengths = xrange(getQueryMinimumLength(), getQueryMaximumLength()+1)
     
     for length in lengths:
+        # We have to handle length 1 differently. If we detect that the current length is 1 as we don't
+        # have a level 1 node for the data structure we have to emit code differently that is why the
+        # auxiliary function code_for_Ds_insert_1 is invoked and then we continue the to the next length.
+        # We do it in this way as is easier to create an auxiliary function for this case that to add
+        # checks for the control flow to detect if we are in the length 1 case every time we emit code.
+        if length == 1:
+            print_code_for_Ds_insert_1()
+            continue
+
         args_to_function = ('int x_{}'.format(str(v+1)) for v in xrange(length))
         outfile.write('void Ds_insert_{}(int pos, {})'.format(length,
                                                               ", ".join(args_to_function)))
