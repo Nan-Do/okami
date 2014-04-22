@@ -712,7 +712,7 @@ def fillSolverFree(outfile):
     for predicate in outputTuples:
         outfile.write('\tfclose(fp_{});\n'.format(predicate))
 
-@check_for_predicates_of_type2  
+@check_for_predicates_of_type2
 def fillIntList(outfile):
     equationsTable = GenerationData.equationsTable
     
@@ -739,7 +739,12 @@ def fillIntList(outfile):
             length -= 1
             
     args = ', '.join(['*t{}'.format(str(x+1)) for x in xrange(length)])
-    outfile.write('\tintList {};\n'.format(args))
+
+    # If in the end the length is 0 that means that the intList will be empty. In that
+    # case doesn't make too much sense to emit code for it as it would only trigger a
+    # warning from the c compiler
+    if length > 0:
+        outfile.write('\tintList {};\n'.format(args))
 
 def fillDataStructureLevelNodes(outfile):
     equationsTable = GenerationData.equationsTable
@@ -821,7 +826,8 @@ def fillDataStructureInsertFunctions(outfile):
         outfile.write('{}abort();\n'.format(tabs))
         tabs = tabs[:-1]
         outfile.write('{}}}\n'.format(tabs))
-        outfile.write('{}(*PValue1) = ((Word_t) DsData_Level_2_new_node());\n'.format(tabs))
+        if getDataStructureNodesMaximumLength() > 1:
+            outfile.write('{}(*PValue1) = ((Word_t) DsData_Level_2_new_node());\n'.format(tabs))
         tabs = tabs[:-1]
         outfile.write('{}}}\n'.format(tabs))
         outfile.write('}\n')
@@ -1188,9 +1194,10 @@ def fillDataStructureRootSolutions(outfile):
 # This function only should be executed if there are predicates of length 2
 # If we only have type 1 rules we don't have level 2 nodes so this will
 # cause an error
-@check_for_predicates_of_type2        
+@check_for_predicates_of_type2
 def fillDataStructureLevel2Line(outfile):
-    outfile.write('\t\tDsData_Level_2_free((DsData_2 *) *PValue);\n')    
+    if getDataStructureNodesMaximumLength() > 1:
+        outfile.write('\t\tDsData_Level_2_free((DsData_2 *) *PValue);\n')
 
 # Function mapping for directives
 fill_template = {
