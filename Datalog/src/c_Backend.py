@@ -89,6 +89,19 @@ def getAllSolutions():
     solutions |= getPredicatesWithAllVariablesBeingTheSameEqualCard()
     return solutions
 
+# This function returns a list containing tuples in which the first element
+# is a predicate name and the second element is its length.
+def getAllPredicatesLengths():
+    data = []
+    for rule in GenerationData.equationsTable:
+        data.append((rule.leftSideName,
+                     len(rule.leftSideCons)))
+        data.append((rule.rightSideName,
+                     len(rule.rightSideCons)))
+
+    # Remove duplicates
+    return set(data)
+
 # utils.h
 def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
@@ -182,19 +195,8 @@ def fillOutputTuplesFiles(outfile):
     outfile.write(';\n')
     
 def fillPrintRewritingVariable(outfile):
-    data = []
-    for rule in GenerationData.equationsTable:
-        data.append((rule.leftSideName, 
-                     len(rule.leftSideCons)))
-        data.append((rule.rightSideName, 
-                     len(rule.rightSideCons)))
-
-    # Remove duplicates
-    data = set(data)
-    
-    i = 0
-    for pred_name, length in data:
-        if i == 0:
+    for position, (pred_name, length) in enumerate(getAllPredicatesLengths()):
+        if position == 0:
             conditional = 'if'
         else:
             conditional = 'else if'
@@ -204,22 +206,10 @@ def fillPrintRewritingVariable(outfile):
         
         outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_name))
         outfile.write('\t\tfprintf(file, "X_{}({}).", {});\n'.format(pred_name, formatting, variables))
-        i += 1
         
 def fillPrintAnswer(outfile):
-    data = []
-    for rule in GenerationData.equationsTable:
-        data.append((rule.leftSideName, 
-                     len(rule.leftSideCons)))
-        data.append((rule.rightSideName, 
-                     len(rule.rightSideCons)))
-
-    # Remove duplicates
-    data = set(data)
-    
-    i = 0
-    for pred_name, length in data:
-        if i == 0:
+    for position, (pred_name, length) in enumerate(getAllPredicatesLengths()):
+        if position == 0:
             conditional = 'if'
         else:
             conditional = 'else if'
@@ -229,7 +219,6 @@ def fillPrintAnswer(outfile):
         
         outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_name))
         outfile.write('\t\tfprintf(file, "{}({}).\\n", {});\n'.format(pred_name, formatting, variables))
-        i += 1
 
 def fillSolverInit(outfile):
     extensional = GenerationData.blocksOrder[0]
@@ -278,7 +267,7 @@ def fillSolverCompute(outfile):
             pred = rule.rightSideName
 
             if rule.type == 2:
-                tabs += '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x) 
+                tabs += '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x)\
                                         for x in rule.consultingValues))
                                 
             args = ', '.join('VAR.VAR_{}'.format(x) for 
@@ -1129,12 +1118,11 @@ def fillDataStructureLevelFreeFunctions(outfile):
     equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
 
-    number_of_data_structure_nodes = getDataStructureNodesMaximumLength()
     # This checks that we don't handle level 1 nodes as for the current generation model doesn't 
     # contemplate the possibility of having a level 1 node.
     #if min_value == 1: min_value += 1
     #lengths = xrange(min_value, max_value + 1)
-    lengths = xrange(2, number_of_data_structure_nodes + 1)
+    lengths = xrange(2, getDataStructureNodesMaximumLength() + 1)
     
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
@@ -1169,9 +1157,9 @@ def fillDataStructureLevelFreeFunctions(outfile):
         outfile.write('{}*&d = NULL;\n'.format(tabs))        
         outfile.write('}\n\n')
 
-# As the level 0 is currently handled outside the level nodes this is necessary to store
-# the answers formed by predicates with only one variable, also if we have predicates
-# of length 1 in the rules they became solutions as we don't have a level 0
+# As the level 1 node is currently treated diferently from the other type of nodes  
+# levels is necessary to store the solutions formed by heads of length 1, also if we 
+# have body predicates of length 1 in the rules they became solutions.
 def fillDataStructureRootSolutions(outfile):
     answers_of_length_1 = set()
     predicates_in_rules_of_length_1 = set()
@@ -1192,8 +1180,9 @@ def fillDataStructureRootSolutions(outfile):
         outfile.write('static Pvoid_t {};\n'.format(line))
 
 # This function only should be executed if there are predicates of length 2
-# If we only have type 1 rules we don't have level 2 nodes so this will
-# cause an error
+# If we only have type 1 rules we don't have level 2 nodes (as there is no database) 
+# so this will cause an error. Another case we have to handle is that if even having
+# rules of type 2 the maximum length is 1. 
 @check_for_predicates_of_type2
 def fillDataStructureLevel2Line(outfile):
     if getDataStructureNodesMaximumLength() > 1:
