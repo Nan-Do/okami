@@ -30,7 +30,8 @@ Datalog_Examples = ['flights.datalog',
                     'example10.dl',
                     'example11.dl',
                     'example12.dl',
-                    'example13.dl'
+                    'example13.dl',
+                    'example14.dl'
                     ]
 
 logging.basicConfig(level=logging.INFO,
