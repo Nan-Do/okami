@@ -20,10 +20,10 @@ from DecomposingMethods import rightMostDecomposingMethod, leftMostDecomposingMe
 
 
 def getDecomposerRuleMethod(method):
-    buildingRulesAlgorithims = {'leftMost' : leftMostDecomposingMethod,
-                                'rigthMost': rightMostDecomposingMethod,
+    buildingRulesAlgorithims = {'left' : leftMostDecomposingMethod,
+                                'right': rightMostDecomposingMethod,
                                 'random': randomDecomposingMethod,
-                                'commonVariables': commonVariablesDecomposingMethod}
+                                'common': commonVariablesDecomposingMethod}
     
     if method not in buildingRulesAlgorithims:
         logging.error("{} is an unknown method to decompose the rules".format(method))

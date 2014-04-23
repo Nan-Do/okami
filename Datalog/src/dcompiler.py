@@ -90,8 +90,8 @@ USAGE
         parser.add_argument("-v", "--verbosity", type=str, choices=['minimum', 'info', 'debug'],
                                     help="set output verbosity default is info")
         parser.add_argument("-p", "--print-variables", help='indicate which variables, separated by commas, will be printed if not indicated all the intensional predicates will be printed')
-        parser.add_argument("-r", "--decompose-program", help='it takes the specified datalog program and generates a decomposed version of it',
-                            action="store_true")
+        parser.add_argument("-r", "--decompose-program", type=str, choices=['left', 'right', 'random', 'common'], 
+                            help='it takes the specified datalog program and generates a decomposed version of it')
         parser.add_argument("-n", "--no-code", help='option for debugging purposes, when activated doesn\'t emit source code',
                             action="store_true")
 
@@ -136,7 +136,7 @@ USAGE
             logging.info("Decomposing {}".format(source_file))
             logging.info("Storing result at {}".format(dest_file))
             
-            decomposedRules = decomposeRulesFromFile(source_file)
+            decomposedRules = decomposeRulesFromFile(source_file, args.decompose_program)
             saveDecomposedRules(decomposedRules, dest_file)
             
             # TODO: Should we continue with the execution here?
