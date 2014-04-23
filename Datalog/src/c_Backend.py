@@ -711,19 +711,20 @@ def fillIntList(outfile):
     # of integers for the first level.
     requires_t0 = any(len(x.common_vars) == 0 for x in equationsTable if x.type == 2)
     # Obtain the number of variables we have to iterate over to generate new 
-    # answers. That value is the number of consulting values in a rule minus 
-    # the number of common variables 
-    length = max(len(x.consultingValues) - len(x.common_vars) for x in equationsTable if x.type == 2)
+    # answers. That value is the number of variables in the consulting values list
+    length = max(len(filter(lambda y: isinstance(y, str), x.consultingValues)) 
+                    for x in equationsTable if x.type == 2)
     
     # In case there is a rule with no common variables
     if requires_t0:
         outfile.write('\tunsigned int t0;\n')
         
-        # Check if the length of the comes from a rule with no common variables
-        # in that case we have to subtract 1 to the value as we are already 
+        # Check if the longest length comes from a rule with no common variables
+        # if that is the case then we have to subtract 1 to the value as we are already 
         # using t0. 
-        no_cvars_max_length = max(len(x.consultingValues) for x in equationsTable
-                                  if x.type == 2 and len(x.common_vars) == 0)
+        no_cvars_max_length = max(len(filter(lambda y: isinstance(y, str), x.consultingValues)) 
+                                  for x in equationsTable if x.type == 2 and len(x.common_vars) == 0)
+        
         if no_cvars_max_length == length:
             length -= 1
             
