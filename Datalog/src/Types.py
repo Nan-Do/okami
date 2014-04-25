@@ -6,6 +6,15 @@ Created on Jul 12, 2013
 
 from collections import namedtuple
 
+# TODO: Initial code to support usage of constants in the datalog programs
+# PredicateArgument is a named tuple used to hold the values of the arguments of a given
+# predicate. The values can only be "str" or "int" that value will be stored in the type
+# field using the "str" or the type value and the value filed will contain the value of 
+# the predicate a string representing the name in case of being a variable or an "int"
+# in case a constant is used.
+PredicateArgument = namedtuple('PredicateArgument', ['type', 'value'],
+                               verbose=False)
+
 #   LogicRule is a named tuple. Contents:
 #     head -> Tuple of two elements the first one is the name, 
 #             the second a list with the variables
@@ -27,7 +36,8 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'lineno', 'rule'],
 #     rightSideCons -> List of constants of the left side. List of integers
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
                                                'leftSideName', 'leftSideCons', 
-                                               'rightSideName', 'rightSideCons'])
+                                               'rightSideName', 'rightSideCons'],
+                            verbose=False)
 
 # May be add a field ViewName to store the viewName every rule is associated to.
 
@@ -47,7 +57,8 @@ RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
                                                'common_vars', 'consultingPred', 
                                                'consultingValues', 'aliasName', 
                                                'combinationView'
-                                               ])
+                                               ],
+                            verbose=False)
 
 # PredicateTypes is a named tuple that represents the different kind of 
 # predicates that we can find in a datalog program. 
@@ -58,7 +69,8 @@ RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
 # extensional -> A set with strings identifying all the extensional predicates 
 #                of the program. Extensional predicates are those not defined 
 #                by rules.
-PredicateTypes = namedtuple('PredicateTypes', ['intensional', 'extensional'])
+PredicateTypes = namedtuple('PredicateTypes', ['intensional', 'extensional'],
+                            verbose=False)
 
 # ViewsData is a named tuple that represents the information we need to
 # handle the different views our datalog program need
@@ -79,5 +91,6 @@ PredicateTypes = namedtuple('PredicateTypes', ['intensional', 'extensional'])
 #                     the longest combinations go first. This is required in 
 #                     order to have only one data structure in C.
 ViewsData = namedtuple('ViewsData',['viewNamesToCombinations', 'aliasToViewNames',
-                                    'predsToViewNames', 'viewsOrdering'])
+                                    'predsToViewNames', 'viewsOrdering'],
+                       verbose=False)
 
