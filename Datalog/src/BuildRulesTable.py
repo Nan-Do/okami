@@ -8,7 +8,7 @@ import sys
 import logging
 
 from Parser import parseRule
-from Utils import LogicRule, PredicateTypes
+from Types import LogicRule, PredicateTypes
 from collections import defaultdict
 
 def addRuleDependencyToGraph(graph, head, body):

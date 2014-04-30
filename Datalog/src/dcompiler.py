@@ -161,7 +161,7 @@ USAGE
         # It will return the equationsTable (a list) and the viewsData. In every row
         # of the equationsTable we have one of the required equations to obtain the 
         # solutions of the Datalog program. The ViewsData data structure (a named tuple
-        # longer description in utils.py) contains information about how to perform the 
+        # longer description in Types.py) contains information about how to perform the 
         # required operations (queries, navigations, etc...) using the data structure.
         equationsTable, viewsData = generateRules(rulesTable)
         

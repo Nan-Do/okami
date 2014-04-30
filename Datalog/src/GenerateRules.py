@@ -4,7 +4,7 @@ Created on Jul 11, 2013
 @author: nando
 '''
 
-from Utils import RewritingRule1, RewritingRule2, ViewsData
+from Types import RewritingRule1, RewritingRule2, ViewsData
 from itertools import chain
 from collections import defaultdict
 

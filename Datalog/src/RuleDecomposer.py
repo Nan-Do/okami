@@ -8,7 +8,7 @@ import sys
 import logging
 
 from Parser import parseRule
-from Utils import LogicRule
+from Types import LogicRule
 from DecomposingMethods import rightMostDecomposingMethod, leftMostDecomposingMethod,\
     commonVariablesDecomposingMethod, randomDecomposingMethod
 

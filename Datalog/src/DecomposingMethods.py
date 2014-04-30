@@ -4,7 +4,7 @@ Created on Feb 3, 2014
 @author: nando
 '''
 
-from Utils import LogicRule
+from Types import LogicRule
 from itertools import combinations
 
 import re
