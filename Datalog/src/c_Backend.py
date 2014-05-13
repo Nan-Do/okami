@@ -415,6 +415,7 @@ def fillSolverCompute(outfile):
                     outfile.write('{}}}\n'.format(tabs, tabs))
                     
             if rule.type == 2:
+                left_pred_len = len(rule.leftSideCons)
                 commonVars_len = len(rule.common_vars)
                 
                 # Manage the equal cards we have three cases. The equal cards can be in:
