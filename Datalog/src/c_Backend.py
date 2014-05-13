@@ -330,7 +330,56 @@ def fillSolverCompute(outfile):
                         '({})\\n",\n\t\t\t\t\t{});\n'.format(formatting,
                                                              args)
         outfile.write(output_string)
+        #outfile.write('#endif\n')
+        
+        # Here we emit code to add data to the data structure if we are in a type 2 rule.
+        # We emit debugging code via a c macro to check what is going to be added
+        # to the data structure. We show the view and the values being added.
+        # After we use the appropriate call to add the solution to the data structure
+        if predsToViewNames[predicate]:
+            # This is the debugging part
+            #outfile.write('\n#ifdef NDEBUG\n')
+              
+            # Debug information: If the predicate has length 1 the it becomes a solution and has to be
+            # treated as such. Otherwise we insert a value into the list as normal
+            if pred_length == 1:
+                outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
+                outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(predicate))
+            else:
+                for view in predsToViewNames[predicate]:
+                    args = ', '.join('current->b.VAR_{}'.format(x) for
+                                     x in viewNamesToCombinations[view])
+                    formatting = ', '.join(('%i' for _ in viewNamesToCombinations[view]))
+  
+                    outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
+                    outfile.write('Adding {}({})\\n", {});\n'.format(view,
+                                                                    formatting,
+                                                                    args))
+          
+        # This marks the end of the debug information macro this line has to be always emitted as 
+        # the portion of the handling the rewriting variable is always emitted and only the
+        # adding solution is optional if the predicate is part of a type 2 rule that is there is     
+        # a view associated with it
         outfile.write('#endif\n')
+        
+        # Unfortunately because of the problem of the previous line we have to recheck here if the
+        # predicate has a view associated with it
+        if predsToViewNames[predicate]:     
+            # This is part in which we add the solution to the data structure. If the predicate has length
+            # 1 we have to add directly the solution, as by convention there is no level node of length 0
+            # and the predicates of length 1 are turned into solutions
+            if pred_length == 1:
+                outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(predicate))
+                outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
+            else:
+                for view in predsToViewNames[predicate]:
+                    args = ', '.join('current->b.VAR_{}'.format(x) for
+                                     x in viewNamesToCombinations[view])
+                 
+                    outfile.write('\t\t\tDs_insert_{}({}, {});\n\n'.format(pred_length,
+                                                                         view,
+                                                                         args))
+        
                 
         tabs = '\t\t\t'
         for rule in rules:
@@ -647,49 +696,7 @@ def fillSolverCompute(outfile):
                     outfile.write('{}'.format(tabs))
                     outfile.write('}\n')
                     
-                outfile.write('\t\t\t}\n\n')
-        
-        # Here we emit code to add data to the data structure if we are in a type 2 rule.
-        # We emit debugging code via a c macro to check what is going to be added
-        # to the data structure. We show the view and the values being added.
-        # After we use the appropriate call to add the solution to the data structure
-        if rule.type == 2 and predsToViewNames[predicate]:
-            # This is the debugging part
-            outfile.write('\n#ifdef NDEBUG\n')
-            
-            # Debug information: If the predicate has length 1 the it becomes a solution and has to be
-            # treated as such. Otherwise we insert a value into the list as normal
-            if left_pred_len == 1:
-                outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
-                outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(rule.leftSideName))
-            else:
-                for view in predsToViewNames[rule.leftSideName]:
-                    args = ', '.join('current->b.VAR_{}'.format(x) for
-                                     x in viewNamesToCombinations[view])
-                    formatting = ', '.join(('%i' for _ in viewNamesToCombinations[view]))
-
-                    outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
-                    outfile.write('Adding {}({})\\n", {});\n'.format(view,
-                                                                    formatting,
-                                                                    args))
-            
-            outfile.write('#endif\n')
-            
-            # This is part in which we add the solution to the data structure. If the predicate has length
-            # 1 we have to add directly the solution, as by convention there is no level node of length 0
-            # and the predicates of length 1 are turned into solutions
-            if left_pred_len == 1:
-                outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(rule.leftSideName))
-                outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n'.format(rule.leftSideName))
-            else:
-                for view in predsToViewNames[predicate]:
-                    args = ', '.join('current->b.VAR_{}'.format(x) for
-                                     x in viewNamesToCombinations[view])
-                
-                    outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(left_pred_len,
-                                                                         view,
-                                                                         args))
-                
+                outfile.write('\t\t\t}\n')
         outfile.write('\t\t}\n\n')
         
 # In this function we emit code to close the file descriptors opened before
