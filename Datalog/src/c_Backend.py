@@ -261,7 +261,7 @@ def fillSolverInit(outfile):
         outfile.write('\tfp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(predicate, str(pos)))
     
 def fillSolverCompute(outfile):
-    def printtemp(tabs):
+    def printtemp(tabs, rule):
         # Do we have to store the answer??
         if rule.rightSideName in answersToStore:
             pred = rule.rightSideName
@@ -408,7 +408,7 @@ def fillSolverCompute(outfile):
                                                                                str(pos),
                                                                                str(answer_pos)))
                     
-                printtemp(tabs)
+                printtemp(tabs, rule)
                 
                 if have_equal_cards:
                     tabs = tabs[:-1]
@@ -679,9 +679,9 @@ def fillSolverCompute(outfile):
                 # TODO: The indentation is a little bit broken right now and should be checked
                 #       but is not mandatory for the well functioning of the compiler
                 if equal_cards_query_not_common_vars:
-                    printtemp(tabs[:-2])
+                    printtemp(tabs[:-2], rule)
                 else:
-                    printtemp(tabs[:-1])
+                    printtemp(tabs[:-1], rule)
 
                 if equal_cards_rewriting_variable:
                     tabs = tabs[:-1]
