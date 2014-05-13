@@ -681,9 +681,9 @@ def fillSolverCompute(outfile):
                 # TODO: The indentation is a little bit broken right now and should be checked
                 #       but is not mandatory for the well functioning of the compiler
                 if equal_cards_query_not_common_vars:
-                    printtemp(tabs[:-2], rule)
-                else:
                     printtemp(tabs[:-1], rule)
+                else:
+                    printtemp(tabs, rule)
 
                 if equal_cards_rewriting_variable:
                     tabs = tabs[:-1]
