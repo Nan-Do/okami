@@ -266,9 +266,9 @@ def fillSolverCompute(outfile):
         if rule.rightSideName in answersToStore:
             pred = rule.rightSideName
 
-            if rule.type == 2:
-                tabs += '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x)\
-                                        for x in rule.consultingValues))
+            #if rule.type == 2:
+            #    tabs = '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x)\
+            #                            for x in rule.consultingValues))
                                 
             args = ', '.join('VAR.VAR_{}'.format(x) for 
                             x in xrange(1, len(rule.rightSideCons)+1))
@@ -571,8 +571,11 @@ def fillSolverCompute(outfile):
                 
                 # Here we emit code for the rest of the required t levels that value is the number
                 # of consulting values minus the number of common variables which has already been
-                # used in the t1 level    
-                for x in xrange(commonVars_len+1, len(rule.consultingValues)):
+                # used in the t1 level
+                start = 2
+                if commonVars_len == 0:
+                    start = 1
+                for (x, y) in enumerate(xrange(commonVars_len+1, len(rule.consultingValues)), start=start):
                     if commonVars_len == 0:
                         args = 't0'
                         if x > 1: args += ', '
@@ -580,25 +583,25 @@ def fillSolverCompute(outfile):
                     else:
                         args = args_common + ', '
                         tabs = tabs + '\t' * (x - 1)
-                        
+                       
                     if not equal_cards_query_common_vars:
                         args += ', '.join(['t{}->value'.format(str(i))
                                            for i in xrange(1, x)])
                         outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                                      .format(tabs, x, x,
+                                      .format(tabs, x, y,
                                               aliasToViewNames[rule.aliasName],
                                               args))
                         outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
                                                                                   str(x)))
                     else:
                         args += ', '.join(['t{}->value'.format(str(i))
-                                           for i in xrange(1, (x-commonVars_len)+1)])
+                                           for i in xrange(1, (y-commonVars_len)+1)])
                         outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                                      .format(tabs, (x-commonVars_len)+1, x,
+                                      .format(tabs, (y-commonVars_len)+1, y,
                                               aliasToViewNames[rule.aliasName],
                                               args))
                         outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
-                                                                                  str((x-commonVars_len) + 1)))
+                                                                                  str((y-commonVars_len) + 1)))
                                       
                     outfile.write('{\n')
                 
