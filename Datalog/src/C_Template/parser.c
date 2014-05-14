@@ -8,8 +8,7 @@
 #include "parser.h"
 #include "utils.h"
 
-#define TAM_LINE 150
-#define TAM_FACT 20
+#define TAM_FACT 50
 
 int create_fact(const char *, Fact *);
 
