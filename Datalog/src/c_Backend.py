@@ -79,14 +79,28 @@ def getPredicatesWithAllVariablesBeingTheSameEqualCard():
     return answers
 
 
+def getPredicatesWithAllVariablesBeingInTheSharedSet():
+    answers = set()
+    for rule in GenerationData.equationsTable:
+        if (rule.leftSideName not in GenerationData.answersToStore and \
+                rule.type == 2 and
+                getPredicateLength(rule.consultingPred) == len(rule.common_vars)):
+            answers.add(rule.consultingPred)
+    return answers
+            
+
+
 # This function get the solutions of the Datalog program. It returns a set
 # containing the union of all the answers that must be stored represented by the 
 # set of answersToStore and all the predicates having all its variables being 
-# the same equal card.
+# the same equal card. Also all the predicates that belong to a rule of type 2
+# and all its variables are in the set of the Common variables are required to
+# be considered solutions.
 def getAllSolutions():
     solutions = set()
     solutions |= GenerationData.answersToStore
     solutions |= getPredicatesWithAllVariablesBeingTheSameEqualCard()
+    solutions |= getPredicatesWithAllVariablesBeingInTheSharedSet()
     return solutions
 
 # This function returns a list containing tuples in which the first element
@@ -375,10 +389,15 @@ def fillSolverCompute(outfile):
                 for view in predsToViewNames[predicate]:
                     args = ', '.join('current->b.VAR_{}'.format(x) for
                                      x in viewNamesToCombinations[view])
-                 
-                    outfile.write('\t\t\tDs_insert_{}({}, {});\n\n'.format(pred_length,
-                                                                         view,
-                                                                         args))
+                    
+                    if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet():
+                        outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(predicate,
+                                                                                  args))
+                    else:
+                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
+                                                                               view,
+                                                                               args))
+                    outfile.write('\n')
         
                 
         tabs = '\t\t\t'
@@ -554,7 +573,8 @@ def fillSolverCompute(outfile):
                     # that contributes only with one solution or with none.
                     # If we turn the list of consulting values into a set and the length is 1 that means that the predicate
                     # has all its variables the same equal card
-                    if (len(set(rule.consultingValues)) != 1):
+                    if (len(set(rule.consultingValues)) != 1 and\
+                        getPredicateLength(rule.consultingPred) != len(rule.common_vars)):
                         # Here we just emit code for t1 using the computed values
                         outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
                                       .format(tabs,
@@ -567,8 +587,7 @@ def fillSolverCompute(outfile):
                         outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
                                                                                      rule.consultingPred,
                                                                                      args_common))
-                        
-                
+
                 # Here we emit code for the rest of the required t levels that value is the number
                 # of consulting values minus the number of common variables which has already been
                 # used in the t1 level
@@ -786,11 +805,13 @@ def fillDataStructureLevelNodes(outfile):
                 outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred))
                 
         # Check if we have to add a new solution because there is a predicate having
-        # all the variables the same Equal card
-        for pred in getPredicatesWithAllVariablesBeingTheSameEqualCard():
+        # all the variables the same Equal card or there is a predicate having all
+        # its variables part of the set of common variables  
+        for pred in chain(getPredicatesWithAllVariablesBeingTheSameEqualCard(),
+                          getPredicatesWithAllVariablesBeingInTheSharedSet()):
             if pred not in answersToStore and getPredicateLength(pred) == length:
                 outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred))
-                
+               
         if pos != len(lengths) - 1:
             # This is purely esthetic if we have some views in the level we 
             # print a blank line to split the intList declaration from the
