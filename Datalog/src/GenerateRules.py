@@ -75,11 +75,17 @@ def generateRuleType_2a(rule, rule_number):
             right_constants.append(var)
             
     other_hyp_cons = []
-    common_vars = set()
+    # As the list should not contain duplicates we use a set to avoid adding duplicates 
+    # to the list.
+    common_vars = []
+    temp_common_vars = set()
     for pos, var in enumerate(hyp2[1], start=1):
         if var in  d:
             other_hyp_cons.append(d[var])
-            common_vars.add((var, d[var]))
+            element = (var, d[var]) 
+            if (element not in temp_common_vars):
+                common_vars.append(element)
+                temp_common_vars.add(element)
         else: 
             other_hyp_cons.append(var)
             
@@ -120,11 +126,17 @@ def generateRuleType_2b(rule, rule_number):
             right_constants.append(var)
             
     other_hyp_cons = []
-    common_vars = set()
+    # As the list should not contain duplicates we use a set to avoid adding duplicates 
+    # to the list.
+    common_vars = []
+    temp_common_vars = set()
     for pos, var in enumerate(hyp1[1], start=1):
         if var in  d:
             other_hyp_cons.append(d[var])
-            common_vars.add((var, d[var]))
+            element = (var, d[var]) 
+            if (element not in temp_common_vars):
+                common_vars.append(element)
+                temp_common_vars.add(element)
         else: 
             other_hyp_cons.append(var)
             

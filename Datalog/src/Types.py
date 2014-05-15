@@ -48,7 +48,8 @@ RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type',
 #     leftSideCons -> List of constants of the left side. List of integers
 #     rightSideName -> Name of the left side variable
 #     rightSideCons -> List of constants of the left side. List of integers and variable names
-#     common_vars -> set containing the names of the variables which are shared
+#     common_vars -> list of tuples containing the names of the variables and its position inside the rule.
+#                    It only stores the variables which are shared, it respects the order inside the rule.
 #     consultingPred -> Name of the predicate that will be consulted
 #     consultingValues -> List of the variables that 
 RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
