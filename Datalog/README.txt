@@ -5,6 +5,8 @@ src/
 - This directory includes the source code for the compiler
 examples/
 - Some datalog examples to be used with the compiler
+experiments/
+- Scripts to help in the execution of the experiments
 tests/
 - tests cases for the compiler
 
@@ -18,7 +20,7 @@ In ubuntu it can be installed with:
 
 The different options of the compiler are explained in the help.
 In order to work the compiler expects the directory C_Template to exist
-in the same directory as the main.py (and the rest of py files).
+in the same directory as the main.py / dcompiler.py (and the rest of py files).
 The compiler will generate an output directory called Solver_C_code. The location
 of this directory can be controlled by the input parameters.
 The generated solver will expect several input file called as the different extensional predicates of the datalog program.
@@ -32,7 +34,7 @@ A(9,9).
 
 For example for Andersen's pointer analysis:
 -Generate the source code for the solver (starting at src dir):
-   python main.py -p vP ../examples/pointerAnalysis.dl
+   python dcompiler.py -p vP ../examples/pointerAnalysis.dl
 
 -Compile the solver:
    cd Solver_C_code
