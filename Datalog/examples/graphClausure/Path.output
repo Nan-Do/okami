@@ -1,6 +1,0 @@
-Path(1, 2).
-Path(2, 3).
-Path(3, 4).
-Path(1, 3).
-Path(2, 4).
-Path(1, 4).
