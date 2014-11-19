@@ -32,79 +32,97 @@ def buildDictWithVars(variables):
     # position of a variable. As it goes from left to right the first time a 
     # var appear will fix the index for that variable  
     r = {}
-    for (pos, var) in enumerate(variables):
+    for (pos, var) in enumerate(variables, start=1):
         if var not in r:
-            r[var] = pos+1
+            r[var] = pos
     return r
 
     # One liners that doesn't work properly
     #return {var: 'c_' + str(pos+1) for (pos, var) in enumerate(variables)}
     #return {var: pos+1 for (pos, var) in enumerate(variables)}
         
+# This function generates rewriting rules for logic rules of type 1 it just 
+# creates a dictionary whose keys are the variables of the body, which will
+# be the left side of the rewriting rule, and its position as a value then
+# it just translates the variables into the correct ordering.
 def generateRuleType_1(rule, rule_number):
     head, body = rule.head, rule.body[0]
+    # Create the mapping with the positions of the hypothesis of the body
     d = buildDictWithVars(body[1])
     
-    used_vars = {}    
+    #used_vars = {}    
     left_constants = []
     right_constants = []
 
+    # Translate the variables of the head, the right side of the rewriting rule.
     for var in head[1]:
         right_constants.append(d[var])
     
-    for pos, var in enumerate(body[1], start=1):
-        if var in used_vars:
-            left_constants.append((var, used_vars[var]))
-        else:
-            used_vars[var] = pos 
-            left_constants.append((var, pos))
+    # Translate the variables of the hypothesis, the left side of the rewriting rule.    
+    for var in body[1]:
+        left_constants.append((var, d[var]))
+    
+    #for pos, var in enumerate(body[1], start=1):
+    #    if var in used_vars:
+    #        left_constants.append((var, used_vars[var]))
+    #    else:
+    #        used_vars[var] = pos 
+    #        left_constants.append((var, pos))
         
     return RewritingRule1(rule_number, 1, body[0], 
                           left_constants, head[0], 
                           right_constants)
     
 def generateRuleType_2a(rule, rule_number):
-    head, hyp1, hyp2 = rule.head, rule.body[0], rule.body[1] 
+    head, hyp1, hyp2 = rule.head, rule.body[0], rule.body[1]
+    # Create the mapping with the positions of the hypothesis of the body
     d = buildDictWithVars(hyp1[1])
     
+    # Here we have to check if the variable is in the dictionary as the variables of the
+    # head can also be part of the other hypothesis of the rule.
     right_constants = []
-    for pos,var in enumerate(head[1]):
+    for var in head[1]:
         if var in d:
             right_constants.append(d[var])
         else:
             right_constants.append(var)
-            
-    other_hyp_cons = []
-    # As the list should not contain duplicates we use a set to avoid adding duplicates 
-    # to the list.
+
+    # This var will contain a list with the variables of the other hypthesis, 
+    # the variables will be a Variable or an integer representing a position in the list
+    # of common variables
+    other_hypothesis = []
+    # Common_vars will contain a list of the common vars. As the list should not contain
+    # duplicates we use a temp set to avoid adding duplicates them.
     common_vars = []
     temp_common_vars = set()
     for pos, var in enumerate(hyp2[1], start=1):
         if var in  d:
-            other_hyp_cons.append(d[var])
+            other_hypothesis.append(d[var])
             element = (var, d[var]) 
             if (element not in temp_common_vars):
                 common_vars.append(element)
                 temp_common_vars.add(element)
         else: 
-            other_hyp_cons.append(var)
+            other_hypothesis.append(var)
             
     # When we add the left constants of the rewriting rule we have to check if
     # it is a repeated variable in that case use the first position in which
     # appears 
     left_constants = []
-    for pos, var in enumerate(hyp1[1], start=0):
-        if var not in hyp1[1][:pos]:
-            left_constants.append((var,pos+1))
-        else:
-            left_constants.append((var,hyp1[1].index(var)+1))
+    #for pos, var in enumerate(hyp1[1], start=0):
+    #    if var not in hyp1[1][:pos]:
+    #        left_constants.append((var,pos+1))
+    #    else:
+    #        left_constants.append((var,hyp1[1].index(var)+1))
+    for var in hyp1[1]:
+        left_constants.append((var, d[var]))
         
     # Get the view name
     view = []
-    order, combination = give_correct_order_for_view(other_hyp_cons)
+    order, combination = give_correct_order_for_view(other_hypothesis)
     for element in order:
         if isinstance(element, int):
-            view.append(hyp2[1][other_hyp_cons.index(element)])
+            view.append(hyp2[1][other_hypothesis.index(element)])
         else:
             view.append(element)
      
@@ -125,38 +143,40 @@ def generateRuleType_2b(rule, rule_number):
         else:
             right_constants.append(var)
             
-    other_hyp_cons = []
+    other_hypothesis = []
     # As the list should not contain duplicates we use a set to avoid adding duplicates 
     # to the list.
     common_vars = []
     temp_common_vars = set()
     for pos, var in enumerate(hyp1[1], start=1):
         if var in  d:
-            other_hyp_cons.append(d[var])
+            other_hypothesis.append(d[var])
             element = (var, d[var]) 
             if (element not in temp_common_vars):
                 common_vars.append(element)
                 temp_common_vars.add(element)
         else: 
-            other_hyp_cons.append(var)
+            other_hypothesis.append(var)
             
     # When we add the left constants of the rewriting rule we have to check if
     # it is a repeated variable in that case use the first position in which
     # appears 
     left_constants = []
-    for pos, var in enumerate(hyp2[1], start=0):
-        if var not in hyp2[1][:pos]:
-            left_constants.append((var,pos+1))
-        else:
-            left_constants.append((var,hyp2[1].index(var)+1))
+    #for pos, var in enumerate(hyp2[1], start=0):
+    #    if var not in hyp2[1][:pos]:
+    #        left_constants.append((var,pos+1))
+    #    else:
+    #        left_constants.append((var,hyp2[1].index(var)+1))
+    for var in hyp2[1]:
+        left_constants.append((var, d[var]))
             
         
     # Get the view name
     view = []
-    order, combination = give_correct_order_for_view(other_hyp_cons)
+    order, combination = give_correct_order_for_view(other_hypothesis)
     for element in order:
         if isinstance(element, int):
-            view.append(hyp1[1][other_hyp_cons.index(element)])
+            view.append(hyp1[1][other_hypothesis.index(element)])
         else:
             view.append(element)
             
@@ -186,6 +206,10 @@ def check_consulting_values(consulting_values):
     
     return True
 
+# This function gives an order for the views it keeps track of the integers,
+# the integer represent the position of the shared variables. The new ordering
+# put the integers at the beginning in the new ordering while keeping track of the
+# changes on the combination which will be the combination that identifies the view. 
 def give_correct_order_for_view(consultingValues):
     new_order = []
     combination = list(xrange(1, len(consultingValues)+1))
