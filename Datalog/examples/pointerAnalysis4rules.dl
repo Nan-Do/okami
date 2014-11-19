@@ -1,0 +1,4 @@
+vP(V1, H1) :- vP0(V1, H1).
+vP(V1, H1) :- assign(V1, V2), vP(V2, H1).
+hP(H1, F, H2) :- store(V1, F, V2), vP(V1, H1), vP(V2, H2).
+vP(V1, H1) :- load(V2, F, V1), vP(V2, H2), hP(H2, F, H1). 

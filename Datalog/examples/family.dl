@@ -1,0 +1,6 @@
+father(X,Y) :- parent(X,Y), male(X).
+mother(X,Y) :- parent(X,Y), female(X).
+sibling(X,Y) :- parent(P,Y), parent(P,X).
+sister(X,Y) :- sibling(X,Y), female(X).
+brother(X,Y) :- sibling(X,Y), male(X).
+grandparent(X,Y) :- parent(P,Y), parent(X,P).

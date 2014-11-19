@@ -1,6 +1,6 @@
 vP(X, Y) :- vP0(X, Y).
-vP(X, Y) :- A(X, Z), vP(Z, Y).
-temp1(Z, Y, S) :- S(X, S, Z), vP(X, Y).
+vP(X, Y) :- a(X, Z), vP(Z, Y).
+temp1(Z, Y, S) :- st(X, S, Z), vP(X, Y).
 hP(Y, S, T) :- temp1(Z, Y, S), vP(Z, T).
-temp2(Y, S, Z) :- L(X, S, Z), vP(X, Y).
+temp2(Y, S, Z) :- ld(X, S, Z), vP(X, Y).
 vP(Z, T) :- temp2(Y, S, Z), hP(Y, S, T).
