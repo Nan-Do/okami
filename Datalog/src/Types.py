@@ -6,14 +6,12 @@ Created on Jul 12, 2013
 
 from collections import namedtuple
 
-# TODO: Initial code to support usage of constants in the datalog programs
-# PredicateArgument is a named tuple used to hold the values of the arguments of a given
+# Argument is a named tuple used to hold the values of the arguments of a given
 # predicate. The values can only be "str" or "int" that value will be stored in the type
 # field using the "str" or the type value and the value filed will contain the value of 
 # the predicate a string representing the name in case of being a variable or an "int"
 # in case a constant is used.
-PredicateArgument = namedtuple('PredicateArgument', ['type', 'value'],
-                               verbose=False)
+Argument = namedtuple('Argument', ['type', 'value'], verbose=False)
 
 #   LogicRule is a named tuple. Contents:
 #     head -> Tuple of two elements the first one is the name, 

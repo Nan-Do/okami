@@ -5,6 +5,7 @@ Created on Jan 27, 2014
 '''
 
 from itertools import repeat
+from Types import Argument
 
 def removeRuleSpaces(rule):
     return "".join([x for x in rule if x != " " and x != " \t" and x != "\n"])
@@ -24,8 +25,19 @@ def get_predicate(rule, start_position):
     if rule.find('(', end_name_position+1, last_var_position) != -1:
         return None, start_position
     
-    variables = rule[end_name_position+1:last_var_position].split(",")
-    return (name, variables), last_var_position+1
+    #variables = rule[end_name_position+1:last_var_position].split(",")
+    # Here we check if the 
+    string_arguments = rule[end_name_position+1:last_var_position].split(",")
+    arguments = []
+    for arg in string_arguments:
+        try:
+            arguments.append(Argument('constant', int(arg)))
+        except ValueError:
+            arguments.append(Argument('variable', arg))
+    #print arguments
+        
+    #return (name, variables), last_var_position+1
+    return (name, arguments), last_var_position+1
 
 def get_head_separator(rule, start_position):
     """ Checks that from the starting position what we have is the head rule

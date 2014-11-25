@@ -13,10 +13,28 @@ def printRewritingEquations(EquationsTable):
     def parentify(x): return '(' + x + ')'
     
     for eq in EquationsTable:
-        left_constants = ", ".join(['c_' + str(x[1]) for x in eq.leftSideCons])
-        right_constants = ", ".join([stringify(x) for x in eq.rightSideCons])
-        rewriting_rule = "x_" + eq.leftSideName + parentify(left_constants) +\
-            " => " +  "x_" + eq.rightSideName + parentify(right_constants)
+        # To build the left side we have to check if we are dealing with a variable and its position
+        # or with a constant if it is a variable we switch by its position and if it is a constant
+        # we just plug it.
+        left_side = []
+        for argument, position in  eq.leftSideCons:
+            if argument.type == 'variable':
+                left_side.append('c_' + str(position))
+            else:
+                left_side.append(str(argument.value))
+        left_side = ", ".join(left_side)
+                
+        # Here we are doing the same but for the right side.
+        right_side = []
+        for argument, position in  eq.rightSideCons:
+            if argument.type == 'variable':
+                right_side.append('c_' + str(position))
+            else:
+                right_side.append(str(argument.value))
+        right_side = ", ".join(right_side)
+        
+        rewriting_rule = "x_" + eq.leftSideName + parentify(left_side) +\
+            " => " +  "x_" + eq.rightSideName + parentify(right_side)
         if eq.type == 2:
             consulting_values = ', '.join([stringify(x) for x in eq.consultingValues])
             consulting_variables = ', '.join([x for x in eq.consultingValues if isinstance(x, str)])
@@ -27,14 +45,14 @@ def printRewritingEquations(EquationsTable):
                 
         print rewriting_rule
 
-def buildDictWithVars(variables):
+def buildDictWithVars(arguments):
     # We have to check that we don't update the dict with the last appearing
     # position of a variable. As it goes from left to right the first time a 
     # var appear will fix the index for that variable  
     r = {}
-    for (pos, var) in enumerate(variables, start=1):
-        if var not in r:
-            r[var] = pos
+    for (pos, arg) in enumerate(arguments, start=1):
+        if arg.type == 'variable' and arg not in r:
+            r[arg] = pos
     return r
 
     # One liners that doesn't work properly
@@ -47,45 +65,48 @@ def buildDictWithVars(variables):
 # it just translates the variables into the correct ordering.
 def generateRuleType_1(rule, rule_number):
     head, body = rule.head, rule.body[0]
-    # Create the mapping with the positions of the hypothesis of the body
+    # Create the mapping with the positions of the arguments of the body
+    # that are variables if the argument is a constant it won't do anything
     d = buildDictWithVars(body[1])
     
-    #used_vars = {}    
-    left_constants = []
-    right_constants = []
+    left_side = []
+    right_side = []
 
-    # Translate the variables of the head, the right side of the rewriting rule.
-    for var in head[1]:
-        right_constants.append(d[var])
+    # Translate the variables of the head to the right side of the rewriting rule.
+    # At the right side we store the argument and the first position of the 
+    # argument in case we are dealing with a variable otherwise we store the
+    # argument and the position of the argument inside
+    for (pos, arg) in enumerate(head[1], start=1):
+        if arg.type == 'variable':
+            right_side.append((arg, d[arg]))
+        else:
+            right_side.append((arg, pos))
     
-    # Translate the variables of the hypothesis, the left side of the rewriting rule.    
-    for var in body[1]:
-        left_constants.append((var, d[var]))
+    # Same as the previous loop but in this case for the body of the logic rule
+    # which will become the right side of the rewriting equation.
+    for (pos, arg) in enumerate(body[1], start=1):
+        if arg.type == 'variable':
+            left_side.append((arg, d[arg]))
+        else:
+            left_side.append((arg, pos))
     
-    #for pos, var in enumerate(body[1], start=1):
-    #    if var in used_vars:
-    #        left_constants.append((var, used_vars[var]))
-    #    else:
-    #        used_vars[var] = pos 
-    #        left_constants.append((var, pos))
-        
     return RewritingRule1(rule_number, 1, body[0], 
-                          left_constants, head[0], 
-                          right_constants)
+                          left_side, head[0], 
+                          right_side)
     
 def generateRuleType_2a(rule, rule_number):
     head, hyp1, hyp2 = rule.head, rule.body[0], rule.body[1]
     # Create the mapping with the positions of the hypothesis of the body
     d = buildDictWithVars(hyp1[1])
     
-    # Here we have to check if the variable is in the dictionary as the variables of the
-    # head can also be part of the other hypothesis of the rule.
-    right_constants = []
-    for var in head[1]:
-        if var in d:
-            right_constants.append(d[var])
+    # Translate the variables of the head to the right side of the rewriting rule.
+    # Same as for type 1 rules
+    right_side = []
+    for (pos, arg) in enumerate(head[1], start=1):
+        if arg.type == 'variable' and arg in d:
+            right_side.append((arg, d[arg]))
         else:
-            right_constants.append(var)
+            right_side.append((arg, pos))
 
     # This var will contain a list with the variables of the other hypthesis, 
     # the variables will be a Variable or an integer representing a position in the list
@@ -95,27 +116,26 @@ def generateRuleType_2a(rule, rule_number):
     # duplicates we use a temp set to avoid adding duplicates them.
     common_vars = []
     temp_common_vars = set()
-    for pos, var in enumerate(hyp2[1], start=1):
-        if var in  d:
-            other_hypothesis.append(d[var])
-            element = (var, d[var]) 
+    for (pos, arg) in enumerate(hyp2[1], start=1):
+        if arg in  d:
+            other_hypothesis.append(d[arg])
+            element = (arg, d[arg]) 
             if (element not in temp_common_vars):
                 common_vars.append(element)
                 temp_common_vars.add(element)
         else: 
-            other_hypothesis.append(var)
+            other_hypothesis.append(arg)
             
     # When we add the left constants of the rewriting rule we have to check if
     # it is a repeated variable in that case use the first position in which
     # appears 
-    left_constants = []
-    #for pos, var in enumerate(hyp1[1], start=0):
-    #    if var not in hyp1[1][:pos]:
-    #        left_constants.append((var,pos+1))
-    #    else:
-    #        left_constants.append((var,hyp1[1].index(var)+1))
-    for var in hyp1[1]:
-        left_constants.append((var, d[var]))
+    left_side = []
+    for (pos, arg) in enumerate(hyp1[1], start=1):
+        if arg.type == 'variable':
+            left_side.append((arg, d[arg]))
+        else:
+            left_side.append((arg, pos))
+        
         
     # Get the view name
     view = []
@@ -125,23 +145,23 @@ def generateRuleType_2a(rule, rule_number):
             view.append(hyp2[1][other_hypothesis.index(element)])
         else:
             view.append(element)
-     
-    view_name = hyp2[0] + '_' + ''.join(view).lower()
     
-    return RewritingRule2(rule_number, 2, hyp1[0], left_constants, head[0], 
-                          right_constants, common_vars, hyp2[0], order, 
+    view_name = hyp2[0] + '_' + ''.join([str(x.value) for x in view]).lower()
+    
+    return RewritingRule2(rule_number, 2, hyp1[0], left_side, head[0], 
+                          right_side, common_vars, hyp2[0], order, 
                           view_name, combination)
     
 def generateRuleType_2b(rule, rule_number):
     head, hyp1, hyp2 = rule.head, rule.body[0], rule.body[1] 
     d = buildDictWithVars(hyp2[1])
     
-    right_constants = []
-    for pos,var in enumerate(head[1]):
-        if var in d:
-            right_constants.append(d[var])
+    right_side = []
+    for (pos, arg) in enumerate(head[1], start=1):
+        if arg.type == 'variable' and arg in d:
+            right_side.append((arg, d[arg]))
         else:
-            right_constants.append(var)
+            right_side.append((arg, pos))
             
     other_hypothesis = []
     # As the list should not contain duplicates we use a set to avoid adding duplicates 
@@ -167,8 +187,12 @@ def generateRuleType_2b(rule, rule_number):
     #        left_constants.append((var,pos+1))
     #    else:
     #        left_constants.append((var,hyp2[1].index(var)+1))
-    for var in hyp2[1]:
-        left_constants.append((var, d[var]))
+    left_side = []
+    for (pos, arg) in enumerate(hyp2[1], start=1):
+        if arg.type == 'variable':
+            left_side.append((arg, d[arg]))
+        else:
+            left_side.append((arg, pos))
             
         
     # Get the view name
@@ -180,10 +204,10 @@ def generateRuleType_2b(rule, rule_number):
         else:
             view.append(element)
             
-    view_name = hyp1[0] + '_' + ''.join(view).lower()
+    view_name = hyp1[0] + '_' + ''.join([str(x.value) for x in view]).lower()
     
     return RewritingRule2(rule_number, 2, hyp2[0], left_constants, head[0],
-                          right_constants, common_vars, hyp1[0], order, 
+                          right_side, common_vars, hyp1[0], order, 
                           view_name, combination)  
         
 def analyzeRule(rule):
