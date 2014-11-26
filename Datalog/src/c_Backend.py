@@ -718,6 +718,8 @@ def fillSolverCompute(outfile):
                                 outfile.write('t{}->value;\n'.format(str(t_index-1)))
                         else:
                             outfile.write('t{}->value;\n'.format(str(t_index)))
+                    elif isinstance(var, Argument) and var.type == 'constant':
+                        outfile.write('{};\n'.format(str(var.value)))
                     else:
                         outfile.write('current->b.VAR_{};\n'.format(str(var)))
                 
