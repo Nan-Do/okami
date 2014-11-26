@@ -19,12 +19,13 @@ def printRewritingEquations(EquationsTable):
     def parentify(x): return '(' + x + ')'
     
     for eq in EquationsTable:
+        print eq
         # Here we create the string representation of the left side of a rule. It must be formed by
         # constants this constants. This constants can be represented by the variables of the rule in
         # which case are propagated through the rewriting variable or by constants specified on the
         # program itself.
         left_side = []
-        for argument, position in  eq.leftSideCons:
+        for argument, position in eq.leftSideCons:
             if argument.type == 'variable':
                 left_side.append('c_' + str(position))
             else:
@@ -33,11 +34,11 @@ def printRewritingEquations(EquationsTable):
                 
         # Here we are doing the same but for the right side.
         right_side = []
-        for argument, position in  eq.rightSideCons:
-            if argument.type == 'variable':
-                right_side.append('c_' + str(position))
+        for element in  eq.rightSideCons:
+            if isinstance(element, int):
+                right_side.append('c_' + str(element))
             else:
-                right_side.append(str(argument.value))
+                right_side.append(str(element.value))
         right_side = ", ".join(right_side)
         
         # Here we create the rule. 
@@ -83,11 +84,11 @@ def generateRuleType_1(rule, rule_number):
     # argument in case we are dealing with a variable otherwise we store the
     # argument and the position of the argument inside
     right_side = []
-    for (pos, arg) in enumerate(head[1], start=1):
+    for (_, arg) in enumerate(head[1], start=1):
         if arg.type == 'variable':
-            right_side.append((arg, d[arg]))
+            right_side.append(d[arg])
         else:
-            right_side.append((arg, pos))
+            right_side.append(arg)
     
     # Same as the previous loop but in this case for the body of the logic rule
     # which will become the right side of the rewriting equation.
@@ -115,11 +116,11 @@ def generateRuleType_2a(rule, rule_number):
     # Translate the variables of the head to the right side of the rewriting rule.
     # Same as for type 1 rules
     right_side = []
-    for (pos, arg) in enumerate(head[1], start=1):
+    for (_, arg) in enumerate(head[1], start=1):
         if arg.type == 'variable' and arg in d:
-            right_side.append((arg, d[arg]))
+            right_side.append(d[arg])
         else:
-            right_side.append((arg, pos))
+            right_side.append(arg)
 
     # This var will contain a list with the variables of the other hypothesis, 
     # the variables will be a Variable or an integer representing a position in the list
@@ -172,11 +173,11 @@ def generateRuleType_2b(rule, rule_number):
     d = buildVarsDictFromArgs(hyp2[1])
     
     right_side = []
-    for (pos, arg) in enumerate(head[1], start=1):
+    for (_, arg) in enumerate(head[1], start=1):
         if arg.type == 'variable' and arg in d:
-            right_side.append((arg, d[arg]))
+            right_side.append(d[arg])
         else:
-            right_side.append((arg, pos))
+            right_side.append(arg)
             
     other_hypothesis = []
     # As the list should not contain duplicates we use a set to avoid adding duplicates 
