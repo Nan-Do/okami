@@ -324,7 +324,7 @@ def fillSolverCompute(outfile):
         rules = (x for x in equationsTable
                        if x.leftSideName == predicate)
 
-        outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate ))
+        outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate))
         outfile.write('{\n')
         
         # Do we have to print the variable
@@ -405,31 +405,55 @@ def fillSolverCompute(outfile):
             if rule.type == 1:
                 # Do we have equal cards? If so we need to be sure they match before process the variable 
                 have_equal_cards = (len(set(rule.leftSideCons)) != len(rule.leftSideCons))
+                # Check if we have constant arguments (constants propagated trough the datalog source code
+                list_of_argument_constants = [ x for x in rule.leftSideCons if x[0].type == 'constant']
+                have_argument_constants = (list_of_argument_constants)
                 if have_equal_cards:
-                        temp_dict = defaultdict(list)
-                        for rule_pos, (var_name, _) in enumerate(rule.leftSideCons, 1):
-                            temp_dict[var_name].append(rule_pos)
-                            
-                        lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                    temp_dict = defaultdict(list)
+                    for rule_pos, (var_name, _) in enumerate(rule.leftSideCons, 1):
+                        temp_dict[var_name].append(rule_pos)
                         
+                    lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                    
+                    outfile.write('{}if('.format(tabs))
+                    for pos, l in enumerate(lists_of_duplicated_vars):
+                        t = ['current->b.VAR_{}'.format(x) for x in l]
+                        outfile.write('{}'.format(' == '.join(t)))
+                        if pos != len(lists_of_duplicated_vars)-1:
+                            outfile.write(' &&\n{}   '.format(tabs))
+                if have_argument_constants:
+                    if have_equal_cards:
+                        outfile.write(' &&\n{}   '.format(tabs))
+                    else:
                         outfile.write('{}if('.format(tabs))
-                        for pos, l in enumerate(lists_of_duplicated_vars):
-                            t = ['current->b.VAR_{}'.format(x) for x in l]
-                            outfile.write('{}'.format(' == '.join(t)))
-                            if pos != len(lists_of_duplicated_vars)-1:
-                                outfile.write(' &&\n{}   '.format(tabs))
-                        outfile.write('){\n')
-                        tabs += '\t'
+                        
+                    for pos, elem in enumerate(list_of_argument_constants):
+                        outfile.write('current->b.VAR_{} == {}'.format(elem[1], 
+                                                                       str(elem[0].value)))
+                        if pos != len(list_of_argument_constants)-1:
+                            outfile.write(' &&\n{}   '.format(tabs))
+                        
+                if have_equal_cards or have_argument_constants:
+                    outfile.write('){\n')
+                    tabs += '\t'
                         
                 outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightSideName))
                 for pos, answer_pos in enumerate(rule.rightSideCons, 1):
-                    outfile.write('{}VAR.VAR_{} = current->b.VAR_{};\n'.format(tabs,
-                                                                               str(pos),
-                                                                               str(answer_pos)))
+                    # Check if we are dealing with a constant propagated trough the datalog source code.
+                    # If we have an integer here it means it is a rewriting constant propagated value
+                    # otherwise it is a constant specified on the datalog source code.
+                    if isinstance(answer_pos, int):
+                        outfile.write('{}VAR.VAR_{} = current->b.VAR_{};\n'.format(tabs,
+                                                                                   str(pos),
+                                                                                   str(answer_pos)))
+                    else:
+                        outfile.write('{}VAR.VAR_{} = {};\n'.format(tabs,
+                                                                    str(pos),
+                                                                    str(answer_pos.value)))
                     
                 printtemp(tabs, rule)
                 
-                if have_equal_cards:
+                if have_equal_cards or have_argument_constants:
                     tabs = tabs[:-1]
                     outfile.write('{}}}\n'.format(tabs, tabs))
                     
