@@ -49,7 +49,7 @@ def printRewritingEquations(EquationsTable):
             consulting_variables = ', '.join([x.value for x in eq.consultingValues if (isinstance(x, Argument) and x.type == 'variable')])
             
             rewriting_rule += " " + unichr(8704) + parentify(consulting_variables) + " " + unichr(8712) +\
-                " " + eq.aliasName + parentify(consulting_values)
+                "  " + eq.aliasName + parentify(consulting_values)
             rewriting_rule.encode('utf-8')
                 
         print rewriting_rule
