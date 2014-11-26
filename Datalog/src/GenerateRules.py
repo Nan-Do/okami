@@ -258,7 +258,7 @@ def give_correct_order_for_view(consultingValues):
             new_order.insert(count, consultingValues[i])
             combination.insert(count, combination.pop(i))
             count += 1
-        else:
+        elif consultingValues[i].type == 'variable':
             new_order.append(consultingValues[i])
             
     return new_order, combination
