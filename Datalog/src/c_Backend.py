@@ -12,6 +12,7 @@ from collections import namedtuple, defaultdict
 from itertools import count, chain
 from datetime import datetime
 from functools import wraps
+from Types import Argument
 
 # Settings for the parser
 DELIMITER = '%%'
@@ -652,7 +653,7 @@ def fillSolverCompute(outfile):
                     tabs = '\t\t\t\t'
                 else:
                     tabs = '\t\t\t'
-                tabs += '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x) 
+                tabs += '\t' * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x) 
                                         for x in rule.consultingValues))
                 
                 outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
@@ -707,7 +708,7 @@ def fillSolverCompute(outfile):
                 # predicate.
                 for pos, var in enumerate(rule.rightSideCons, start=1):
                     outfile.write('{}VAR.VAR_{} = '.format(tabs, pos))
-                    if isinstance(var, str):
+                    if isinstance(var, Argument) and var.type == 'variable':
                         t_index = rule.consultingValues.index(var) + 1\
                                    - commonVars_len
                         if commonVars_len == 0:
@@ -764,7 +765,7 @@ def fillIntList(outfile):
     requires_t0 = any(len(x.common_vars) == 0 for x in equationsTable if x.type == 2)
     # Obtain the number of variables we have to iterate over to generate new 
     # answers. That value is the number of variables in the consulting values list
-    length = max(len(filter(lambda y: isinstance(y, str), x.consultingValues)) 
+    length = max(len(filter(lambda y: isinstance(y, Argument) and y.type == 'variable', x.consultingValues)) 
                     for x in equationsTable if x.type == 2)
     
     # In case there is a rule with no common variables
@@ -774,7 +775,7 @@ def fillIntList(outfile):
         # Check if the longest length comes from a rule with no common variables
         # if that is the case then we have to subtract 1 to the value as we are already 
         # using t0. 
-        no_cvars_max_length = max(len(filter(lambda y: isinstance(y, str), x.consultingValues)) 
+        no_cvars_max_length = max(len(filter(lambda y: isinstance(y, Argument) and y.type == 'variable', x.consultingValues)) 
                                   for x in equationsTable if x.type == 2 and len(x.common_vars) == 0)
         
         if no_cvars_max_length == length:
