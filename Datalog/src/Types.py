@@ -6,19 +6,17 @@ Created on Jul 12, 2013
 
 from collections import namedtuple
 
-# Argument is a named tuple used to hold the values of the arguments of a given
-# predicate. The values can only be "str" or "int" that value will be stored in the type
-# field using the "str" or the type value and the value filed will contain the value of 
-# the predicate a string representing the name in case of being a variable or an "int"
-# in case a constant is used.
+# Argument is a named tuple. Type will hold the type (variable or constant) 
+# value will contain the value of the argument. In case of a constant it
+# will contain the integer value. Right now constants can only be integers.
 Argument = namedtuple('Argument', ['type', 'value'], verbose=False)
 
 #   LogicRule is a named tuple. Contents:
 #     head -> Tuple of two elements the first one is the name, 
-#             the second a list with the variables
+#             the second a list of arguments.
 #     body -> List of tuples. Every tuple contains two elements,
 #             the first one the name of the predicate and the
-#             second one the list of variables
+#             second one the list of arguments.
 #     type -> The type of the rules (How many hypothesis it has 1 or 2)
 #     lineno -> The line of the rule in the file
 #     rule -> string representation of the rule 
@@ -29,12 +27,12 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'lineno', 'rule'],
 #     ruleNumber -> The logic rule number associated to the rewriting rule
 #     type -> The type of the rules (How many hypothesis it has 1 or 2)
 #     leftSideName -> Name of the left side variable
-#     leftSideCons -> List of constants of the left side. List of integers
+#     leftSideArgs -> List of arguments of the left side of the rewriting rule.
 #     rightSideName -> Name of the left side variable
-#     rightSideCons -> List of constants of the left side. List of integers
+#     rightSideArgs -> List of arguments of the right side of the rewriting rule.
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
-                                               'leftSideName', 'leftSideCons', 
-                                               'rightSideName', 'rightSideCons'],
+                                               'leftSideName', 'leftSideArgs', 
+                                               'rightSideName', 'rightSideArgs'],
                             verbose=False)
 
 # May be add a field ViewName to store the viewName every rule is associated to.
@@ -43,18 +41,18 @@ RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type',
 #     ruleNumber -> The logic rule number associated to the rewriting rule
 #     type -> The type of the rules (How many hypothesis it has 1 or 2)
 #     leftSideName -> Name of the left side variable
-#     leftSideCons -> List of constants of the left side. List of integers
+#     leftSideArgs -> List of arguments of the left side of the rewriting rule.
 #     rightSideName -> Name of the left side variable
-#     rightSideCons -> List of constants of the left side. List of integers and variable names
+#     rightSideArgs -> List of arguments of the right side of the rewriting rule.
 #     common_vars -> list of tuples containing the names of the variables and its position inside the rule.
 #                    It only stores the variables which are shared, it respects the order inside the rule.
 #     consultingPred -> Name of the predicate that will be consulted
-#     consultingValues -> List of the variables that 
+#     consultingArgs -> List of arguments containing the values that will be queried on the database
 RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
-                                               'leftSideName', 'leftSideCons', 
-                                               'rightSideName', 'rightSideCons', 
+                                               'leftSideName', 'leftSideArgs', 
+                                               'rightSideName', 'rightSideArgs', 
                                                'common_vars', 'consultingPred', 
-                                               'consultingValues', 'aliasName', 
+                                               'consultingArgs', 'aliasName', 
                                                'combinationView'
                                                ],
                             verbose=False)

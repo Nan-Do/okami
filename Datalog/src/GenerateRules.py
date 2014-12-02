@@ -23,7 +23,7 @@ def rewritingEquationPrinter(EquationsTable):
         # which case are propagated through the rewriting variable or by constants specified on the
         # program itself.
         left_side = []
-        for argument, position in eq.leftSideCons:
+        for argument, position in eq.leftSideArgs:
             if argument.type == 'variable':
                 left_side.append('c_' + str(position))
             else:
@@ -32,7 +32,7 @@ def rewritingEquationPrinter(EquationsTable):
                 
         # Here we are doing the same but for the right side.
         right_side = []
-        for element in  eq.rightSideCons:
+        for element in  eq.rightSideArgs:
             if isinstance(element, int):
                 right_side.append('c_' + str(element))
             else:
@@ -44,8 +44,8 @@ def rewritingEquationPrinter(EquationsTable):
             " => " +  "x_" + eq.rightSideName + parentify(right_side)
         # If we are dealing with a type 2 rule we have to construct the database query for it.
         if eq.type == 2:
-            consulting_values = ', '.join([stringify(x) for x in eq.consultingValues])
-            consulting_variables = ', '.join([x.value for x in eq.consultingValues if (isinstance(x, Argument) and x.type == 'variable')])
+            consulting_values = ', '.join([stringify(x) for x in eq.consultingArgs])
+            consulting_variables = ', '.join([x.value for x in eq.consultingArgs if (isinstance(x, Argument) and x.type == 'variable')])
             
             rewriting_rule += " " + unichr(8704) + parentify(consulting_variables) + " " + unichr(8712) +\
                 "  " + eq.aliasName + parentify(consulting_values)
@@ -239,10 +239,10 @@ def check_consulting_values(consulting_values):
 # integers (shared variables) and constant arguments at the beginning of the 
 # new ordering. It also keeps tracking of the changes made on the combination. 
 # This set of changes will be the identifier for the view. The function returns
-# the new ordering which is the list of consultingValues reordered and the
+# the new ordering which is the list of consultingArgs reordered and the
 # combination which is the list.
-def constructOrderingForView(consultingValues):
-    new_order = consultingValues[:]
+def constructOrderingForView(consultingArgs):
+    new_order = consultingArgs[:]
     combination = list(xrange(1, len(new_order)+1))
     count = 0
     
@@ -293,7 +293,7 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
             for rewriting_rule in [generateRuleType_2a(logic_rule, rule_number),
                               generateRuleType_2b(logic_rule, rule_number)]:
                 
-                if (not check_consulting_values(rewriting_rule.consultingValues)):
+                if (not check_consulting_values(rewriting_rule.consultingArgs)):
                     print "Warning with rule: " + logic_rule.rule + " Consulting predicate " +\
                         rewriting_rule.consultingPred + " has to create another view " +\
                         rewriting_rule.aliasName
