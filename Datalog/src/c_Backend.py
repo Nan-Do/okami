@@ -567,7 +567,6 @@ def fillSolverCompute(outfile):
                         tabs = tabs[:-1]
                         outfile.write("{}}}\n".format(tabs))
                 
-                # NO ESTOY MUY SEGURO DE QUE ESTO VAYA AQUI DE MOMENTO EN LOS TESTS FUNCIONA PERO HAY QUE HACER MAS PRUEBAS.
                 elif argument_constants_left_side:
                     outfile.write('{}if('.format(tabs))
                     
@@ -702,7 +701,6 @@ def fillSolverCompute(outfile):
                                       
                     outfile.write('{\n')
                 
-                # ANADIDO or argument_constants_left_side PARA EQUILIBRAR EL NUMERO DE TABS
                 if equal_cards_rewriting_variable or argument_constants_left_side\
                  or argument_constants_consulting_values:
                     tabs = '\t\t\t\t'
