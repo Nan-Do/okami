@@ -88,7 +88,18 @@ def getPredicatesWithAllVariablesBeingInTheSharedSet():
                 getPredicateLength(rule.consultingPred) == len(rule.common_vars)):
             answers.add(rule.consultingPred)
     return answers
-            
+
+def getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
+    answers = set()
+    for rule in GenerationData.equationsTable:
+        if (rule.leftSideName not in GenerationData.answersToStore and \
+                rule.type == 2):
+            argument_constants = [x for x in rule.consultingArgs if isinstance(x, Argument)
+                                       and x.type == "constant"]
+            if (getPredicateLength(rule.consultingPred) - len(argument_constants))\
+                   == len(rule.common_vars):
+                answers.add(rule.consultingPred)
+    return answers            
 
 
 # This function get the solutions of the Datalog program. It returns a set
@@ -102,6 +113,7 @@ def getAllSolutions():
     solutions |= GenerationData.answersToStore
     solutions |= getPredicatesWithAllVariablesBeingTheSameEqualCard()
     solutions |= getPredicatesWithAllVariablesBeingInTheSharedSet()
+    solutions |= getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()
     return solutions
 
 # This function returns a list containing tuples in which the first element
@@ -887,8 +899,10 @@ def fillDataStructureLevelNodes(outfile):
         # Check if we have to add a new solution because there is a predicate having
         # all the variables the same Equal card or there is a predicate having all
         # its variables part of the set of common variables  
-        for pred in chain(getPredicatesWithAllVariablesBeingTheSameEqualCard(),
-                          getPredicatesWithAllVariablesBeingInTheSharedSet()):
+        #for pred in chain(getPredicatesWithAllVariablesBeingTheSameEqualCard(),
+        #                  getPredicatesWithAllVariablesBeingInTheSharedSet(),
+        #                  getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()):
+        for pred in getAllSolutions():
             if pred not in answersToStore and getPredicateLength(pred) == length:
                 outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred))
                
