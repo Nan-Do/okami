@@ -28,7 +28,7 @@ from argparse import RawDescriptionHelpFormatter
 # Compiler code imports
 from BuildRulesTable import buildRulesTable
 from RuleDecomposer import decomposeRulesFromFile, saveDecomposedRules
-from GenerateRules import generateRules, printRewritingEquations
+from GenerateRules import rewritingEquationGenerator, rewritingEquationPrinter
 from PredicateOrder import predicateOrder
 from c_Backend import generate_code_from_template
 
@@ -163,7 +163,7 @@ USAGE
         # solutions of the Datalog program. The ViewsData data structure (a named tuple
         # longer description in Types.py) contains information about how to perform the 
         # required operations (queries, navigations, etc...) using the data structure.
-        equationsTable, viewsData = generateRules(rulesTable)
+        equationsTable, viewsData = rewritingEquationGenerator(rulesTable)
         
         # This function establishes the ordering for the different predicates
         # the algorithm is an optimization that imposes an scheduling to the
@@ -204,7 +204,7 @@ USAGE
             logging.debug("    " + str(view))
         
         if args.show_rewriting_equations:
-            printRewritingEquations(equationsTable)
+            rewritingEquationPrinter(equationsTable)
             sys.exit()
             
         logging.debug("Block order:")

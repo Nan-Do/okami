@@ -8,9 +8,8 @@ from Types import RewritingRule1, RewritingRule2, ViewsData, Argument
 from itertools import chain
 from collections import defaultdict
 
-# This function takes care of make a pretty printing of the rewriting equations 
-# for a given program. It takes the table of equations and
-def printRewritingEquations(EquationsTable):
+# This function takes care of pretty printing the rewriting equations.
+def rewritingEquationPrinter(EquationsTable):
     # This auxiliary function makes an string of the parameter it receives. If
     # it is an integer it means it is a propagated constant trough the rewriting 
     # variable, if it is an argument it means it can be a constant specified on 
@@ -19,7 +18,6 @@ def printRewritingEquations(EquationsTable):
     def parentify(x): return '(' + x + ')'
     
     for eq in EquationsTable:
-        print eq
         # Here we create the string representation of the left side of a rule. It must be formed by
         # constants this constants. This constants can be represented by the variables of the rule in
         # which case are propagated through the rewriting variable or by constants specified on the
@@ -58,7 +56,7 @@ def printRewritingEquations(EquationsTable):
 # In this function we create a dictionary whose keys will be the arguments
 # which represents variables and the values are its positions inside the 
 # predicate. This function is used as a base for the reordering algorithms 
-def buildVarsDictFromArgs(arguments):
+def constructVarsMappingFromArgs(arguments):
     # We have to check that we don't update the dictionary with the last appearing
     # position of a variable. As it goes from left to right the first time a 
     # variable appear will fix the index for that variable.  
@@ -71,13 +69,13 @@ def buildVarsDictFromArgs(arguments):
      
 # This function generates the rewriting rules for logic rules of type 1. It 
 # reorders the values to its right position both for the left side of the
-# and the right side of the rule. The core it is the buildVarsDictFromArgs
+# and the right side of the rule. The core it is the constructVarsMappingFromArgs
 # function. It also takes care of the constants of the original program.
 def generateRuleType_1(rule, rule_number):
     head, body = rule.head, rule.body[0]
     # Create the mapping with the positions of the arguments of the body
     # that are variables if the argument is a constant it won't do anything
-    d = buildVarsDictFromArgs(body[1])
+    d = constructVarsMappingFromArgs(body[1])
     
     # Translate the variables of the head to the right side of the rewriting rule.
     # At the right side we store the argument and the first position of the 
@@ -111,7 +109,7 @@ def generateRuleType_1(rule, rule_number):
 def generateRuleType_2a(rule, rule_number):
     head, hyp1, hyp2 = rule.head, rule.body[0], rule.body[1]
     # Create the mapping with the positions of the hypothesis of the body
-    d = buildVarsDictFromArgs(hyp1[1])
+    d = constructVarsMappingFromArgs(hyp1[1])
     
     # Translate the variables of the head to the right side of the rewriting rule.
     # Same as for type 1 rules
@@ -153,7 +151,7 @@ def generateRuleType_2a(rule, rule_number):
         
     # Get the view name
     view = []
-    order, combination = give_correct_order_for_view(other_hypothesis)
+    order, combination = constructOrderingForView(other_hypothesis)
     for element in order:
         if isinstance(element, int):
             view.append(hyp2[1][other_hypothesis.index(element)])
@@ -170,7 +168,7 @@ def generateRuleType_2a(rule, rule_number):
 # other hypothesis of the rules of type 2.  
 def generateRuleType_2b(rule, rule_number):
     head, hyp1, hyp2 = rule.head, rule.body[0], rule.body[1] 
-    d = buildVarsDictFromArgs(hyp2[1])
+    d = constructVarsMappingFromArgs(hyp2[1])
     
     right_side = []
     for (_, arg) in enumerate(head[1], start=1):
@@ -204,7 +202,7 @@ def generateRuleType_2b(rule, rule_number):
         
     # Get the view name
     view = []
-    order, combination = give_correct_order_for_view(other_hypothesis)
+    order, combination = constructOrderingForView(other_hypothesis)
     for element in order:
         if isinstance(element, int):
             view.append(hyp1[1][other_hypothesis.index(element)])
@@ -237,33 +235,50 @@ def check_consulting_values(consulting_values):
     
     return True
 
-# This function gives an order for the views it keeps track of the integers,
-# the integer represent the position of the shared variables. The new ordering
-# put the integers at the beginning in the new ordering while keeping track of the
-# changes on the combination which will be the combination that identifies the view. 
-def give_correct_order_for_view(consultingValues):
-    new_order = []
-    combination = list(xrange(1, len(consultingValues)+1))
+# This function provides the ordering for the view. The new ordering put the
+# integers (shared variables) and constant arguments at the beginning of the 
+# new ordering. It also keeps tracking of the changes made on the combination. 
+# This set of changes will be the identifier for the view. The function returns
+# the new ordering which is the list of consultingValues reordered and the
+# combination which is the list.
+def constructOrderingForView(consultingValues):
+    new_order = consultingValues[:]
+    combination = list(xrange(1, len(new_order)+1))
     count = 0
     
-    for i in xrange(len(consultingValues)):
-        if isinstance(consultingValues[i], int):
-            new_order.append(consultingValues[i])
+    # First we put the integers on the list. These ints represents the
+    # shared variables on the original datalog program.
+    for i in xrange(len(new_order)):
+        if isinstance(new_order[i], int):
             count += 1
         else:
             break
         
-    for i in xrange(count, len(consultingValues)):
-        if isinstance(consultingValues[i], int):
-            new_order.insert(count, consultingValues[i])
+    for i in xrange(count, len(new_order)):
+        if isinstance(new_order[i], int):
+            new_order.insert(count, new_order.pop(i))
             combination.insert(count, combination.pop(i))
             count += 1
-        elif consultingValues[i].type == 'variable':
-            new_order.append(consultingValues[i])
             
+    # Then we put the arguments that are constants. These represents the
+    # constants on the original datalog program.
+    for i in xrange(count, len(new_order)):
+        if isinstance(new_order[i], Argument) and\
+          new_order[i].type == "constant":
+            count += 1
+        else:
+            break
+            
+    for i in xrange(count, len(new_order)):
+        if isinstance(new_order[i], Argument) and\
+          new_order[i].type == "constant":
+            new_order.insert(count, new_order.pop(i))
+            combination.insert(count, combination.pop(i))
+            count += 1
+           
     return new_order, combination
             
-def generateRules(rulesTable, printEquations=False):
+def rewritingEquationGenerator(rulesTable, printEquations=False):
     equationsTable = []
     predicate_to_ViewData = defaultdict(list)
     alias_to_ViewNames = {}
