@@ -32,7 +32,18 @@ Datalog_Examples = ['flights.datalog',
                     'example12.dl',
                     'example13.dl',
                     'example14.dl',
-                    'example15.dl'
+                    'example15.dl',
+                    'constants1.dl',
+                    'constants2.dl',
+                    'constants3.dl',
+                    'constants4.dl',
+                    'constants5.dl',
+                    'constants6.dl',
+                    'constants7.dl',
+                    'constants8.dl',
+                    'constants9.dl',
+                    'constants10.dl',
+                    'constants11.dl'
                     ]
 
 logging.basicConfig(level=logging.INFO,
