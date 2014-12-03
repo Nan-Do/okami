@@ -94,11 +94,12 @@ def getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
     for rule in GenerationData.equationsTable:
         if (rule.leftSideName not in GenerationData.answersToStore and \
                 rule.type == 2):
-            argument_constants = [x for x in rule.consultingArgs if isinstance(x, Argument)
-                                       and x.type == "constant"]
-            if (getPredicateLength(rule.consultingPred) - len(argument_constants))\
-                   == len(rule.common_vars):
+            argument_constants = [x for x in rule.consultingArgs if isinstance(x, int) or  
+                                    (isinstance(x, Argument) and x.type == "constant")]
+            
+            if len(rule.consultingArgs) == len(argument_constants):
                 answers.add(rule.consultingPred)
+                
     return answers            
 
 
@@ -403,11 +404,22 @@ def fillSolverCompute(outfile):
                     args = ', '.join('current->b.VAR_{}'.format(x) for
                                      x in viewNamesToCombinations[view])
                     
-                    if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet():
+                    #if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet():
+                    if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
+                                        getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
                         outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(predicate,
                                                                                   args))
-                    else:
-                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
+#                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
+#                                                                               view,
+#                                                                               args))
+#                    else:
+#                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
+#                                                                               view,
+#                                                                               args))
+                    # TODO: Optimization
+                    #       Check that the predicate appears in other rule otherwise this sentence 
+                    #       is not required
+                    outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
                                                                                view,
                                                                                args))
                     outfile.write('\n')
@@ -647,7 +659,8 @@ def fillSolverCompute(outfile):
                     #if (len(set(rule.consultingArgs)) != 1 and\
                     #    getPredicateLength(rule.consultingPred) != len(rule.common_vars)):
                     if (len(set([x for x in rule.consultingArgs if not (isinstance(x, Argument) and x.type=='constant')])) != 1 and\
-                        getPredicateLength(rule.consultingPred) != len(rule.common_vars)):
+                        getPredicateLength(rule.consultingPred) != len(rule.common_vars) and 
+                        sum([1 for x in rule.consultingArgs if isinstance(x, int) or (isinstance(x, Argument) and x.type=='constant')]) != len(rule.consultingArgs)):
                         # Here we just emit code for t1 using the computed values
                         outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
                                       .format(tabs,
