@@ -41,7 +41,7 @@ def buildRulesTable(filename, test=False):
         if line[0] == '\n': continue
         
         try:
-            rule = parseRule(line, check_restricted=True)
+            (head, body) = parseRule(line, check_restricted=True)
         except ValueError as v:
             if not test:
                 logging.error('Parsing:%s:Line:%i', filename, line_no)
@@ -49,11 +49,11 @@ def buildRulesTable(filename, test=False):
 
             sys.exit(0)
             
-        body_predicates = [body_pred[0] for body_pred in rule[1]]
-        head_preds.add(rule[0][0])
+        body_predicates = [predicate.name for predicate in body]
+        head_preds.add(head.name)
         body_preds.update(body_predicates)
-        addRuleDependencyToGraph(dependency_graph, rule[0][0], body_predicates)
-        rulesTable.append(LogicRule(rule[0], rule[1], len(rule[1]), line_no+1, line))
+        addRuleDependencyToGraph(dependency_graph, head.name, body_predicates)
+        rulesTable.append(LogicRule(head, body, len(body), line_no+1, line))
             
     f.close()
     return (rulesTable, PredicateTypes(head_preds, body_preds.difference(head_preds)), dependency_graph)

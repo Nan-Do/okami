@@ -15,35 +15,45 @@ def random_generator(size=6, chars=string.ascii_letters+string.digits):
 def removeRuleSpaces(rule):
     return "".join([x for x in rule if x != " " and x != " \t" and x != "\n"])
 
-def get_predicate(rule, start_position):
-    """ This function is used to parse a predicate of the 
-    form NAME(VAR1,...,VARN) from the start position"""
-    
-    end_name_position = rule.find('(', start_position)
-    if end_name_position == -1:
-        return None, start_position
-    name = rule[start_position:end_name_position]
-    unique_id = name + '_' + random_generator(3)
-    last_var_position = rule.find(')', end_name_position+1)
-    if end_name_position == -1:
-        return None, start_position
-    
-    if rule.find('(', end_name_position+1, last_var_position) != -1:
-        return None, start_position
-    
-    #variables = rule[end_name_position+1:last_var_position].split(",")
-    # Here we check if the 
-    string_arguments = rule[end_name_position+1:last_var_position].split(",")
-    arguments = []
-    for arg in string_arguments:
-        try:
-            arguments.append(Argument('constant', int(arg)))
-        except ValueError:
-            arguments.append(Argument('variable', arg))
-    #print arguments
+def decorate_get_predicate():
+    unique_ids = {}
+    def get_predicate_function(rule, start_position):
+        """ This function is used to parse a predicate of the 
+        form NAME(VAR1,...,VARN) from the start position"""
         
-    #return (name, variables), last_var_position+1
-    return Predicate(name, unique_id, False, arguments), last_var_position+1
+        end_name_position = rule.find('(', start_position)
+        if end_name_position == -1:
+            return None, start_position
+        name = rule[start_position:end_name_position]
+        
+        if name in unique_ids:
+            unique_id = unique_ids[name]
+        else:
+            unique_id = name + '_' + random_generator(3)
+            unique_ids[name] = unique_id
+
+        last_var_position = rule.find(')', end_name_position+1)
+        if end_name_position == -1:
+            return None, start_position
+        
+        if rule.find('(', end_name_position+1, last_var_position) != -1:
+            return None, start_position
+        
+        #variables = rule[end_name_position+1:last_var_position].split(",")
+        # Here we check if the 
+        string_arguments = rule[end_name_position+1:last_var_position].split(",")
+        arguments = []
+        for arg in string_arguments:
+            try:
+                arguments.append(Argument('constant', int(arg)))
+            except ValueError:
+                arguments.append(Argument('variable', arg))
+        #print arguments
+            
+        #return (name, variables), last_var_position+1
+        return Predicate(name, unique_id, False, arguments), last_var_position+1
+    return get_predicate_function
+get_predicate = decorate_get_predicate()
 
 def get_head_separator(rule, start_position):
     """ Checks that from the starting position what we have is the head rule

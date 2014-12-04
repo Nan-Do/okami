@@ -162,7 +162,7 @@ def generateRuleType_2a(rule, rule_number):
         else:
             view.append(element)
     
-    view_name = hyp_2[0] + '_' + ''.join([str(x.value) for x in view]).lower()
+    view_name = hyp_2.name + '_' + ''.join([str(x.value) for x in view]).lower()
     
     left_side_var = Variable(hyp_1.name, hyp_1.unique_id, False)
     right_side_var = Variable(head.name, head.unique_id, False)
