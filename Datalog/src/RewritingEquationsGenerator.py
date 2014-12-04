@@ -314,7 +314,7 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
                         rewriting_rule.consultingPred + " has to create another view " +\
                         rewriting_rule.aliasName
                 
-                consultingPred = rewriting_rule.consultingPred
+                consultingPred = rewriting_rule.consultingPred.name
                 combinationView = rewriting_rule.combinationView
                 aliasName = rewriting_rule.aliasName  
                 
@@ -322,9 +322,9 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
                 viewName = next((x[0] for x in c if combinationView == x[1]), None)
                 if viewName == None:
                     if len(c) == 0:
-                        viewName = consultingPred.name + '_view_1'
+                        viewName = consultingPred + '_view_1'
                     else:
-                        viewName = consultingPred.name + '_view_' + str(int(c[-1][0][-1]) + 1)
+                        viewName = consultingPred + '_view_' + str(int(c[-1][0][-1]) + 1)
                         
                     predicate_to_ViewData[consultingPred].append((viewName, combinationView))
                 
