@@ -11,6 +11,21 @@ from collections import namedtuple
 # will contain the integer value. Right now constants can only be integers.
 Argument = namedtuple('Argument', ['type', 'value'], verbose=False)
 
+# Predicate is a named tuple. Contents
+#    name -> Name of the predicate.
+#    unique_id -> A unique identifier for the predicate is formed by the name and a
+#                 random generated string.
+#     negated -> Boolean that indicates if the predicate is negated in the program.
+#   arguments -> A list of arguments.
+Predicate = namedtuple('Predicate', ['name', 'unique_id', 'negated', 'arguments'], verbose=False)
+
+# Variable is a named tuple. Contents
+#    name -> Name of the variable.
+#    unique_id -> A unique identifier for the variable is formed by the name and a
+#                 random generated string.
+#    negated -> Boolean that indicates if the predicate is negated in the program.
+Variable = namedtuple('Variable', ['name', 'unique_id', 'negated'], verbose=False)
+
 #   LogicRule is a named tuple. Contents:
 #     head -> Tuple of two elements the first one is the name, 
 #             the second a list of arguments.
@@ -31,8 +46,8 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'lineno', 'rule'],
 #     rightSideName -> Name of the left side variable
 #     rightSideArgs -> List of arguments of the right side of the rewriting rule.
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
-                                               'leftSideName', 'leftSideArgs', 
-                                               'rightSideName', 'rightSideArgs'],
+                                               'leftVar', 'leftArgs', 
+                                               'rightVar', 'rightArgs'],
                             verbose=False)
 
 # May be add a field ViewName to store the viewName every rule is associated to.
@@ -49,9 +64,9 @@ RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type',
 #     consultingPred -> Name of the predicate that will be consulted
 #     consultingArgs -> List of arguments containing the values that will be queried on the database
 RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
-                                               'leftSideName', 'leftSideArgs', 
-                                               'rightSideName', 'rightSideArgs', 
-                                               'common_vars', 'consultingPred', 
+                                               'leftVar', 'leftArgs', 
+                                               'rightVar', 'rightArgs', 
+                                               'commonVars', 'consultingPred', 
                                                'consultingArgs', 'aliasName', 
                                                'combinationView'
                                                ],

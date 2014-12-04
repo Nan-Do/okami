@@ -28,7 +28,7 @@ from argparse import RawDescriptionHelpFormatter
 # Compiler code imports
 from BuildRulesTable import buildRulesTable
 from RuleDecomposer import decomposeRulesFromFile, saveDecomposedRules
-from GenerateRules import rewritingEquationGenerator, rewritingEquationPrinter
+from RewritingEquationsGenerator import rewritingEquationGenerator, rewritingEquationPrinter
 from PredicateOrder import predicateOrder
 from c_Backend import generate_code_from_template
 

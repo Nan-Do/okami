@@ -5,7 +5,12 @@ Created on Jan 27, 2014
 '''
 
 from itertools import repeat
-from Types import Argument
+from Types import Argument, Predicate
+
+import random, string
+
+def random_generator(size=6, chars=string.ascii_letters+string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
 
 def removeRuleSpaces(rule):
     return "".join([x for x in rule if x != " " and x != " \t" and x != "\n"])
@@ -18,6 +23,7 @@ def get_predicate(rule, start_position):
     if end_name_position == -1:
         return None, start_position
     name = rule[start_position:end_name_position]
+    unique_id = name + '_' + random_generator(3)
     last_var_position = rule.find(')', end_name_position+1)
     if end_name_position == -1:
         return None, start_position
@@ -37,7 +43,7 @@ def get_predicate(rule, start_position):
     #print arguments
         
     #return (name, variables), last_var_position+1
-    return (name, arguments), last_var_position+1
+    return Predicate(name, unique_id, False, arguments), last_var_position+1
 
 def get_head_separator(rule, start_position):
     """ Checks that from the starting position what we have is the head rule
