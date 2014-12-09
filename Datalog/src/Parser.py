@@ -9,6 +9,11 @@ from Types import Argument, Predicate
 
 import random, string
 
+# This variable is used to generate the unique_ids of the predicates.
+# In case of being True a random generated text chunk will be added
+# to the unique_id representing the predicate.
+GENERATE_RANDOM_CHUNK=True
+
 def random_generator(size=6, chars=string.ascii_letters+string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
@@ -29,7 +34,11 @@ def decorate_get_predicate():
         if name in unique_ids:
             unique_id = unique_ids[name]
         else:
-            unique_id = name + '_' + random_generator(3)
+            if GENERATE_RANDOM_CHUNK:
+                unique_id = name + '_' + random_generator(5)
+            else:
+                unique_id = name
+                
             unique_ids[name] = unique_id
 
         last_var_position = rule.find(')', end_name_position+1)
