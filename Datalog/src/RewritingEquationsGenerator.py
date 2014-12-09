@@ -42,15 +42,19 @@ def rewritingEquationPrinter(EquationsTable):
         
         # Here we create the rule. 
         rewriting_rule = "x_" + eq.leftVar.name + parentify(left_side) +\
-            " => " +  "x_" + eq.rightVar.name + parentify(right_side)
+            " " + unichr(8658) + "  " +  "x_" + eq.rightVar.name + parentify(right_side)
         # If we are dealing with a type 2 rule we have to construct the database query for it.
         if eq.type == 2:
-            consulting_values = ', '.join([stringify(x) for x in eq.consultingArgs])
-            consulting_variables = ', '.join([x.value for x in eq.consultingArgs if (isinstance(x, Argument) and x.type == 'variable')])
+            consulting_values_str = ', '.join([stringify(x) for x in eq.consultingArgs])
+            consulting_variables = [x.value for x in eq.consultingArgs if (isinstance(x, Argument) and x.type == 'variable')]
+            consulting_variables_str = ', '.join(consulting_variables)
             
-            rewriting_rule += " " + unichr(8704) + parentify(consulting_variables) + " " + unichr(8712) +\
-                "  " + eq.aliasName + parentify(consulting_values)
-            rewriting_rule.encode('utf-8')
+            if consulting_variables:
+                rewriting_rule += " " + unichr(8704) + parentify(consulting_variables_str) + " " + unichr(8712) +\
+                                  "  " + eq.aliasName + parentify(consulting_values_str)
+            else:
+                rewriting_rule += " " + unichr(8594) + " " + unichr(8707) + " " + eq.aliasName + parentify(consulting_values_str)
+        rewriting_rule.encode('utf-8')
                 
         print rewriting_rule
 
