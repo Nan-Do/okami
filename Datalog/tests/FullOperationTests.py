@@ -5,6 +5,7 @@ import os, sys, glob
 import logging
 import subprocess
 import shutil
+import time
 
 from itertools import chain
 
@@ -111,6 +112,10 @@ for example in Datalog_Examples:
             logging.error(answer + '.tuples not generated properly')
             logging.error("EXITING")
             sys.exit()
+        subprocess.Popen(['sort', answer + '.tuples', '-o' + answer + '.tuples'])
+        time.sleep(0.01)
+        subprocess.Popen(['sort', answer + '-CorrectAnswer.tuples', '-o' + answer + '-CorrectAnswer.tuples'])
+        time.sleep(0.01)
         p = subprocess.Popen(['diff', answer + '.tuples', answer + '-CorrectAnswer.tuples'], stdout=subprocess.PIPE)
         
         if p.stdout.read():

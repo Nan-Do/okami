@@ -176,7 +176,7 @@ USAGE
         # TODO: Improve the logging output information 
         logging.debug("Generated dependency graph:")
         for var, key in dependencyGraph.iteritems():
-            logging.debug('  %s -> %s', var, ", ".join([x for x in key.iterkeys()]))
+            logging.debug('  %s -> %s', var, ", ".join([x.name for x in key.iterkeys()]))
             
         logging.debug("Rules table:")
         for rule in rulesTable:

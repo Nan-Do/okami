@@ -6,6 +6,8 @@ Created on Jul 12, 2013
 
 from collections import namedtuple
 
+Identifier = namedtuple('Identifier', ['name', 'unique_id'], verbose=False)
+
 # Argument is a named tuple. Type will hold the type (variable or constant) 
 # value will contain the value of the argument. In case of a constant it
 # will contain the integer value. Right now constants can only be integers.
@@ -17,14 +19,14 @@ Argument = namedtuple('Argument', ['type', 'value'], verbose=False)
 #                 random generated string.
 #     negated -> Boolean that indicates if the predicate is negated in the program.
 #   arguments -> A list of arguments.
-Predicate = namedtuple('Predicate', ['name', 'unique_id', 'negated', 'arguments'], verbose=False)
+Predicate = namedtuple('Predicate', ['id', 'negated', 'arguments'], verbose=False)
 
 # Variable is a named tuple. Contents
 #    name -> Name of the variable.
 #    unique_id -> A unique identifier for the variable is formed by the name and a
 #                 random generated string.
 #    negated -> Boolean that indicates if the predicate is negated in the program.
-Variable = namedtuple('Variable', ['name', 'unique_id', 'negated'], verbose=False)
+Variable = namedtuple('Variable', ['id', 'negated'], verbose=False)
 
 #   LogicRule is a named tuple. Contents:
 #     head -> Tuple of two elements the first one is the name, 

@@ -6,6 +6,7 @@ Created on Jul 11, 2013
 
 from Types import RewritingRule1, RewritingRule2
 from Types import ViewsData, Argument, Variable
+
 from itertools import chain
 from collections import defaultdict
 
@@ -102,8 +103,8 @@ def generateRuleType_1(rule, rule_number):
         else:
             left_side_args.append((arg, pos))
     
-    left_side_var = Variable(body.name, body.unique_id, False)
-    right_side_var = Variable(head.name, head.unique_id, False)
+    left_side_var = Variable(body.id, False)
+    right_side_var = Variable(head.id, False)
     
     return RewritingRule1(rule_number, 1,
                           left_side_var, left_side_args,
@@ -166,11 +167,11 @@ def generateRuleType_2a(rule, rule_number):
         else:
             view.append(element)
     
-    view_name = hyp_2.name + '_' + ''.join([str(x.value) for x in view]).lower()
+    view_name = hyp_2.id.name + '_' + ''.join([str(x.value) for x in view]).lower()
     
-    left_side_var = Variable(hyp_1.name, hyp_1.unique_id, False)
-    right_side_var = Variable(head.name, head.unique_id, False)
-    consulting_pred_var = Variable(hyp_2.name, hyp_2.unique_id, False)
+    left_side_var = Variable(hyp_1.id, False)
+    right_side_var = Variable(head.id, False)
+    consulting_pred_var = Variable(hyp_2.id, False)
     
     return RewritingRule2(rule_number, 2, 
                           left_side_var, left_side_args, 
@@ -223,11 +224,11 @@ def generateRuleType_2b(rule, rule_number):
         else:
             view.append(element)
             
-    view_name = hyp_1.name + '_' + ''.join([str(x.value) for x in view]).lower()
+    view_name = hyp_1.id.name + '_' + ''.join([str(x.value) for x in view]).lower()
     
-    left_side_var = Variable(hyp_2.name, hyp_2.unique_id, False)
-    right_side_var = Variable(head.name, head.unique_id, False)
-    consulting_pred_var = Variable(hyp_1.name, hyp_1.unique_id, False)
+    left_side_var = Variable(hyp_2.id, False)
+    right_side_var = Variable(head.id, False)
+    consulting_pred_var = Variable(hyp_1.id, False)
     
     return RewritingRule2(rule_number, 2, 
                           left_side_var, left_side_args, 
@@ -318,19 +319,19 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
                         rewriting_rule.consultingPred + " has to create another view " +\
                         rewriting_rule.aliasName
                 
-                consultingPred = rewriting_rule.consultingPred.name
+                consultingPred_id = rewriting_rule.consultingPred.id
                 combinationView = rewriting_rule.combinationView
                 aliasName = rewriting_rule.aliasName  
                 
-                c = predicate_to_ViewData[consultingPred]
+                c = predicate_to_ViewData[consultingPred_id]
                 viewName = next((x[0] for x in c if combinationView == x[1]), None)
                 if viewName == None:
                     if len(c) == 0:
-                        viewName = consultingPred + '_view_1'
+                        viewName = consultingPred_id.name + '_view_1'
                     else:
-                        viewName = consultingPred + '_view_' + str(int(c[-1][0][-1]) + 1)
+                        viewName = consultingPred_id.name + '_view_' + str(int(c[-1][0][-1]) + 1)
                         
-                    predicate_to_ViewData[consultingPred].append((viewName, combinationView))
+                    predicate_to_ViewData[consultingPred_id].append((viewName, combinationView))
                 
                 # TODO: Check that this always works, also make it more sophisticated
                 # to detect rules that are semantically equal. 

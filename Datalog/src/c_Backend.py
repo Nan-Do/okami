@@ -33,9 +33,9 @@ GenerationData = None
 # Utility functions
 def getPredicateLength(predicate):
     for eq in GenerationData.equationsTable:
-        if predicate == eq.leftVar.name:
+        if predicate == eq.leftVar.id:
             return len(eq.leftArgs)
-        elif predicate == eq.rightVar.name:
+        elif predicate == eq.rightVar.id:
             return len(eq.rightArgs)
                    
     return None
@@ -73,32 +73,32 @@ def check_for_predicates_of_type2(view_func):
 def getPredicatesWithAllVariablesBeingTheSameEqualCard():
     answers = set()
     for rule in GenerationData.equationsTable:
-        if (rule.leftVar.name not in GenerationData.answersToStore) and\
+        if (rule.leftVar.id not in GenerationData.answersToStore) and\
                 len(set(rule.leftArgs)) == 1 and\
                 rule.type == 2:
-            answers.add(rule.leftVar.name)
+            answers.add(rule.leftVar.id)
     return answers
 
 
 def getPredicatesWithAllVariablesBeingInTheSharedSet():
     answers = set()
     for rule in GenerationData.equationsTable:
-        if (rule.leftVar.name not in GenerationData.answersToStore and \
+        if (rule.leftVar not in GenerationData.answersToStore and \
                 rule.type == 2 and
-                getPredicateLength(rule.consultingPred.name) == len(rule.commonVars)):
-            answers.add(rule.consultingPred.name)
+                getPredicateLength(rule.consultingPred.id) == len(rule.commonVars)):
+            answers.add(rule.consultingPred.id)
     return answers
 
 def getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
     answers = set()
     for rule in GenerationData.equationsTable:
-        if (rule.leftVar.name not in GenerationData.answersToStore and \
+        if (rule.leftVar.id not in GenerationData.answersToStore and \
                 rule.type == 2):
             argument_constants = [x for x in rule.consultingArgs if isinstance(x, int) or  
                                     (isinstance(x, Argument) and x.type == "constant")]
             
             if len(rule.consultingArgs) == len(argument_constants):
-                answers.add(rule.consultingPred.name)
+                answers.add(rule.consultingPred.id)
                 
     return answers            
 
@@ -122,9 +122,9 @@ def getAllSolutions():
 def getAllPredicatesLengths():
     data = []
     for rule in GenerationData.equationsTable:
-        data.append((rule.leftVar.name,
+        data.append((rule.leftVar.id,
                      len(rule.leftArgs)))
-        data.append((rule.rightVar.name,
+        data.append((rule.rightVar.id,
                      len(rule.rightArgs)))
 
     # Remove duplicates
@@ -135,8 +135,8 @@ def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
     
 def fillHypothesis(outfile):
-    hypothesis = set(x.leftVar.name for x in GenerationData.equationsTable)
-    hypothesis |= set(x.rightVar.name for x in GenerationData.equationsTable)
+    hypothesis = set(x.leftVar.id.unique_id for x in GenerationData.equationsTable)
+    hypothesis |= set(x.rightVar.id.unique_id for x in GenerationData.equationsTable)
     outfile.write('/* Hipothesys */\n')
     for hypothesis, pos in zip(hypothesis, count()):
         line = '#define {}\t{}\n'.format(hypothesis, str(pos))
@@ -182,11 +182,12 @@ def fillDataStructureQueryHeaderFunctions(outfile):
 def fillDataStructureSolutionHeaderFunctions(outfile):
     for solution_predicate in getAllSolutions():
         length = getPredicateLength(solution_predicate)
+
         ints = ['int' for _ in xrange(length)]
          
-        outfile.write('extern int  Ds_contains_solution_{}({});\n'.format(solution_predicate,
+        outfile.write('extern int  Ds_contains_solution_{}({});\n'.format(solution_predicate.name,
                                                                           ', '.join(ints)))
-        outfile.write('extern void Ds_append_solution_{}({});\n'.format(solution_predicate,
+        outfile.write('extern void Ds_append_solution_{}({});\n'.format(solution_predicate.name,
                                                                         ', '.join(ints)))
     outfile.write('\n')
 
@@ -195,11 +196,11 @@ def fillInputTuplesFiles(outfile):
     extensional = GenerationData.blocksOrder[0]
     outfile.write('static char *tuples_input_files[] = {\n')
     
-    for pos, predicate in enumerate(extensional):
+    for pos, (pred_name, _) in enumerate(extensional):
         if pos != len(extensional)-1:
-            outfile.write('\t"{}.tuples",\n'.format(predicate))
+            outfile.write('\t"{}.tuples",\n'.format(pred_name))
         else:
-            outfile.write('\t"{}.tuples"\n'.format(predicate))
+            outfile.write('\t"{}.tuples"\n'.format(pred_name))
     outfile.write('};\n')
     outfile.write('#define INPUT_TUPLES_FILES {}\n'.format(len(extensional)))
     
@@ -207,23 +208,23 @@ def fillOutputTuplesFiles(outfile):
     outputTuples = GenerationData.answersToStore
     
     outfile.write('static char *tuples_output_files[] = {\n')
-    for pos, predicate in enumerate(outputTuples):
+    for pos, (pred_name, _) in enumerate(outputTuples):
         if pos != len(outputTuples)-1:
-            outfile.write('\t"{}.tuples",\n'.format(predicate))
+            outfile.write('\t"{}.tuples",\n'.format(pred_name))
         else:
-            outfile.write('\t"{}.tuples"\n'.format(predicate))
+            outfile.write('\t"{}.tuples"\n'.format(pred_name))
     outfile.write('};\n')
     outfile.write('#define OUTPUT_TUPLES_FILES {}\n'.format(len(outputTuples)))
     
     outfile.write('FILE')
-    for pos, predicate in enumerate(outputTuples):
-        outfile.write(' *fp_{}'.format(predicate))
+    for pos, (pred_name, _) in enumerate(outputTuples):
+        outfile.write(' *fp_{}'.format(pred_name))
         if pos != len(outputTuples) - 1:
             outfile.write(',')
     outfile.write(';\n')
     
 def fillPrintRewritingVariable(outfile):
-    for position, (pred_name, length) in enumerate(getAllPredicatesLengths()):
+    for position, ((pred_name, pred_unique_id), length) in enumerate(getAllPredicatesLengths()):
         if position == 0:
             conditional = 'if'
         else:
@@ -232,11 +233,11 @@ def fillPrintRewritingVariable(outfile):
         formatting = ', '.join(['%i' for x in xrange(length)])
         variables = ', '.join(['b->VAR_' + str(x) for x in xrange(1, length+1)])
         
-        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_name))
+        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_unique_id))
         outfile.write('\t\tfprintf(file, "X_{}({}).", {});\n'.format(pred_name, formatting, variables))
         
 def fillPrintAnswer(outfile):
-    for position, (pred_name, length) in enumerate(getAllPredicatesLengths()):
+    for position, ((pred_name, pred_unique_id), length) in enumerate(getAllPredicatesLengths()):
         if position == 0:
             conditional = 'if'
         else:
@@ -245,7 +246,7 @@ def fillPrintAnswer(outfile):
         formatting = ', '.join(['%i' for x in xrange(length)])
         variables = ', '.join(['b->VAR_' + str(x) for x in xrange(1, length+1)])
         
-        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_name))
+        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_unique_id))
         outfile.write('\t\tfprintf(file, "{}({}).\\n", {});\n'.format(pred_name, formatting, variables))
 
 def fillSolverInit(outfile):
@@ -262,7 +263,7 @@ def fillSolverInit(outfile):
         outfile.write('\t\treturn FALSE;\n')
         outfile.write('\t}\n')
         outfile.write('\twhile (parser_get_fact(fp, NULL, &fact) == 1){\n')
-        outfile.write('\t\tVAR.PREDICATE = {};\n'.format(predicate))
+        outfile.write('\t\tVAR.PREDICATE = {};\n'.format(predicate[1]))
         
         for x in xrange(length):
             outfile.write('\t\tVAR.VAR_{} = fact.values[{}];\n'.format(str(x+1), x))
@@ -271,7 +272,7 @@ def fillSolverInit(outfile):
         
         formatting = ','.join(['%i' for x in xrange(length)])
         outfile.write('#ifdef NDEBUG\n')
-        outfile.write('\t\tfprintf(stderr, "Adding rewriting variable: X_{}'.format(predicate))
+        outfile.write('\t\tfprintf(stderr, "Adding rewriting variable: X_{}'.format(predicate[0]))
         outfile.write('({})\\n",\n'.format(formatting))
         
         for x in xrange(length):
@@ -286,13 +287,13 @@ def fillSolverInit(outfile):
         outfile.write('\tfclose(fp);\n\n')
         
     for pos, predicate in enumerate(outputTuples):
-        outfile.write('\tfp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(predicate, str(pos)))
+        outfile.write('\tfp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(predicate[0], str(pos)))
     
 def fillSolverCompute(outfile):
     def printtemp(tabs, rule):
         # Do we have to store the answer??
-        if rule.rightVar.name in answersToStore:
-            pred = rule.rightVar.name
+        if rule.rightVar.id in answersToStore:
+            pred_id = rule.rightVar.id
 
             #if rule.type == 2:
             #    tabs = '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x)\
@@ -302,7 +303,7 @@ def fillSolverCompute(outfile):
                             x in xrange(1, len(rule.rightArgs)+1))
             
             outfile.write('\n{}if (!Ds_contains_solution_{}({}))'.format(tabs,
-                                                                         pred,
+                                                                         pred_id.name,
                                                                          args))
             tabs += '\t'
             outfile.write('{\n')
@@ -314,7 +315,7 @@ def fillSolverCompute(outfile):
             
             outfile.write('{}SolverQueue_append(&solver, &VAR);\n'.format(tabs))
             outfile.write('{}Ds_append_solution_{}({});\n'.format(tabs,
-                                                                    pred,
+                                                                    pred_id.name,
                                                                     args))
             tabs = tabs[:-1]
             outfile.write('{}'.format(tabs))
@@ -336,9 +337,9 @@ def fillSolverCompute(outfile):
     for predicate in chain(block1, block2, block3):
         # Get the rule of the predicate raise an exception if not found
         rules = (x for x in equationsTable
-                       if x.leftVar.name == predicate)
+                       if x.leftVar.id == predicate)
 
-        outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate))
+        outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate.unique_id))
         outfile.write('{\n')
         
         # Do we have to print the variable
@@ -346,7 +347,7 @@ def fillSolverCompute(outfile):
             outfile.write("\t\t\tprint_answer(stdout, &current->b);\n")
             
         if predicate in outputTuples:
-            outfile.write("\t\t\tprint_answer(fp_{}, &current->b);\n".format(predicate))
+            outfile.write("\t\t\tprint_answer(fp_{}, &current->b);\n".format(predicate.name))
         
         # Debug information
         pred_length = getPredicateLength(predicate)
@@ -354,7 +355,7 @@ def fillSolverCompute(outfile):
         formatting = ', '.join(['%i' for _ in xrange(pred_length)])
         args = ',\n\t\t\t\t\t'.join(('current->b.VAR_{}'.format(str(x+1)) for x in xrange(pred_length)))
         output_string = '\t\t\tfprintf(stderr, "Handling rewriting ' +\
-                        'variable: X_{}'.format(predicate) +\
+                        'variable: X_{}'.format(predicate[0]) +\
                         '({})\\n",\n\t\t\t\t\t{});\n'.format(formatting,
                                                              args)
         outfile.write(output_string)
@@ -372,7 +373,7 @@ def fillSolverCompute(outfile):
             # treated as such. Otherwise we insert a value into the list as normal
             if pred_length == 1:
                 outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
-                outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(predicate))
+                outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(predicate.name))
             else:
                 for view in predsToViewNames[predicate]:
                     args = ', '.join('current->b.VAR_{}'.format(x) for
@@ -397,7 +398,7 @@ def fillSolverCompute(outfile):
             # 1 we have to add directly the solution, as by convention there is no level node of length 0
             # and the predicates of length 1 are turned into solutions
             if pred_length == 1:
-                outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(predicate))
+                outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(predicate.name))
                 outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
             else:
                 for view in predsToViewNames[predicate]:
@@ -407,7 +408,7 @@ def fillSolverCompute(outfile):
                     #if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet():
                     if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
                                         getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
-                        outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(predicate,
+                        outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(predicate.name,
                                                                                   args))
 #                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
 #                                                                               view,
@@ -462,7 +463,7 @@ def fillSolverCompute(outfile):
                     outfile.write('){\n')
                     tabs += '\t'
                         
-                outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightVar.name))
+                outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightVar.id.unique_id))
                 for pos, answer_pos in enumerate(rule.rightArgs, 1):
                     # Check if we are dealing with a constant propagated trough the datalog source code.
                     # If we have an integer here it means it is a rewriting constant propagated value
@@ -577,7 +578,7 @@ def fillSolverCompute(outfile):
                     if len(set(rule.leftArgs)) == 1:
                         args = ['current->b.VAR_{}'.format(x) for x in l]
                         outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                     rule.leftVar.name,
+                                                                                     rule.leftVar.id.name,
                                                                                      ", ".join(args)))
                         tabs += '\t'
                         outfile.write("#ifdef NDEBUG\n")
@@ -586,7 +587,7 @@ def fillSolverCompute(outfile):
                         outfile.write("{}fprintf(stderr, \"\\n\");\n".format(tabs))
                         outfile.write("#endif\n")
                         outfile.write("{}Ds_append_solution_{}({});\n".format(tabs,
-                                                                             rule.leftVar.name,
+                                                                             rule.leftVar.id.name,
                                                                              ", ".join(args)))
                         tabs = tabs[:-1]
                         outfile.write("{}}}\n".format(tabs))
@@ -618,13 +619,16 @@ def fillSolverCompute(outfile):
                 # list of common variables taking the position.
                 if commonVars_len == 0:
                     outfile.write('{}Ds_get_intValues_Level0_init();\n'.format(tabs))
-                    outfile.write('{}while(Ds_get_intValues_Level0(&t0)'.format(tabs))
+                    outfile.write('{}while(Ds_get_intValues_Level0(&t0))'.format(tabs))
+                    outfile.write('{\n')
+                    tabs += '\t'
                     # If the length of the predicate is one we also have to make sure that the value we obtain
                     # is valid as we won't iterate to obtain more values
                     if len(rule.consultingArgs) == 1:
-                        outfile.write(' && (Ds_contains_solution_{}(t0))'.format(rule.consultingPred.name))
-                    outfile.write('){\n')
-
+                        outfile.write('{}if (Ds_contains_solution_{}(t0))'.format(tabs,
+                                                                                  rule.consultingPred.id.name))
+                        outfile.write('{\n')
+                
                 else:
                     # We don't have equal cards in the set of common variables, we just iterate over the set
                     # emitting code appropriately. 
@@ -657,9 +661,9 @@ def fillSolverCompute(outfile):
                     # If we turn the list of consulting values into a set and the length is 1 that means that the predicate
                     # has all its variables the same equal card
                     #if (len(set(rule.consultingArgs)) != 1 and\
-                    #    getPredicateLength(rule.consultingPred.name) != len(rule.commonVars)):
+                    #    getPredicateLength(rule.consultingPred.unique_id) != len(rule.commonVars)):
                     if (len(set([x for x in rule.consultingArgs if not (isinstance(x, Argument) and x.type=='constant')])) != 1 and\
-                        getPredicateLength(rule.consultingPred.name) != len(rule.commonVars) and 
+                        getPredicateLength(rule.consultingPred.id) != len(rule.commonVars) and 
                         sum([1 for x in rule.consultingArgs if isinstance(x, int) or (isinstance(x, Argument) and x.type=='constant')]) != len(rule.consultingArgs)):
                         # Here we just emit code for t1 using the computed values
                         outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
@@ -671,7 +675,7 @@ def fillSolverCompute(outfile):
                         outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
                     else:
                         outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                     rule.consultingPred.name,
+                                                                                     rule.consultingPred.id.name,
                                                                                      args_common))
 
                 # Here we emit code for the rest of the required t levels that value is the number
@@ -731,11 +735,15 @@ def fillSolverCompute(outfile):
                     tabs = '\t\t\t\t'
                 else:
                     tabs = '\t\t\t'
+                
+                if commonVars_len == 0 and len(rule.consultingArgs) == 1:
+                    tabs += '\t'    
+                
                 tabs += '\t' * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x) 
                                         for x in rule.consultingArgs))
                 
                 outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
-                                                               rule.rightVar.name))
+                                                               rule.rightVar.id.unique_id))
                 # Here we handle if we have equal cards in the query variables that are
                 # not in the set of common variables. As we retrieve them from the iterating
                 # lists we have to check that are equal otherwise we would count
@@ -816,6 +824,10 @@ def fillSolverCompute(outfile):
                 if equal_cards_query_not_common_vars:
                     tabs = tabs[:-1]
                     outfile.write('{}}}\n'.format(tabs))
+                    
+                if commonVars_len == 0 and len(rule.consultingArgs) == 1:
+                    tabs = tabs[:-1]
+                    outfile.write('{}}}\n'.format(tabs))
                 
                 for x in xrange(commonVars_len+1, len(rule.consultingArgs) - len(argument_constants_consulting_values)):
                     tabs = tabs[:-1]
@@ -832,7 +844,7 @@ def fillSolverFree(outfile):
     outputTuples = GenerationData.answersToStore
     
     for predicate in outputTuples:
-        outfile.write('\tfclose(fp_{});\n'.format(predicate))
+        outfile.write('\tfclose(fp_{});\n'.format(predicate[0]))
 
 @check_for_predicates_of_type2
 def fillIntList(outfile):
@@ -879,7 +891,7 @@ def fillDataStructureLevelNodes(outfile):
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
         if len(rule.rightArgs) > 1:
-            lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.name)
+            lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.id)
             
     
     viewsData = []        
@@ -907,7 +919,7 @@ def fillDataStructureLevelNodes(outfile):
         # Emit code to store the answers required by the level node
         for pred in lengthToPreds[length]:
             if pred in answersToStore:
-                outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred))
+                outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred.name))
                 
         # Check if we have to add a new solution because there is a predicate having
         # all the variables the same Equal card or there is a predicate having all
@@ -917,7 +929,7 @@ def fillDataStructureLevelNodes(outfile):
         #                  getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()):
         for pred in getAllSolutions():
             if pred not in answersToStore and getPredicateLength(pred) == length:
-                outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred))
+                outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred.name))
                
         if pos != len(lengths) - 1:
             # This is purely esthetic if we have some views in the level we 
@@ -1086,7 +1098,7 @@ def fillDataStructureContainSolutionFunctions(outfile):
         # Get the length of the predicate
         length = getPredicateLength(solution_predicate)
         args = ('int x_{}'.format(str(x)) for x in xrange(1, length+1))
-        outfile.write('int Ds_contains_solution_{}({})'.format(solution_predicate,
+        outfile.write('int Ds_contains_solution_{}({})'.format(solution_predicate.name,
                                                                ', '.join(args)))
         outfile.write('{\n')
         tabs = '\t'
@@ -1111,9 +1123,9 @@ def fillDataStructureContainSolutionFunctions(outfile):
             outfile.write('\n')
             node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
                                                            str(length-1),
-                                                           solution_predicate)
+                                                           solution_predicate.name)
         else:
-            node = 'R{}'.format(solution_predicate)
+            node = 'R{}'.format(solution_predicate.name)
         outfile.write('{}return Judy1Test({}, x_{}, PJE0);\n'.format(tabs, node,
                                                                    length))
         
@@ -1124,7 +1136,7 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         # Get the length of the predicate
         length = getPredicateLength(solution_predicate)
         args = ('int x_{}'.format(str(x)) for x in xrange(1, length+1))
-        outfile.write('void Ds_append_solution_{}({})'.format(solution_predicate,
+        outfile.write('void Ds_append_solution_{}({})'.format(solution_predicate.name,
                                                                ', '.join(args)))
         outfile.write('{\n')
         tabs = '\t'
@@ -1163,9 +1175,9 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         if length > 1:
             node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
                                                            str(length-1),
-                                                           solution_predicate)
+                                                           solution_predicate.name)
         else:
-            node = 'R{}'.format(solution_predicate)
+            node = 'R{}'.format(solution_predicate.name)
         
         outfile.write('{}if (Judy1Set(&{}, x_{}, PJE0) == JERR)'.format(tabs,
                                                                         node,
@@ -1190,7 +1202,7 @@ def fillDataStructureInitLevelFunctions(outfile):
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
         if len(rule.rightArgs) > 1:
-            lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.name)
+            lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.id)
         
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
     viewsData = []
@@ -1228,7 +1240,7 @@ def fillDataStructureInitLevelFunctions(outfile):
             
         for pred in lengthToPreds[length]:
             if pred in answersToStore:
-                outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(tabs, pred))
+                outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(tabs, pred.name))
             
         outfile.write('}\n')
    
@@ -1264,7 +1276,7 @@ def fillDataStructureLevelFreeFunctions(outfile):
     
     lengthToPreds = defaultdict(set)
     for rule in equationsTable:
-        lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.name)
+        lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.id)
         
     for pos, length in enumerate(lengths):
         outfile.write('void DsData_Level_{0}_free(DsData_{0} *d)'.format(length))
@@ -1290,7 +1302,7 @@ def fillDataStructureLevelFreeFunctions(outfile):
         for pred in lengthToPreds[length]:
             if pred in answersToStore:
                 outfile.write('{}Judy1FreeArray(&d->R{}, PJE0);\n'.format(tabs,
-                                                                          pred))
+                                                                          pred.name))
                 
         outfile.write('{}*&d = NULL;\n'.format(tabs))        
         outfile.write('}\n\n')
@@ -1303,18 +1315,18 @@ def fillDataStructureRootSolutions(outfile):
     predicates_in_rules_of_length_1 = set()
     for rule in GenerationData.equationsTable:
         if len(rule.rightArgs) == 1:
-            answers_of_length_1.add(rule.rightVar.name)
+            answers_of_length_1.add(rule.rightVar.id)
         if len(rule.leftArgs) == 1:
-            predicates_in_rules_of_length_1.add(rule.leftVar.name)
+            predicates_in_rules_of_length_1.add(rule.leftVar.id)
             
     if answers_of_length_1:
         outfile.write("/* Solution of length 1 */\n")
-        line = ', '.join(['R{}'.format(answer) for answer in answers_of_length_1])
+        line = ', '.join(['R{}'.format(answer.name) for answer in answers_of_length_1])
         outfile.write('static Pvoid_t {};\n'.format(line))
         
     if predicates_in_rules_of_length_1:
         outfile.write("/* Predicates of length 1*/\n")
-        line = ', '.join(['R{}'.format(answer) for answer in predicates_in_rules_of_length_1])
+        line = ', '.join(['R{}'.format(answer.name) for answer in predicates_in_rules_of_length_1])
         outfile.write('static Pvoid_t {};\n'.format(line))
 
 # This function only should be executed if there are predicates of length 2

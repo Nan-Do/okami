@@ -5,7 +5,7 @@ Created on Jan 27, 2014
 '''
 
 from itertools import repeat
-from Types import Argument, Predicate
+from Types import Argument, Predicate, Identifier
 
 import random, string
 
@@ -60,7 +60,7 @@ def decorate_get_predicate():
         #print arguments
             
         #return (name, variables), last_var_position+1
-        return Predicate(name, unique_id, False, arguments), last_var_position+1
+        return Predicate(Identifier(name, unique_id), False, arguments), last_var_position+1
     return get_predicate_function
 get_predicate = decorate_get_predicate()
 

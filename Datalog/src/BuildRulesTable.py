@@ -34,8 +34,8 @@ def buildRulesTable(filename, test=False):
     
     dependency_graph = defaultdict(lambda: defaultdict(int))
     
-    head_preds = set() 
-    body_preds = set() 
+    head_preds_ids = set() 
+    body_preds_ids = set() 
     rulesTable = []
     for line_no, line in enumerate(f, start=1):
         if line[0] == '\n': continue
@@ -49,12 +49,12 @@ def buildRulesTable(filename, test=False):
 
             sys.exit(0)
             
-        body_predicates = [predicate.name for predicate in body]
-        head_preds.add(head.name)
-        body_preds.update(body_predicates)
-        addRuleDependencyToGraph(dependency_graph, head.name, body_predicates)
+        body_predicates_ids = [predicate.id for predicate in body]
+        head_preds_ids.add(head.id)
+        body_preds_ids.update(body_predicates_ids)
+        addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids)
         rulesTable.append(LogicRule(head, body, len(body), line_no+1, line))
             
     f.close()
-    return (rulesTable, PredicateTypes(head_preds, body_preds.difference(head_preds)), dependency_graph)
+    return (rulesTable, PredicateTypes(head_preds_ids, body_preds_ids.difference(head_preds_ids)), dependency_graph)
 
