@@ -31,6 +31,12 @@ def decorate_get_predicate():
             return None, start_position
         name = rule[start_position:end_name_position]
         
+        is_negated = False
+        # Check if the predicated is negated
+        if name[0] == '~':
+            is_negated = True
+            name = name[1:]
+        
         if name in unique_ids:
             unique_id = unique_ids[name]
         else:
@@ -60,7 +66,7 @@ def decorate_get_predicate():
         #print arguments
             
         #return (name, variables), last_var_position+1
-        return Predicate(Identifier(name, unique_id), False, arguments), last_var_position+1
+        return Predicate(Identifier(name, unique_id), is_negated, arguments), last_var_position+1
     return get_predicate_function
 get_predicate = decorate_get_predicate()
 

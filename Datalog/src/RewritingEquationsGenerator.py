@@ -42,9 +42,14 @@ def rewritingEquationPrinter(EquationsTable):
         right_side = ", ".join(right_side)
         
         # Here we create the rule. 
-        rewriting_rule = "x_" + eq.leftVar.name + parentify(left_side) +\
-            " " + unichr(8658) + "  " +  "x_" + eq.rightVar.name + parentify(right_side)
+        rewriting_rule = "x_" + eq.leftVar.id.name + parentify(left_side) +\
+            " " + unichr(8658) + "  " +  "x_" + eq.rightVar.id.name + parentify(right_side)
         # If we are dealing with a type 2 rule we have to construct the database query for it.
+        if eq.type == 1 and eq.leftVar.negated:
+            domain_capital = ', '.join(unichr(120123) + "_" + str(x) for x in xrange(1, len(eq.leftArgs)+1))
+            domain_small = ', '.join(unichr(120149) + "_" + str(x) for x in xrange(1, len(eq.leftArgs)+1))
+            rewriting_rule += ' ' + unichr(8704) + parentify(domain_capital) + " " + unichr(8713) + \
+                                "  " + eq.leftVar.id.name + parentify(domain_small)
         if eq.type == 2:
             consulting_values_str = ', '.join([stringify(x) for x in eq.consultingArgs])
             consulting_variables = [x.value for x in eq.consultingArgs if (isinstance(x, Argument) and x.type == 'variable')]
@@ -103,7 +108,7 @@ def generateRuleType_1(rule, rule_number):
         else:
             left_side_args.append((arg, pos))
     
-    left_side_var = Variable(body.id, False)
+    left_side_var = Variable(body.id, body.negated)
     right_side_var = Variable(head.id, False)
     
     return RewritingRule1(rule_number, 1,
@@ -169,9 +174,9 @@ def generateRuleType_2a(rule, rule_number):
     
     view_name = hyp_2.id.name + '_' + ''.join([str(x.value) for x in view]).lower()
     
-    left_side_var = Variable(hyp_1.id, False)
+    left_side_var = Variable(hyp_1.id, hyp_1.negated)
     right_side_var = Variable(head.id, False)
-    consulting_pred_var = Variable(hyp_2.id, False)
+    consulting_pred_var = Variable(hyp_2.id, hyp_2.negated)
     
     return RewritingRule2(rule_number, 2, 
                           left_side_var, left_side_args, 
@@ -226,9 +231,9 @@ def generateRuleType_2b(rule, rule_number):
             
     view_name = hyp_1.id.name + '_' + ''.join([str(x.value) for x in view]).lower()
     
-    left_side_var = Variable(hyp_2.id, False)
+    left_side_var = Variable(hyp_2.id, hyp_2.negated)
     right_side_var = Variable(head.id, False)
-    consulting_pred_var = Variable(hyp_1.id, False)
+    consulting_pred_var = Variable(hyp_1.id, hyp_1.negated)
     
     return RewritingRule2(rule_number, 2, 
                           left_side_var, left_side_args, 
