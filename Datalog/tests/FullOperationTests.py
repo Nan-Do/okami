@@ -114,8 +114,8 @@ for example in Datalog_Examples:
             sys.exit()
         subprocess.Popen(['sort', answer + '.tuples', '-o' + answer + '.tuples'])
         time.sleep(0.01)
-        subprocess.Popen(['sort', answer + '-CorrectAnswer.tuples', '-o' + answer + '-CorrectAnswer.tuples'])
-        time.sleep(0.01)
+        #subprocess.Popen(['sort', answer + '-CorrectAnswer.tuples', '-o' + answer + '-CorrectAnswer.tuples'])
+        #time.sleep(0.01)
         p = subprocess.Popen(['diff', answer + '.tuples', answer + '-CorrectAnswer.tuples'], stdout=subprocess.PIPE)
         
         if p.stdout.read():

@@ -180,14 +180,14 @@ def fillDataStructureQueryHeaderFunctions(outfile):
         ints.append('int')
         
 def fillDataStructureSolutionHeaderFunctions(outfile):
-    for solution_predicate in getAllSolutions():
-        length = getPredicateLength(solution_predicate)
+    for predicate_id in getAllSolutions():
+        length = getPredicateLength(predicate_id)
 
         ints = ['int' for _ in xrange(length)]
          
-        outfile.write('extern int  Ds_contains_solution_{}({});\n'.format(solution_predicate.name,
+        outfile.write('extern int  Ds_contains_solution_{}({});\n'.format(predicate_id.name,
                                                                           ', '.join(ints)))
-        outfile.write('extern void Ds_append_solution_{}({});\n'.format(solution_predicate.name,
+        outfile.write('extern void Ds_append_solution_{}({});\n'.format(predicate_id.name,
                                                                         ', '.join(ints)))
     outfile.write('\n')
 
@@ -293,7 +293,7 @@ def fillSolverCompute(outfile):
     def printtemp(tabs, rule):
         # Do we have to store the answer??
         if rule.rightVar.id in answersToStore:
-            pred_id = rule.rightVar.id
+            predicate_id = rule.rightVar.id
 
             #if rule.type == 2:
             #    tabs = '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x)\
@@ -303,7 +303,7 @@ def fillSolverCompute(outfile):
                             x in xrange(1, len(rule.rightArgs)+1))
             
             outfile.write('\n{}if (!Ds_contains_solution_{}({}))'.format(tabs,
-                                                                         pred_id.name,
+                                                                         predicate_id.name,
                                                                          args))
             tabs += '\t'
             outfile.write('{\n')
@@ -315,7 +315,7 @@ def fillSolverCompute(outfile):
             
             outfile.write('{}SolverQueue_append(&solver, &VAR);\n'.format(tabs))
             outfile.write('{}Ds_append_solution_{}({});\n'.format(tabs,
-                                                                    pred_id.name,
+                                                                    predicate_id.name,
                                                                     args))
             tabs = tabs[:-1]
             outfile.write('{}'.format(tabs))
@@ -334,28 +334,28 @@ def fillSolverCompute(outfile):
     block2 = GenerationData.blocksOrder[1]
     block3 = GenerationData.blocksOrder[2]
     
-    for predicate in chain(block1, block2, block3):
+    for predicate_id in chain(block1, block2, block3):
         # Get the rule of the predicate raise an exception if not found
         rules = (x for x in equationsTable
-                       if x.leftVar.id == predicate)
+                       if x.leftVar.id == predicate_id)
 
-        outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate.unique_id))
+        outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate_id.unique_id))
         outfile.write('{\n')
         
         # Do we have to print the variable
-        if predicate in printVariables:
+        if predicate_id in printVariables:
             outfile.write("\t\t\tprint_answer(stdout, &current->b);\n")
             
-        if predicate in outputTuples:
-            outfile.write("\t\t\tprint_answer(fp_{}, &current->b);\n".format(predicate.name))
+        if predicate_id in outputTuples:
+            outfile.write("\t\t\tprint_answer(fp_{}, &current->b);\n".format(predicate_id.name))
         
         # Debug information
-        pred_length = getPredicateLength(predicate)
+        pred_length = getPredicateLength(predicate_id)
         outfile.write('#ifdef NDEBUG\n')
         formatting = ', '.join(['%i' for _ in xrange(pred_length)])
         args = ',\n\t\t\t\t\t'.join(('current->b.VAR_{}'.format(str(x+1)) for x in xrange(pred_length)))
         output_string = '\t\t\tfprintf(stderr, "Handling rewriting ' +\
-                        'variable: X_{}'.format(predicate[0]) +\
+                        'variable: X_{}'.format(predicate_id.name) +\
                         '({})\\n",\n\t\t\t\t\t{});\n'.format(formatting,
                                                              args)
         outfile.write(output_string)
@@ -365,7 +365,7 @@ def fillSolverCompute(outfile):
         # We emit debugging code via a c macro to check what is going to be added
         # to the data structure. We show the view and the values being added.
         # After we use the appropriate call to add the solution to the data structure
-        if predsToViewNames[predicate]:
+        if predsToViewNames[predicate_id]:
             # This is the debugging part
             #outfile.write('\n#ifdef NDEBUG\n')
               
@@ -373,9 +373,9 @@ def fillSolverCompute(outfile):
             # treated as such. Otherwise we insert a value into the list as normal
             if pred_length == 1:
                 outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
-                outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(predicate.name))
+                outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(predicate_id.name))
             else:
-                for view in predsToViewNames[predicate]:
+                for view in predsToViewNames[predicate_id]:
                     args = ', '.join('current->b.VAR_{}'.format(x) for
                                      x in viewNamesToCombinations[view])
                     formatting = ', '.join(('%i' for _ in viewNamesToCombinations[view]))
@@ -393,22 +393,22 @@ def fillSolverCompute(outfile):
         
         # Unfortunately because of the problem of the previous line we have to recheck here if the
         # predicate has a view associated with it
-        if predsToViewNames[predicate]:     
+        if predsToViewNames[predicate_id]:     
             # This is part in which we add the solution to the data structure. If the predicate has length
             # 1 we have to add directly the solution, as by convention there is no level node of length 0
             # and the predicates of length 1 are turned into solutions
             if pred_length == 1:
-                outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(predicate.name))
+                outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(predicate_id.name))
                 outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
             else:
-                for view in predsToViewNames[predicate]:
+                for view in predsToViewNames[predicate_id]:
                     args = ', '.join('current->b.VAR_{}'.format(x) for
                                      x in viewNamesToCombinations[view])
                     
                     #if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet():
-                    if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
+                    if predicate_id in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
                                         getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
-                        outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(predicate.name,
+                        outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(predicate_id.name,
                                                                                   args))
 #                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
 #                                                                               view,
@@ -917,9 +917,9 @@ def fillDataStructureLevelNodes(outfile):
                                                        number_of_views_for_this_level))
         
         # Emit code to store the answers required by the level node
-        for pred in lengthToPreds[length]:
-            if pred in answersToStore:
-                outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred.name))
+        for predicate_id in lengthToPreds[length]:
+            if predicate_id in answersToStore:
+                outfile.write('{}Pvoid_t R{};\n'.format(tabs, predicate_id.name))
                 
         # Check if we have to add a new solution because there is a predicate having
         # all the variables the same Equal card or there is a predicate having all
@@ -927,9 +927,9 @@ def fillDataStructureLevelNodes(outfile):
         #for pred in chain(getPredicatesWithAllVariablesBeingTheSameEqualCard(),
         #                  getPredicatesWithAllVariablesBeingInTheSharedSet(),
         #                  getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()):
-        for pred in getAllSolutions():
-            if pred not in answersToStore and getPredicateLength(pred) == length:
-                outfile.write('{}Pvoid_t R{};\n'.format(tabs, pred.name))
+        for predicate_id in getAllSolutions():
+            if predicate_id not in answersToStore and getPredicateLength(predicate_id) == length:
+                outfile.write('{}Pvoid_t R{};\n'.format(tabs, predicate_id.name))
                
         if pos != len(lengths) - 1:
             # This is purely esthetic if we have some views in the level we 
@@ -1094,11 +1094,11 @@ def fillDataStructureGetIntListFunctions(outfile):
         outfile.write('}\n\n')
         
 def fillDataStructureContainSolutionFunctions(outfile):
-    for solution_predicate in getAllSolutions():
+    for predicate_id in getAllSolutions():
         # Get the length of the predicate
-        length = getPredicateLength(solution_predicate)
+        length = getPredicateLength(predicate_id)
         args = ('int x_{}'.format(str(x)) for x in xrange(1, length+1))
-        outfile.write('int Ds_contains_solution_{}({})'.format(solution_predicate.name,
+        outfile.write('int Ds_contains_solution_{}({})'.format(predicate_id.name,
                                                                ', '.join(args)))
         outfile.write('{\n')
         tabs = '\t'
@@ -1123,20 +1123,20 @@ def fillDataStructureContainSolutionFunctions(outfile):
             outfile.write('\n')
             node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
                                                            str(length-1),
-                                                           solution_predicate.name)
+                                                           predicate_id.name)
         else:
-            node = 'R{}'.format(solution_predicate.name)
+            node = 'R{}'.format(predicate_id.name)
         outfile.write('{}return Judy1Test({}, x_{}, PJE0);\n'.format(tabs, node,
                                                                    length))
         
         outfile.write('}\n\n')
         
 def fillDataStructureAppendSolutionFunctions(outfile):
-    for solution_predicate in getAllSolutions():
+    for predicate_id in getAllSolutions():
         # Get the length of the predicate
-        length = getPredicateLength(solution_predicate)
+        length = getPredicateLength(predicate_id)
         args = ('int x_{}'.format(str(x)) for x in xrange(1, length+1))
-        outfile.write('void Ds_append_solution_{}({})'.format(solution_predicate.name,
+        outfile.write('void Ds_append_solution_{}({})'.format(predicate_id.name,
                                                                ', '.join(args)))
         outfile.write('{\n')
         tabs = '\t'
@@ -1175,9 +1175,9 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         if length > 1:
             node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
                                                            str(length-1),
-                                                           solution_predicate.name)
+                                                           predicate_id.name)
         else:
-            node = 'R{}'.format(solution_predicate.name)
+            node = 'R{}'.format(predicate_id.name)
         
         outfile.write('{}if (Judy1Set(&{}, x_{}, PJE0) == JERR)'.format(tabs,
                                                                         node,
@@ -1238,9 +1238,9 @@ def fillDataStructureInitLevelFunctions(outfile):
         if pos != len(lengths)-1:
             outfile.write('{}d->level{} = (Pvoid_t) NULL;\n'.format(tabs, length + 1))
             
-        for pred in lengthToPreds[length]:
-            if pred in answersToStore:
-                outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(tabs, pred.name))
+        for predicate_id in lengthToPreds[length]:
+            if predicate_id in answersToStore:
+                outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(tabs, predicate_id.name))
             
         outfile.write('}\n')
    
@@ -1299,10 +1299,10 @@ def fillDataStructureLevelFreeFunctions(outfile):
             outfile.write('{}'.format(tabs))
             outfile.write('}\n')
         
-        for pred in lengthToPreds[length]:
-            if pred in answersToStore:
+        for predicate_id in lengthToPreds[length]:
+            if predicate_id in answersToStore:
                 outfile.write('{}Judy1FreeArray(&d->R{}, PJE0);\n'.format(tabs,
-                                                                          pred.name))
+                                                                          predicate_id.name))
                 
         outfile.write('{}*&d = NULL;\n'.format(tabs))        
         outfile.write('}\n\n')
@@ -1321,12 +1321,12 @@ def fillDataStructureRootSolutions(outfile):
             
     if answers_of_length_1:
         outfile.write("/* Solution of length 1 */\n")
-        line = ', '.join(['R{}'.format(answer.name) for answer in answers_of_length_1])
+        line = ', '.join(['R{}'.format(predicate_id.name) for predicate_id in answers_of_length_1])
         outfile.write('static Pvoid_t {};\n'.format(line))
         
     if predicates_in_rules_of_length_1:
         outfile.write("/* Predicates of length 1*/\n")
-        line = ', '.join(['R{}'.format(answer.name) for answer in predicates_in_rules_of_length_1])
+        line = ', '.join(['R{}'.format(predicate_id.name) for predicate_id in predicates_in_rules_of_length_1])
         outfile.write('static Pvoid_t {};\n'.format(line))
 
 # This function only should be executed if there are predicates of length 2

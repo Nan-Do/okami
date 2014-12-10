@@ -6,6 +6,9 @@ Created on Jul 12, 2013
 
 from collections import namedtuple
 
+# Identifier is a named tuple. It will be used to identify variables and predicates.
+# Name will be a string with a name and unique_id will be a string uniquely among
+# all the identifiers.
 Identifier = namedtuple('Identifier', ['name', 'unique_id'], verbose=False)
 
 # Argument is a named tuple. Type will hold the type (variable or constant) 
@@ -14,17 +17,13 @@ Identifier = namedtuple('Identifier', ['name', 'unique_id'], verbose=False)
 Argument = namedtuple('Argument', ['type', 'value'], verbose=False)
 
 # Predicate is a named tuple. Contents
-#    name -> Name of the predicate.
-#    unique_id -> A unique identifier for the predicate is formed by the name and a
-#                 random generated string.
+#          id -> It will be the identifier for the predicate.
 #     negated -> Boolean that indicates if the predicate is negated in the program.
 #   arguments -> A list of arguments.
 Predicate = namedtuple('Predicate', ['id', 'negated', 'arguments'], verbose=False)
 
 # Variable is a named tuple. Contents
-#    name -> Name of the variable.
-#    unique_id -> A unique identifier for the variable is formed by the name and a
-#                 random generated string.
+#         id -> It will be the identifier for the predicate.
 #    negated -> Boolean that indicates if the predicate is negated in the program.
 Variable = namedtuple('Variable', ['id', 'negated'], verbose=False)
 
@@ -77,10 +76,10 @@ RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
 # PredicateTypes is a named tuple that represents the different kind of 
 # predicates that we can find in a datalog program. 
 # Contents:
-# intensional -> A set with strings identifying all the intensional predicates
+# intensional -> A set with Identifiers for all the intensional predicates
 #                of the program. Intensional predicates are those defined by 
 #                rules
-# extensional -> A set with strings identifying all the extensional predicates 
+# extensional -> A set with Identifiers for all the extensional predicates 
 #                of the program. Extensional predicates are those not defined 
 #                by rules.
 PredicateTypes = namedtuple('PredicateTypes', ['intensional', 'extensional'],
