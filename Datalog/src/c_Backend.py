@@ -9,6 +9,7 @@ import shutil
 import sys
 
 from collections import namedtuple, defaultdict
+from operator import attrgetter
 from itertools import count, chain
 from datetime import datetime
 from functools import wraps
@@ -30,27 +31,44 @@ SOURCE_FILES = ['makefile', 'main.c', 'parser.c',
 # Global data for the module
 GenerationData = None
 
+# This function returns an itertaror to all the equations contained in the stratums
+def getEquationsFromAllStratums():
+    return chain(*map(attrgetter('equations'), GenerationData.stratums))
+
+# This function returns an itertaror to all the views contained in the stratums
+def getViewsFromAllStratums():
+    return map(attrgetter('views'), GenerationData.stratums)
+
 # Utility functions
 def getPredicateLength(predicate):
-    for eq in GenerationData.equationsTable:
+    #print predicate,
+    for eq in getEquationsFromAllStratums():
         if predicate == eq.leftVar.id:
+            #print len(eq.leftArgs)
             return len(eq.leftArgs)
         elif predicate == eq.rightVar.id:
+            #print len(eq.rightArgs)
             return len(eq.rightArgs)
-                   
+        elif predicate == eq.consultingPred.id:
+            #print len(eq.consultingArgs) 
+            return len(eq.consultingArgs)
+            
+    #print "None"
     return None
 
 def getQueryMinimumLength():
-    return min(len(x.leftArgs) for x in GenerationData.equationsTable if x.type == 2)
+    #return min(len(x.leftArgs) for x in GenerationData.equationsTable if x.type == 2)
+    return min(len(x.leftArgs) for x in getEquationsFromAllStratums() if x.type == 2)
 
 def getQueryMaximumLength():
-    return max(len(x.leftArgs) for x in GenerationData.equationsTable if x.type == 2)
+    #return max(len(x.leftArgs) for x in GenerationData.equationsTable if x.type == 2)
+    return max(len(x.leftArgs) for x in getEquationsFromAllStratums() if x.type == 2)
 
 # In order to get the minimum node and the maximum node we have to check the right side
 # of every rule to store the answers and the left side of the rule of type 2
 def getDataStructureNodesMaximumLength():
-    return  max(chain([len(x.leftArgs) for x in GenerationData.equationsTable if x.type == 2],
-                      [len(x.rightArgs) for x in GenerationData.equationsTable]))
+    return  max(chain([len(x.leftArgs) for x in getEquationsFromAllStratums() if x.type == 2],
+                      [len(x.rightArgs) for x in getEquationsFromAllStratums()]))
 
 # This is a closure to check if we have predicates of type 2, some functions
 # like the ones handling the requests to the data structures should not be 
@@ -61,7 +79,7 @@ def check_for_predicates_of_type2(view_func):
     def _decorator(request, *args, **kwargs):
         response = None
         # Make sure we don't call the function if we don't have predicates of type 2
-        if len([x for x in GenerationData.equationsTable if x.type == 2]):
+        if len([x for x in getEquationsFromAllStratums() if x.type == 2]):
             response = view_func(request, *args, **kwargs)
         return response
     return wraps(view_func)(_decorator)
@@ -72,35 +90,44 @@ def check_for_predicates_of_type2(view_func):
 # a predicate having all variables as equal cards.
 def getPredicatesWithAllVariablesBeingTheSameEqualCard():
     answers = set()
-    for rule in GenerationData.equationsTable:
-        if (rule.leftVar.id not in GenerationData.answersToStore) and\
-                len(set(rule.leftArgs)) == 1 and\
-                rule.type == 2:
-            answers.add(rule.leftVar.id)
+    for eq in getEquationsFromAllStratums():
+        if (eq.leftVar.id not in GenerationData.answersToStore) and\
+                len(set(eq.leftArgs)) == 1 and\
+                eq.type == 2:
+            answers.add(eq.leftVar.id)
     return answers
 
 
 def getPredicatesWithAllVariablesBeingInTheSharedSet():
     answers = set()
-    for rule in GenerationData.equationsTable:
-        if (rule.leftVar not in GenerationData.answersToStore and \
-                rule.type == 2 and
-                getPredicateLength(rule.consultingPred.id) == len(rule.commonVars)):
-            answers.add(rule.consultingPred.id)
+    for eq in getEquationsFromAllStratums():
+        if (eq.leftVar not in GenerationData.answersToStore and \
+                eq.type == 2 and
+                getPredicateLength(eq.consultingPred.id) == len(eq.commonVars)):
+            answers.add(eq.consultingPred.id)
     return answers
 
 def getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
     answers = set()
-    for rule in GenerationData.equationsTable:
-        if (rule.leftVar.id not in GenerationData.answersToStore and \
-                rule.type == 2):
-            argument_constants = [x for x in rule.consultingArgs if isinstance(x, int) or  
+    for eq in getEquationsFromAllStratums():
+        if (eq.leftVar.id not in GenerationData.answersToStore and \
+                eq.type == 2):
+            argument_constants = [x for x in eq.consultingArgs if isinstance(x, int) or  
                                     (isinstance(x, Argument) and x.type == "constant")]
             
-            if len(rule.consultingArgs) == len(argument_constants):
-                answers.add(rule.consultingPred.id)
+            if len(eq.consultingArgs) == len(argument_constants):
+                answers.add(eq.consultingPred.id)
                 
-    return answers            
+    return answers
+
+def getNegatedPredicates():
+    answers = set()
+    for eq in getEquationsFromAllStratums():
+        if eq.consultingPred.negated:
+            #print "Adding predicate id", eq.consultingPred.id, " From a negated predicate"
+            answers.add(eq.consultingPred.id)
+            
+    return answers
 
 
 # This function get the solutions of the Datalog program. It returns a set
@@ -115,17 +142,18 @@ def getAllSolutions():
     solutions |= getPredicatesWithAllVariablesBeingTheSameEqualCard()
     solutions |= getPredicatesWithAllVariablesBeingInTheSharedSet()
     solutions |= getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()
+    solutions |= getNegatedPredicates()
     return solutions
 
 # This function returns a list containing tuples in which the first element
 # is a predicate name and the second element is its length.
 def getAllPredicatesLengths():
     data = []
-    for rule in GenerationData.equationsTable:
-        data.append((rule.leftVar.id,
-                     len(rule.leftArgs)))
-        data.append((rule.rightVar.id,
-                     len(rule.rightArgs)))
+    for eq in getEquationsFromAllStratums():
+        data.append((eq.leftVar.id,
+                     len(eq.leftArgs)))
+        data.append((eq.rightVar.id,
+                     len(eq.rightArgs)))
 
     # Remove duplicates
     return set(data)
@@ -135,17 +163,20 @@ def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
     
 def fillHypothesis(outfile):
-    hypothesis = set(x.leftVar.id.unique_id for x in GenerationData.equationsTable)
-    hypothesis |= set(x.rightVar.id.unique_id for x in GenerationData.equationsTable)
+    hypothesis = set(x.leftVar.id.unique_id for x in getEquationsFromAllStratums())
+    hypothesis |= set(x.rightVar.id.unique_id for x in getEquationsFromAllStratums())
+    hypothesis |= set(x.consultingPred.id.unique_id for x in getEquationsFromAllStratums() if x.consultingPred.negated)
     outfile.write('/* Hipothesys */\n')
     for hypothesis, pos in zip(hypothesis, count()):
         line = '#define {}\t{}\n'.format(hypothesis, str(pos))
         outfile.write(line)
     
 def fillAccessViews(outfile):
-    sorted_views = GenerationData.viewsData.viewsOrdering
+    #sorted_views = GenerationData.viewsData.viewsOrdering
+    sorted_views = [ view.viewsOrdering for view in getViewsFromAllStratums() ]
     outfile.write('/* View prefixes */\n')
-    for view_name, view_position in sorted_views:
+
+    for view_name, view_position in chain(*sorted_views):
         line = '#define {}\t{}\n'.format(view_name, str(view_position))
         outfile.write(line)
         
@@ -153,8 +184,8 @@ def fillAccessViews(outfile):
 def fillRewritingVariable(outfile):
     outfile.write('\tunsigned char PREDICATE;\n\n')
     
-    max_length = max(chain((len(x.leftArgs) for x in GenerationData.equationsTable), 
-                           (len(x.rightArgs) for x in GenerationData.equationsTable)))
+    max_length = max(chain((len(x.leftArgs) for x in getEquationsFromAllStratums()), 
+                           (len(x.rightArgs) for x in getEquationsFromAllStratums())))
     for p in xrange(1, max_length+1):
         outfile.write('\tunsigned int VAR_{};\n'.format(str(p)))
         
@@ -323,10 +354,13 @@ def fillSolverCompute(outfile):
         else:
             outfile.write('{}SolverQueue_append(&solver, &VAR);\n'.format(tabs))
             
-    equationsTable = GenerationData.equationsTable
-    predsToViewNames = GenerationData.viewsData.predsToViewNames
-    viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
-    aliasToViewNames = GenerationData.viewsData.aliasToViewNames
+    #equationsTable = GenerationData.equationsTable
+    #predsToViewNames = GenerationData.viewsData.predsToViewNames
+    predsToViewNames = dict(chain(*[ view.predsToViewNames.items() for view in getViewsFromAllStratums() ]))
+    #viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
+    viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
+    #aliasToViewNames = GenerationData.viewsData.aliasToViewNames
+    aliasToViewNames = dict(chain(*[ view.aliasToViewNames.items() for view in getViewsFromAllStratums() ]))
     answersToStore = GenerationData.answersToStore
     printVariables = GenerationData.printVariables
     outputTuples = GenerationData.answersToStore
@@ -336,7 +370,7 @@ def fillSolverCompute(outfile):
     
     for predicate_id in chain(block1, block2, block3):
         # Get the rule of the predicate raise an exception if not found
-        rules = (x for x in equationsTable
+        rules = (x for x in getEquationsFromAllStratums()
                        if x.leftVar.id == predicate_id)
 
         outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate_id.unique_id))
@@ -365,7 +399,7 @@ def fillSolverCompute(outfile):
         # We emit debugging code via a c macro to check what is going to be added
         # to the data structure. We show the view and the values being added.
         # After we use the appropriate call to add the solution to the data structure
-        if predsToViewNames[predicate_id]:
+        if predicate_id in predsToViewNames:
             # This is the debugging part
             #outfile.write('\n#ifdef NDEBUG\n')
               
@@ -393,7 +427,7 @@ def fillSolverCompute(outfile):
         
         # Unfortunately because of the problem of the previous line we have to recheck here if the
         # predicate has a view associated with it
-        if predsToViewNames[predicate_id]:     
+        if predicate_id in predsToViewNames:     
             # This is part in which we add the solution to the data structure. If the predicate has length
             # 1 we have to add directly the solution, as by convention there is no level node of length 0
             # and the predicates of length 1 are turned into solutions
@@ -848,17 +882,17 @@ def fillSolverFree(outfile):
 
 @check_for_predicates_of_type2
 def fillIntList(outfile):
-    equationsTable = GenerationData.equationsTable
+    #equationsTable = GenerationData.equationsTable
     
     # Check if there is a rule without common variables if that is the case we
     # need to iterate over the first level of the data structure at some point
     # and we need an extra variable to deal with it as we don't store list
     # of integers for the first level.
-    requires_t0 = any(len(x.commonVars) == 0 for x in equationsTable if x.type == 2)
+    requires_t0 = any(len(x.commonVars) == 0 for x in getEquationsFromAllStratums() if x.type == 2)
     # Obtain the number of variables we have to iterate over to generate new 
     # answers. That value is the number of variables in the consulting values list
     length = max(len(filter(lambda y: isinstance(y, Argument) and y.type == 'variable', x.consultingArgs)) 
-                    for x in equationsTable if x.type == 2)
+                    for x in getEquationsFromAllStratums() if x.type == 2)
     
     # In case there is a rule with no common variables
     if requires_t0:
@@ -868,7 +902,7 @@ def fillIntList(outfile):
         # if that is the case then we have to subtract 1 to the value as we are already 
         # using t0. 
         no_cvars_max_length = max(len(filter(lambda y: isinstance(y, Argument) and y.type == 'variable', x.consultingArgs)) 
-                                  for x in equationsTable if x.type == 2 and len(x.commonVars) == 0)
+                                  for x in getEquationsFromAllStratums() if x.type == 2 and len(x.commonVars) == 0)
         
         if no_cvars_max_length == length:
             length -= 1
@@ -882,19 +916,21 @@ def fillIntList(outfile):
         outfile.write('\tintList {};\n'.format(args))
 
 def fillDataStructureLevelNodes(outfile):
-    equationsTable = GenerationData.equationsTable
+    #equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
-    viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
+    #viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
+    viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
     
     # Store the answers by length. This will be used to know in which level node store the
     # answers
     lengthToPreds = defaultdict(set)
-    for rule in equationsTable:
+    for rule in getEquationsFromAllStratums():
         if len(rule.rightArgs) > 1:
             lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.id)
             
     
-    viewsData = []        
+    viewsData = []
+    #print viewNamesToCombinations
     viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
     number_of_data_structure_nodes = getDataStructureNodesMaximumLength()
     
@@ -1035,7 +1071,7 @@ def fillDataStructureInsertFunctions(outfile):
 
 @check_for_predicates_of_type2        
 def fillDataStructureGetIntListFunctions(outfile):
-    equationsTable = GenerationData.equationsTable
+    #equationsTable = GenerationData.equationsTable
     
     # Here we emit source code for the functions to retrieve the lists we need
     # to iterate to obtain new solutions basically we have to add a new 
@@ -1045,11 +1081,11 @@ def fillDataStructureGetIntListFunctions(outfile):
     # could be refactored into a new function. For more detailed explanation on
     # how to compute those values please check the fillIntList function
     
-    requires_t0 = any(len(x.commonVars) == 0 for x in equationsTable if x.type == 2)
+    requires_t0 = any(len(x.commonVars) == 0 for x in getEquationsFromAllStratums() if x.type == 2)
     length = getQueryMaximumLength() - 1
     
     if requires_t0:
-        no_cvars_max_length = max(len(x.consultingArgs) for x in equationsTable
+        no_cvars_max_length = max(len(x.consultingArgs) for x in getEquationsFromAllStratums()
                                   if x.type == 2 and len(x.commonVars) == 0)
         if no_cvars_max_length == length:
             length -= 1
@@ -1195,12 +1231,13 @@ def fillDataStructureAppendSolutionFunctions(outfile):
 
 @check_for_predicates_of_type2  
 def fillDataStructureInitLevelFunctions(outfile):
-    equationsTable = GenerationData.equationsTable
+    #equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
-    viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
+    #viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
+    viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
 
     lengthToPreds = defaultdict(set)
-    for rule in equationsTable:
+    for rule in getEquationsFromAllStratums():
         if len(rule.rightArgs) > 1:
             lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.id)
         
@@ -1265,7 +1302,7 @@ def fillDataStructureLevelNewNodeFunctions(outfile):
         outfile.write('}\n\n')
 
 def fillDataStructureLevelFreeFunctions(outfile):
-    equationsTable = GenerationData.equationsTable
+    #equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
 
     # This checks that we don't handle level 1 nodes as for the current generation model doesn't 
@@ -1275,7 +1312,7 @@ def fillDataStructureLevelFreeFunctions(outfile):
     lengths = xrange(2, getDataStructureNodesMaximumLength() + 1)
     
     lengthToPreds = defaultdict(set)
-    for rule in equationsTable:
+    for rule in getEquationsFromAllStratums():
         lengthToPreds[len(rule.rightArgs)].add(rule.rightVar.id)
         
     for pos, length in enumerate(lengths):
@@ -1313,9 +1350,11 @@ def fillDataStructureLevelFreeFunctions(outfile):
 def fillDataStructureRootSolutions(outfile):
     answers_of_length_1 = set()
     predicates_in_rules_of_length_1 = set()
-    for rule in GenerationData.equationsTable:
+    for rule in getEquationsFromAllStratums():
         if len(rule.rightArgs) == 1:
             answers_of_length_1.add(rule.rightVar.id)
+        if len(rule.consultingArgs) == 1 and rule.consultingPred.negated:
+            answers_of_length_1.add(rule.consultingPred.id)
         if len(rule.leftArgs) == 1:
             predicates_in_rules_of_length_1.add(rule.leftVar.id)
             
@@ -1387,7 +1426,8 @@ def fill_file(filename, orig_file, dest_file):
                     function = line.split()[1]
                     try:
                         fill_template[function](outfile)
-                    except KeyError:
+                    except KeyError as e:
+                        print e
                         print "Error: {}: {}: Unknown directive: {}".format(filename, 
                                                                    line_number,
                                                                    function)
@@ -1397,16 +1437,14 @@ def fill_file(filename, orig_file, dest_file):
                     
     return True
               
-def generate_code_from_template(output_directory, equationsTable, viewsData,
+def generate_code_from_template(output_directory, stratums,
                                 blocksOrder, predicateTypes, 
                                 answersToStore, printVariables):
     # Make the necessary data to generate the source code available to the rest of the functions
-    GD = namedtuple('GD', ['equationsTable', 'viewsData', 
-                           'predicateTypes', 'blocksOrder',
+    GD = namedtuple('GD', ['stratums', 'predicateTypes', 'blocksOrder',
                            'answersToStore', 'printVariables'])
     
-    globals()['GenerationData'] = GD(equationsTable, viewsData, 
-                                     blocksOrder, predicateTypes,
+    globals()['GenerationData'] = GD(stratums, blocksOrder, predicateTypes,
                                      answersToStore, printVariables)
     
     #Check that the output directory exists

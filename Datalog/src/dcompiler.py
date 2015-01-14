@@ -154,7 +154,7 @@ USAGE
         # mandatory but helps to perform the computation later.
         # The dependencyGraph is a graph containing the predicate dependency
         # Of every rule in a bottom-up fashion
-        rulesTable, predicateTypes, dependencyGraph = \
+        rulesTable, predicateTypes, dependencyGraph, negatedPredicates = \
                 buildRulesTable(source_file)
                 
         # This function call is in charge of generating the set of rewriting equations.
@@ -168,7 +168,9 @@ USAGE
         # This function establishes the ordering for the different predicates
         # the algorithm is an optimization that imposes an scheduling to the
         # different variables to avoid some unnecessary operations
-        ordering_for_blocks = predicateOrder(dependencyGraph, predicateTypes.intensional)
+        ordering_for_blocks = predicateOrder(dependencyGraph, 
+                                             predicateTypes.intensional,
+                                             negatedPredicates)
         
         # Here we have several pretty printers to show the different structures and other
         # interesting data computed so far from the given Datalog program in case the debug

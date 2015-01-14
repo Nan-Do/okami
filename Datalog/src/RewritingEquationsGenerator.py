@@ -59,7 +59,7 @@ def rewritingEquationPrinter(EquationsTable):
                 rewriting_rule += " " + unichr(8704) + parentify(consulting_variables_str) + " " + unichr(8712) +\
                                   "  " + eq.aliasName + parentify(consulting_values_str)
             else:
-                rewriting_rule += " " + unichr(8594) + " " + unichr(8707) + " " + eq.aliasName + parentify(consulting_values_str)
+                rewriting_rule += " / " + unichr(8708) + " " + eq.aliasName + parentify(consulting_values_str)
         rewriting_rule.encode('utf-8')
                 
         print rewriting_rule
@@ -318,6 +318,13 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
         if logic_rule.type == 2:
             for rewriting_rule in [generateRuleType_2a(logic_rule, rule_number),
                               generateRuleType_2b(logic_rule, rule_number)]:
+                
+                # If the rewriting rule has the left variable negated we have to continue.
+                # Negated predicates are only used to be queried, practically this restrict 
+                # the set of valid solutions. The database is populated as an extensional 
+                # database or in a previous stratum 
+                if rewriting_rule.leftVar.negated:
+                    continue
                 
                 if (not check_consulting_values(rewriting_rule.consultingArgs)):
                     print "Warning with rule: " + logic_rule.rule + " Consulting predicate " +\

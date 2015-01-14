@@ -31,7 +31,7 @@ def computePredecessors(node, dependencyGraph):
             
         return answer
 
-def orderFirstBlock(block1, block2, predecessors):
+def orderFirstBlock(block1, block2, predecessors, negatedPredicates):
 #     def computePredecessors(node, dependencyGraph):
 #         answer = set([x for x in dependencyGraph[node].keys() if x != node])
 #         working_set = deepcopy(answer)
@@ -47,15 +47,24 @@ def orderFirstBlock(block1, block2, predecessors):
 #     predecessors = dict()
 #     for node in block2:
 #         predecessors[node] = computePredecessors(node, dependencyGraph)
+    #print predecessors, block1
         
     answer = []
-    #print predecessors, block1
+    answer_tmp = []
     for node in block2:
         for pred in predecessors[node]:
             if pred in block1:
-                answer.append(block1)
-                
-    return answer + list(set(block1).difference(set(answer))) 
+                answer_tmp.append(pred)
+    
+    # Make sure negated predicates go first in the ordering
+    answer_tmp += list(set(block1).difference(set(answer_tmp)))
+    for idPred in answer_tmp:
+        if idPred in negatedPredicates:
+            answer.insert(0, idPred)
+        else:
+            answer.append(idPred)
+            
+    return answer 
 
 def orderSecondBlock(block2, predecessors):
     return sorted(block2, key=cmp_to_key(lambda x, y: 1 if x in predecessors[y] else -1))
@@ -89,13 +98,14 @@ def orderThirdBlock(block_1, block_2, block_3, dependencyGraph):
     
     return answer
         
-def predicateOrder(dependencyGraph, intensionalPredicates):
+def predicateOrder(dependencyGraph, intensionalPredicates, negatedPredicates):
     block1 = list()
     block2 = list()
+    #print negatedPredicates
 
     graph = deepcopy(dependencyGraph)
     incidenceGrades = computeIncidendeGrades(graph)
-    markedNodes = set()
+    markedNodes = set() | negatedPredicates
     addedNodes = [x for x in incidenceGrades.keys() if incidenceGrades[x] == 0]
     
     while (len(addedNodes)):
@@ -123,6 +133,11 @@ def predicateOrder(dependencyGraph, intensionalPredicates):
         
     block2 = orderSecondBlock(block2, predecessors)
     #block1 = orderFirstBlock(block1, block2, dependencyGraph)
-    block1 = orderFirstBlock(block1, block2, predecessors)
+    block1 = orderFirstBlock(block1, block2, predecessors, negatedPredicates)
+    
+    #if [x for x in block3 if x in negatedPredicates]:
+    #    print "NegatedPredicates in thirdBlock"
+        
+    #print block1, block2, block3
     
     return (block1, block2, block3)

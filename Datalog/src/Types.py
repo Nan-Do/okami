@@ -85,6 +85,14 @@ RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
 PredicateTypes = namedtuple('PredicateTypes', ['intensional', 'extensional'],
                             verbose=False)
 
+# Stratum is a named tuple that represents the information required to represent
+# every stratum of the program a stratum is a just a level that organizes the 
+# evaluation of a program which contains negated predicates. If the program
+# doesn't contain negated predicates there will be only one stratum.
+# equations -> Rewriting equations that are part of the stratum
+# views -> The views associated with the stratum
+Stratum = namedtuple('Stratum', ['equations', 'views'], verbose=False)
+
 # ViewsData is a named tuple that represents the information we need to
 # handle the different views our datalog program need
 # Contents:
