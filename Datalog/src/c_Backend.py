@@ -280,45 +280,83 @@ def fillPrintAnswer(outfile):
         outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_unique_id))
         outfile.write('\t\tfprintf(file, "{}({}).\\n", {});\n'.format(pred_name, formatting, variables))
 
+
 def fillSolverInit(outfile):
-    extensional = GenerationData.blocksOrder[0]
+    # First init the queues
+    number_of_stratums = len(GenerationData.stratums)
     outputTuples = GenerationData.answersToStore
     
-    for pos, predicate in enumerate(extensional):
-        length = getPredicateLength(predicate)
+    for queue_number in xrange(1, number_of_stratums + 1):
+        outfile.write('\tSolverQueue_init(&solver_queue{});\n'.format(queue_number))
         
-        outfile.write('\tfp = fopen(tuples_input_files[{}], "r");\n'.format(pos))
-        outfile.write('\tif (!fp){\n')
-        outfile.write('\t\tfprintf(stderr, "Error: Can\'t open file %s\\n",')
-        outfile.write(' tuples_input_files[{}]);\n'.format(pos))
-        outfile.write('\t\treturn FALSE;\n')
-        outfile.write('\t}\n')
-        outfile.write('\twhile (parser_get_fact(fp, NULL, &fact) == 1){\n')
-        outfile.write('\t\tVAR.PREDICATE = {};\n'.format(predicate[1]))
-        
-        for x in xrange(length):
-            outfile.write('\t\tVAR.VAR_{} = fact.values[{}];\n'.format(str(x+1), x))
-
-        outfile.write('\n')
-        
-        formatting = ','.join(['%i' for x in xrange(length)])
-        outfile.write('#ifdef NDEBUG\n')
-        outfile.write('\t\tfprintf(stderr, "Adding rewriting variable: X_{}'.format(predicate[0]))
-        outfile.write('({})\\n",\n'.format(formatting))
-        
-        for x in xrange(length):
-            if x != (length - 1):
-                outfile.write('\t\t\t\tVAR.VAR_{},\n'.format(str(x+1)))
-            else:
-                outfile.write('\t\t\t\tVAR.VAR_{});\n'.format(str(x+1)))
-        outfile.write('#endif\n\n')
-        
-        outfile.write('\t\tSolverQueue_append(&solver, &VAR);\n')
-        outfile.write('\t}\n')
-        outfile.write('\tfclose(fp);\n\n')
+    outfile.write('\n')
         
     for pos, predicate in enumerate(outputTuples):
         outfile.write('\tfp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(predicate[0], str(pos)))
+        
+def fillStratumQueueInitializers(outfile):
+    extensional = GenerationData.blocksOrder[0]
+    extensional_as_set = set(extensional)
+    idToStratumLevels = GenerationData.idToStratumLevels
+    number_of_stratums = len(GenerationData.stratums)
+    
+    # Create a new dictionary from idToStratumLevels only containing
+    # extensional predicates
+    extensionalToStratumLevels = {k: v for (k,v) in idToStratumLevels.iteritems() if k in extensional_as_set}
+    
+    for stratum_level in xrange(1, number_of_stratums + 1):
+        outfile.write('int solver_init_stratum_level{}(){{\n'.format(str(stratum_level)))
+        outfile.write('\tFILE *fp;\n')
+        outfile.write('\tFact fact;\n')
+        outfile.write('\tTYPE_REWRITING_VARIABLE VAR;\n\n')
+        
+        # Get the predicates that belong to the current stratum level
+        idsVars = (idVar for (idVar, levels) in extensionalToStratumLevels.iteritems()
+                                if stratum_level in levels)
+        
+        # If we are in the first of the level we must honor the order of the block
+        # as negated predicates must be put first
+        if (stratum_level == 1):
+            idsVarsSet = set(idsVars)
+            idsVars = ( x for x in extensional if x in idsVarsSet )
+            
+        for idVar in idsVars:
+            pos = extensional.index(idVar)
+            
+            length = getPredicateLength(idVar)
+        
+            outfile.write('\tfp = fopen(tuples_input_files[{}], "r");\n'.format(pos))
+            outfile.write('\tif (!fp){\n')
+            outfile.write('\t\tfprintf(stderr, "Error: Can\'t open file %s\\n",')
+            outfile.write(' tuples_input_files[{}]);\n'.format(pos))
+            outfile.write('\t\treturn FALSE;\n')
+            outfile.write('\t}\n')
+            outfile.write('\twhile (parser_get_fact(fp, NULL, &fact) == 1){\n')
+            outfile.write('\t\tVAR.PREDICATE = {};\n'.format(idVar.unique_id))
+            
+            for x in xrange(length):
+                outfile.write('\t\tVAR.VAR_{} = fact.values[{}];\n'.format(str(x+1), x))
+    
+            outfile.write('\n')
+            
+            formatting = ','.join(['%i' for x in xrange(length)])
+            outfile.write('#ifdef NDEBUG\n')
+            outfile.write('\t\tfprintf(stderr, "Adding rewriting variable: X_{}'.format(idVar.name))
+            outfile.write('({})\\n",\n'.format(formatting))
+            
+            for x in xrange(length):
+                if x != (length - 1):
+                    outfile.write('\t\t\t\tVAR.VAR_{},\n'.format(str(x+1)))
+                else:
+                    outfile.write('\t\t\t\tVAR.VAR_{});\n'.format(str(x+1)))
+            outfile.write('#endif\n\n')
+            
+            outfile.write('\t\tSolverQueue_append(&solver, &VAR);\n')
+            outfile.write('\t}\n')
+            outfile.write('\tfclose(fp);\n\n')
+                    
+        
+        outfile.write('}\n\n')
     
 def fillSolverCompute(outfile):
     def printtemp(tabs, rule):
@@ -876,9 +914,15 @@ def fillSolverCompute(outfile):
 # name of the predicate.
 def fillSolverFree(outfile):
     outputTuples = GenerationData.answersToStore
+    number_of_stratums = len(GenerationData.stratums)
     
     for predicate in outputTuples:
         outfile.write('\tfclose(fp_{});\n'.format(predicate[0]))
+        
+    outfile.write('\n\tDs_free();\n')
+    for queue_number in xrange(1, number_of_stratums+1):
+        outfile.write('\tSolverQueue_free(&solver_queue{});\n'.format(queue_number))
+    outfile.write('\tMem_free();\n')
 
 @check_for_predicates_of_type2
 def fillIntList(outfile):
@@ -1394,6 +1438,7 @@ fill_template = {
      'fill_PrintRewritingVariable' : fillPrintRewritingVariable,
      'fill_PrintAnswer'         : fillPrintAnswer,
      'fill_SolverInit'          : fillSolverInit,
+     'fill_StratumQueueInitializers' : fillStratumQueueInitializers,
      'fill_SolverCompute'       : fillSolverCompute,
      'fill_SolverFree'          : fillSolverFree,
      'fill_IntList'             : fillIntList,
@@ -1446,13 +1491,15 @@ def fill_file(filename, orig_file, dest_file):
               
 def generate_code_from_template(output_directory, stratums,
                                 blocksOrder, predicateTypes, 
-                                answersToStore, printVariables):
+                                answersToStore, printVariables,
+                                idToStratumLevels):
     # Make the necessary data to generate the source code available to the rest of the functions
     GD = namedtuple('GD', ['stratums', 'predicateTypes', 'blocksOrder',
-                           'answersToStore', 'printVariables'])
+                           'answersToStore', 'printVariables', 'idToStratumLevels'])
     
     globals()['GenerationData'] = GD(stratums, blocksOrder, predicateTypes,
-                                     answersToStore, printVariables)
+                                     answersToStore, printVariables,
+                                     idToStratumLevels)
     
     #Check that the output directory exists
     path = os.path.normpath(output_directory + '/Solver_C_code')

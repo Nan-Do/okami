@@ -75,19 +75,15 @@ void print_answer(FILE *file, TYPE_REWRITING_VARIABLE *b){
 }
 
 int solver_init(){
-	FILE *fp;
-	Fact fact;
-	TYPE_REWRITING_VARIABLE VAR;
-
 	Mem_init();
 	Ds_init();
-	SolverQueue_init(&solver);
 
-	/* Fill SolverQueue with facts from files */
 %% fill_SolverInit
 
 	return TRUE;
 }
+
+%% fill_StratumQueueInitializers
 
 int solver_compute(){
 %% fill_IntList
@@ -107,8 +103,4 @@ int solver_compute(){
 
 void solver_free(){
 %% fill_SolverFree
-
-	Ds_free();
-	SolverQueue_free(&solver);
-	Mem_free();
 }
