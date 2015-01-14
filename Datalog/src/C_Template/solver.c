@@ -31,7 +31,8 @@ void SolverQueue_free(SolverQueue *);
 
 void SolverQueue_append(SolverQueue *, TYPE_REWRITING_VARIABLE *);
 
-SolverQueue solver;
+/* SolverQueue solver; */
+%% fill_StratumSolverQueues
 unsigned long count=0;
 
 /* Functions to print the data */

@@ -1376,6 +1376,12 @@ def fillDataStructureRootSolutions(outfile):
 def fillDataStructureLevel2Line(outfile):
     if getDataStructureNodesMaximumLength() > 1:
         outfile.write('\t\tDsData_Level_2_free((DsData_2 *) *PValue);\n')
+        
+def fillStratumSolverQueues(outfile):
+    number_of_stratums = len(GenerationData.stratums)
+    queues = ", ".join('solver_queue' + str(x) for x in xrange(1, number_of_stratums+1))
+    outfile.write('SolverQueue {};\n'.format(queues))
+    
 
 # Function mapping for directives
 fill_template = {
@@ -1402,7 +1408,8 @@ fill_template = {
      'fill_DsLevelNewNodeFunctions' : fillDataStructureLevelNewNodeFunctions,
      'fill_DsLevelFreeFunctions' : fillDataStructureLevelFreeFunctions,
      'fill_DsRootAnswers'        : fillDataStructureRootSolutions,
-     'fill_DsFreeLevel2Line'     : fillDataStructureLevel2Line
+     'fill_DsFreeLevel2Line'     : fillDataStructureLevel2Line,
+     'fill_StratumSolverQueues'  : fillStratumSolverQueues
      }
 
  
