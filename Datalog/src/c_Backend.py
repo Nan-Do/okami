@@ -351,11 +351,11 @@ def fillStratumQueueInitializers(outfile):
                     outfile.write('\t\t\t\tVAR.VAR_{});\n'.format(str(x+1)))
             outfile.write('#endif\n\n')
             
-            outfile.write('\t\tSolverQueue_append(&solver, &VAR);\n')
+            outfile.write('\t\tSolverQueue_append(&solver_queue{}, &VAR);\n'.format(str(stratum_level)))
             outfile.write('\t}\n')
             outfile.write('\tfclose(fp);\n\n')
-                    
         
+        outfile.write('\treturn TRUE;\n')
         outfile.write('}\n\n')
     
 def fillSolverCompute(outfile):
