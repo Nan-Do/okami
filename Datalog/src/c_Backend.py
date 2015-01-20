@@ -53,7 +53,7 @@ def getPredicateLength(predicate):
             return len(eq.leftArgs)
         elif predicate == eq.rightVar.id:
             return len(eq.rightArgs)
-        elif predicate == eq.consultingPred.id:
+        elif (eq.type == 2) and (predicate == eq.consultingPred.id):
             return len(eq.consultingArgs)
             
     #print "None"
@@ -126,7 +126,7 @@ def getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
 def getNegatedPredicates():
     answers = set()
     for eq in getEquationsFromAllStratums():
-        if eq.consultingPred.negated:
+        if (eq.type == 2 and eq.consultingPred.negated):
             #print "Adding predicate id", eq.consultingPred.id, " From a negated predicate"
             answers.add(eq.consultingPred.id)
             
@@ -168,7 +168,7 @@ def fillProgramName(outfile):
 def fillHypothesis(outfile):
     hypothesis = set(x.leftVar.id.unique_id for x in getEquationsFromAllStratums())
     hypothesis |= set(x.rightVar.id.unique_id for x in getEquationsFromAllStratums())
-    hypothesis |= set(x.consultingPred.id.unique_id for x in getEquationsFromAllStratums() if x.consultingPred.negated)
+    hypothesis |= set(x.consultingPred.id.unique_id for x in getEquationsFromAllStratums() if (x.type == 2 and x.consultingPred.negated))
     outfile.write('/* Hipothesys */\n')
     for hypothesis, pos in zip(hypothesis, count()):
         line = '#define {}\t{}\n'.format(hypothesis, str(pos))
@@ -1426,10 +1426,10 @@ def fillDataStructureRootSolutions(outfile):
     for rule in getEquationsFromAllStratums():
         if len(rule.rightArgs) == 1:
             answers_of_length_1.add(rule.rightVar.id)
-        if len(rule.consultingArgs) == 1 and rule.consultingPred.negated:
-            answers_of_length_1.add(rule.consultingPred.id)
         if len(rule.leftArgs) == 1:
             predicates_in_rules_of_length_1.add(rule.leftVar.id)
+        if rule.type == 2 and len(rule.consultingArgs) == 1 and rule.consultingPred.negated:
+            answers_of_length_1.add(rule.consultingPred.id)
             
     if answers_of_length_1:
         outfile.write("/* Solution of length 1 */\n")
