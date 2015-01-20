@@ -85,13 +85,21 @@ RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
 PredicateTypes = namedtuple('PredicateTypes', ['intensional', 'extensional'],
                             verbose=False)
 
+# Ordering is a named tuple. It contains three lists of identifiers. Every list is an 
+# ordering for the evaluation of the different variables.
+# block1 -> The identifiers belonging to the first block
+# block2 -> The identifiers belonging to the second block
+# block3 -> The identifiers belonging to the third block
+Ordering = namedtuple('Ordering', ['block1', 'block2', 'block3'], verbose=False)
+
 # Stratum is a named tuple that represents the information required to represent
 # every stratum of the program a stratum is a just a level that organizes the 
 # evaluation of a program which contains negated predicates. If the program
 # doesn't contain negated predicates there will be only one stratum.
 # equations -> Rewriting equations that are part of the stratum
 # views -> The views associated with the stratum
-Stratum = namedtuple('Stratum', ['equations', 'views'], verbose=False)
+# ordering -> Will contain the Ordering for the current stratum
+Stratum = namedtuple('Stratum', ['equations', 'views', 'ordering'], verbose=False)
 
 # ViewsData is a named tuple that represents the information we need to
 # handle the different views our datalog program need

@@ -31,6 +31,13 @@ SOURCE_FILES = ['makefile', 'main.c', 'parser.c',
 # Global data for the module
 GenerationData = None
 
+# Utility functions
+
+# This function returns an iterator to a list containing all the extensional predicates
+# The extensional predicates are stored in the block1 of every stratum. 
+def getExtensionalPredicates():
+    return chain(*map(attrgetter('block1'), map(attrgetter('ordering'), GenerationData.stratums)))
+
 # This function returns an itertaror to all the equations contained in the stratums
 def getEquationsFromAllStratums():
     return chain(*map(attrgetter('equations'), GenerationData.stratums))
@@ -41,16 +48,12 @@ def getViewsFromAllStratums():
 
 # Utility functions
 def getPredicateLength(predicate):
-    #print predicate,
     for eq in getEquationsFromAllStratums():
         if predicate == eq.leftVar.id:
-            #print len(eq.leftArgs)
             return len(eq.leftArgs)
         elif predicate == eq.rightVar.id:
-            #print len(eq.rightArgs)
             return len(eq.rightArgs)
         elif predicate == eq.consultingPred.id:
-            #print len(eq.consultingArgs) 
             return len(eq.consultingArgs)
             
     #print "None"
@@ -224,7 +227,7 @@ def fillDataStructureSolutionHeaderFunctions(outfile):
 
 # solver.c
 def fillInputTuplesFiles(outfile):
-    extensional = GenerationData.blocksOrder[0]
+    extensional = list(getExtensionalPredicates())
     outfile.write('static char *tuples_input_files[] = {\n')
     
     for pos, (pred_name, _) in enumerate(extensional):
@@ -295,7 +298,7 @@ def fillSolverInit(outfile):
         outfile.write('\tfp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(predicate[0], str(pos)))
         
 def fillStratumQueueInitializers(outfile):
-    extensional = GenerationData.blocksOrder[0]
+    extensional = list(getExtensionalPredicates())
     extensional_as_set = set(extensional)
     idToStratumLevels = GenerationData.idToStratumLevels
     number_of_stratums = len(GenerationData.stratums)
@@ -359,7 +362,10 @@ def fillStratumQueueInitializers(outfile):
         outfile.write('}\n\n')
     
 def fillSolverCompute(outfile):
-    def printtemp(tabs, rule):
+    # This function emits code regardless we are dealing with a type 1 or type2 function it has 
+    # extracted to the function so we don't have to write it twice. Also is used to emit the tabs
+    # for the source code properly.
+    def common_block_for_any_type_of_rule(tabs, rule, level, num_of_stratums):
         # Do we have to store the answer??
         if rule.rightVar.id in answersToStore:
             predicate_id = rule.rightVar.id
@@ -382,7 +388,10 @@ def fillSolverCompute(outfile):
             outfile.write('{}fprintf(stderr, "\\n");\n'.format(tabs))
             outfile.write('#endif\n\n')
             
-            outfile.write('{}SolverQueue_append(&solver, &VAR);\n'.format(tabs))
+            if level == num_of_stratums:
+                outfile.write('{}SolverQueue_append(&solver_queue{}, &VAR);\n'.format(tabs, str(level)))
+            else:
+                outfile.write('{}SolverQueue_append(&solver_queue{}, &VAR);\n'.format(tabs, str(level + 1)))
             outfile.write('{}Ds_append_solution_{}({});\n'.format(tabs,
                                                                     predicate_id.name,
                                                                     args))
@@ -402,512 +411,532 @@ def fillSolverCompute(outfile):
     answersToStore = GenerationData.answersToStore
     printVariables = GenerationData.printVariables
     outputTuples = GenerationData.answersToStore
-    block1 = GenerationData.blocksOrder[0]
-    block2 = GenerationData.blocksOrder[1]
-    block3 = GenerationData.blocksOrder[2]
     
-    for predicate_id in chain(block1, block2, block3):
-        # Get the rule of the predicate raise an exception if not found
-        rules = (x for x in getEquationsFromAllStratums()
-                       if x.leftVar.id == predicate_id)
-
-        outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate_id.unique_id))
-        outfile.write('{\n')
+    # Here we emit code to handle the different stratums in the solver_compute function
+    for level, stratum in enumerate(GenerationData.stratums, start=1):
+        outfile.write('\t/*Stratum {}*/\n'.format(level))
+        outfile.write('\tsolver_init_stratum_level{}();\n'.format(str(level)))
+        outfile.write('\twhile (solver_queue{}.head){{\n'.format(str(level)))
+        outfile.write('\t\tcurrent = solver_queue{}.head;\n\n'.format(str(level)))
         
-        # Do we have to print the variable
-        if predicate_id in printVariables:
-            outfile.write("\t\t\tprint_answer(stdout, &current->b);\n")
+        block1 = stratum.ordering.block1
+        block2 = stratum.ordering.block2
+        block3 = stratum.ordering.block3
+    
+        for predicate_id in chain(block1, block2, block3):
+            # Get the rule of the predicate raise an exception if not found
+            rules = (x for x in getEquationsFromAllStratums()
+                           if x.leftVar.id == predicate_id)
+    
+            outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate_id.unique_id))
+            outfile.write('{\n')
             
-        if predicate_id in outputTuples:
-            outfile.write("\t\t\tprint_answer(fp_{}, &current->b);\n".format(predicate_id.name))
-        
-        # Debug information
-        pred_length = getPredicateLength(predicate_id)
-        outfile.write('#ifdef NDEBUG\n')
-        formatting = ', '.join(['%i' for _ in xrange(pred_length)])
-        args = ',\n\t\t\t\t\t'.join(('current->b.VAR_{}'.format(str(x+1)) for x in xrange(pred_length)))
-        output_string = '\t\t\tfprintf(stderr, "Handling rewriting ' +\
-                        'variable: X_{}'.format(predicate_id.name) +\
-                        '({})\\n",\n\t\t\t\t\t{});\n'.format(formatting,
-                                                             args)
-        outfile.write(output_string)
-        #outfile.write('#endif\n')
-        
-        # Here we emit code to add data to the data structure if we are in a type 2 rule.
-        # We emit debugging code via a c macro to check what is going to be added
-        # to the data structure. We show the view and the values being added.
-        # After we use the appropriate call to add the solution to the data structure
-        if predicate_id in predsToViewNames:
-            # This is the debugging part
-            #outfile.write('\n#ifdef NDEBUG\n')
-              
-            # Debug information: If the predicate has length 1 the it becomes a solution and has to be
-            # treated as such. Otherwise we insert a value into the list as normal
-            if pred_length == 1:
-                outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
-                outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(predicate_id.name))
-            else:
-                for view in predsToViewNames[predicate_id]:
-                    args = ', '.join('current->b.VAR_{}'.format(x) for
-                                     x in viewNamesToCombinations[view])
-                    formatting = ', '.join(('%i' for _ in viewNamesToCombinations[view]))
-  
+            # Do we have to print the variable
+            if predicate_id in printVariables:
+                outfile.write("\t\t\tprint_answer(stdout, &current->b);\n")
+                
+            if predicate_id in outputTuples:
+                outfile.write("\t\t\tprint_answer(fp_{}, &current->b);\n".format(predicate_id.name))
+            
+            # Debug information
+            pred_length = getPredicateLength(predicate_id)
+            outfile.write('#ifdef NDEBUG\n')
+            formatting = ', '.join(['%i' for _ in xrange(pred_length)])
+            args = ',\n\t\t\t\t\t'.join(('current->b.VAR_{}'.format(str(x+1)) for x in xrange(pred_length)))
+            output_string = '\t\t\tfprintf(stderr, "Handling rewriting ' +\
+                            'variable: X_{}'.format(predicate_id.name) +\
+                            '({})\\n",\n\t\t\t\t\t{});\n'.format(formatting,
+                                                                 args)
+            outfile.write(output_string)
+            #outfile.write('#endif\n')
+            
+            # Here we emit code to add data to the data structure if we are in a type 2 rule.
+            # We emit debugging code via a c macro to check what is going to be added
+            # to the data structure. We show the view and the values being added.
+            # After we use the appropriate call to add the solution to the data structure
+            if predicate_id in predsToViewNames:
+                # This is the debugging part
+                #outfile.write('\n#ifdef NDEBUG\n')
+                  
+                # Debug information: If the predicate has length 1 the it becomes a solution and has to be
+                # treated as such. Otherwise we insert a value into the list as normal
+                if pred_length == 1:
                     outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
-                    outfile.write('Adding {}({})\\n", {});\n'.format(view,
-                                                                    formatting,
-                                                                    args))
-          
-        # This marks the end of the debug information macro this line has to be always emitted as 
-        # the portion of the handling the rewriting variable is always emitted and only the
-        # adding solution is optional if the predicate is part of a type 2 rule that is there is     
-        # a view associated with it
-        outfile.write('#endif\n')
-        
-        # Unfortunately because of the problem of the previous line we have to recheck here if the
-        # predicate has a view associated with it
-        if predicate_id in predsToViewNames:     
-            # This is part in which we add the solution to the data structure. If the predicate has length
-            # 1 we have to add directly the solution, as by convention there is no level node of length 0
-            # and the predicates of length 1 are turned into solutions
-            if pred_length == 1:
-                outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(predicate_id.name))
-                outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
-            else:
-                for view in predsToViewNames[predicate_id]:
-                    args = ', '.join('current->b.VAR_{}'.format(x) for
-                                     x in viewNamesToCombinations[view])
-                    
-                    #if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet():
-                    if predicate_id in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
-                                        getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
-                        outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(predicate_id.name,
-                                                                                  args))
-#                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
-#                                                                               view,
-#                                                                               args))
-#                    else:
-#                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
-#                                                                               view,
-#                                                                               args))
-                    # TODO: Optimization
-                    #       Check that the predicate appears in other rule otherwise this sentence 
-                    #       is not required
-                    outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
-                                                                               view,
-                                                                               args))
-                    outfile.write('\n')
-        
-                
-        tabs = '\t\t\t'
-        for rule in rules:
-            argument_constants_left_side = [ x for x in rule.leftArgs if x[0].type == 'constant']
+                    outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(predicate_id.name))
+                else:
+                    for view in predsToViewNames[predicate_id]:
+                        args = ', '.join('current->b.VAR_{}'.format(x) for
+                                         x in viewNamesToCombinations[view])
+                        formatting = ', '.join(('%i' for _ in viewNamesToCombinations[view]))
+      
+                        outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
+                        outfile.write('Adding {}({})\\n", {});\n'.format(view,
+                                                                        formatting,
+                                                                        args))
+              
+            # This marks the end of the debug information macro this line has to be always emitted as 
+            # the portion of the handling the rewriting variable is always emitted and only the
+            # adding solution is optional if the predicate is part of a type 2 rule that is there is     
+            # a view associated with it
+            outfile.write('#endif\n')
             
-            if rule.type == 1:
-                # Do we have equal cards? If so we need to be sure they match before process the variable 
-                have_equal_cards = (len(set(rule.leftArgs)) != len(rule.leftArgs))
-                # Check if we have constant arguments (constants propagated trough the datalog source code
-                if have_equal_cards:
-                    temp_dict = defaultdict(list)
-                    for rule_pos, (var_name, _) in enumerate(rule.leftArgs, 1):
-                        temp_dict[var_name].append(rule_pos)
+            # Unfortunately because of the problem of the previous line we have to recheck here if the
+            # predicate has a view associated with it
+            if predicate_id in predsToViewNames:     
+                # This is part in which we add the solution to the data structure. If the predicate has length
+                # 1 we have to add directly the solution, as by convention there is no level node of length 0
+                # and the predicates of length 1 are turned into solutions
+                if pred_length == 1:
+                    outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(predicate_id.name))
+                    outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
+                else:
+                    for view in predsToViewNames[predicate_id]:
+                        args = ', '.join('current->b.VAR_{}'.format(x) for
+                                         x in viewNamesToCombinations[view])
                         
-                    lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                        #if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet():
+                        if predicate_id in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
+                                            getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
+                            outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(predicate_id.name,
+                                                                                      args))
+    #                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
+    #                                                                               view,
+    #                                                                               args))
+    #                    else:
+    #                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
+    #                                                                               view,
+    #                                                                               args))
+                        # TODO: Optimization
+                        #       Check that the predicate appears in other rule otherwise this sentence 
+                        #       is not required
+                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
+                                                                                   view,
+                                                                                   args))
+                        outfile.write('\n')
+            
                     
-                    outfile.write('{}if('.format(tabs))
-                    for pos, l in enumerate(lists_of_duplicated_vars):
-                        t = ['current->b.VAR_{}'.format(x) for x in l]
-                        outfile.write('{}'.format(' == '.join(t)))
-                        if pos != len(lists_of_duplicated_vars)-1:
-                            outfile.write(' &&\n{}   '.format(tabs))
-                if argument_constants_left_side:
+            tabs = '\t\t\t'
+            for rule in rules:
+                argument_constants_left_side = [ x for x in rule.leftArgs if x[0].type == 'constant']
+                
+                if rule.type == 1:
+                    # Do we have equal cards? If so we need to be sure they match before process the variable 
+                    have_equal_cards = (len(set(rule.leftArgs)) != len(rule.leftArgs))
+                    # Check if we have constant arguments (constants propagated trough the datalog source code
                     if have_equal_cards:
-                        outfile.write(' &&\n{}   '.format(tabs))
-                    else:
-                        outfile.write('{}if('.format(tabs))
-                        
-                    for pos, elem in enumerate(argument_constants_left_side):
-                        outfile.write('current->b.VAR_{} == {}'.format(elem[1], 
-                                                                       str(elem[0].value)))
-                        if pos != len(argument_constants_left_side)-1:
-                            outfile.write(' &&\n{}   '.format(tabs))
-                        
-                if have_equal_cards or argument_constants_left_side:
-                    outfile.write('){\n')
-                    tabs += '\t'
-                        
-                outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightVar.id.unique_id))
-                for pos, answer_pos in enumerate(rule.rightArgs, 1):
-                    # Check if we are dealing with a constant propagated trough the datalog source code.
-                    # If we have an integer here it means it is a rewriting constant propagated value
-                    # otherwise it is a constant specified on the datalog source code.
-                    if isinstance(answer_pos, int):
-                        outfile.write('{}VAR.VAR_{} = current->b.VAR_{};\n'.format(tabs,
-                                                                                   str(pos),
-                                                                                   str(answer_pos)))
-                    else:
-                        outfile.write('{}VAR.VAR_{} = {};\n'.format(tabs,
-                                                                    str(pos),
-                                                                    str(answer_pos.value)))
-                    
-                printtemp(tabs, rule)
-                
-                if have_equal_cards or argument_constants_left_side:
-                    tabs = tabs[:-1]
-                    outfile.write('{}}}\n'.format(tabs, tabs))
-                    
-            if rule.type == 2:
-                #print rule
-                commonVars_len = len(rule.commonVars)
-                
-                argument_constants_consulting_values = [ x for x in rule.consultingArgs if
-                                                           isinstance(x, Argument) and x.type == 'constant' ]
-                
-                # Manage the equal cards we have three cases. The equal cards can be in:
-                # The variable we are analyzing:
-                #    In this case we have to emit code to check that the corresponding variables, from
-                #    we already know the value as they come from the variable are equal. If they are
-                #    equal we can proceed otherwise we don't do anything.
-                # The consulting variables which are in the set of common variables:
-                #    In this case we have to emit code to handle properly the getint list value as we
-                #    have repeated values which come from the analyzing variable appearing may be only
-                #    one time
-                # The consulting variables which are not in the set of common variables
-                #    In this case we have to emit that the values we obtain iterating over the set
-                #    of common variables are equal otherwise as in the first case we would be adding
-                #    incorrect solutions
-                # Variables to control the different cases every name is self describing
-                # We transform a list into a set and check the lengths, if the lengths doesn't match
-                # we know that we have equal cards
-                equal_cards_rewriting_variable = (len(set(rule.leftArgs)) != len(rule.leftArgs))
-                # For the case of the set of common variables is a little bit more complex
-                equal_cards_query_common_vars = False
-                equal_cards_query_not_common_vars = False
-                # We proceed in the same way as before but now we use the consulting Values list
-                if (len(set(rule.consultingArgs)) != len(rule.consultingArgs)):
-                    # We start extracting a list with the positions of the variables in the set of 
-                    # common variables
-                    common_var_positions = set(x[1] for x in rule.commonVars)
-                    # Next we obtain how many variables in the consulting values come with the rewriting 
-                    # variable that is how many of the we now the position represented as an integer
-                    number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
-                    # Knowing the number of common variables we can split the list of consulting values
-                    # and check for equal values in every part of the list. The first part is used to 
-                    # check for if there are equal values in the set of common variables. The last part
-                    # of the list is used to check if we have equal cards in the variables we have to 
-                    # iterate to obtain new solutions. In this case we also have to check that there are
-                    # more than one element otherwise the check for equal values using a set would give
-                    # a false positive generating incorrect code
-                    for x in rule.consultingArgs[:number_of_common_vars]:
-                        if x in common_var_positions:
-                            equal_cards_query_common_vars = True
-                            break
-                    if (len(rule.consultingArgs[number_of_common_vars:]) > 1) and \
-                       (len(rule.consultingArgs[number_of_common_vars:]) != \
-                            len(set(rule.consultingArgs[number_of_common_vars:]))):
-                        equal_cards_query_not_common_vars = True
-
-                # If we have equal cards in the rewriting variable we are analyzing to emit code
-                # We have to check that the values represented by the equal cards are the same
-                if equal_cards_rewriting_variable:
-                    # Here we create a dictionary in which every key is a variable name and its
-                    # value is its relative position on the list. We have to do it in this way as the
-                    # leftArgs represents a variable with a string and its position in the rule
-                    # but if the variable is an equal card the position will be always the same, the 
-                    # position of the first occurrence
-                    temp_dict = defaultdict(list)
-                    for rule_pos, (var_name, _) in enumerate(rule.leftArgs, 1):
-                        temp_dict[var_name].append(rule_pos)
+                        temp_dict = defaultdict(list)
+                        for rule_pos, (var_name, _) in enumerate(rule.leftArgs, 1):
+                            temp_dict[var_name].append(rule_pos)
                             
-                    # Once we have built the dictionary we create a list of lists removing the lists
-                    # of length 1 as the represent the variables that are not equal cards
-                    lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                        lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
                         
-                    # Once we have that lists of lists we only have to iterate through to emit the code
-                    # Every list will contain the positions that should be equal. We emit an if in which
-                    # every line are the positions of the list compared for equality and joined by logical 
-                    # ands
-                    outfile.write('{}if('.format(tabs))
-                    for pos, l in enumerate(lists_of_duplicated_vars):
-                        t = ['current->b.VAR_{}'.format(x) for x in l]
-                        outfile.write('{}'.format(' == '.join(t)))
-                        if pos != len(lists_of_duplicated_vars)-1:
-                            outfile.write(' &&\n{}   '.format(tabs))
+                        outfile.write('{}if('.format(tabs))
+                        for pos, l in enumerate(lists_of_duplicated_vars):
+                            t = ['current->b.VAR_{}'.format(x) for x in l]
+                            outfile.write('{}'.format(' == '.join(t)))
+                            if pos != len(lists_of_duplicated_vars)-1:
+                                outfile.write(' &&\n{}   '.format(tabs))
                     if argument_constants_left_side:
-                        outfile.write(' &&\n{}   '.format(tabs))
-                                            
+                        if have_equal_cards:
+                            outfile.write(' &&\n{}   '.format(tabs))
+                        else:
+                            outfile.write('{}if('.format(tabs))
+                            
                         for pos, elem in enumerate(argument_constants_left_side):
                             outfile.write('current->b.VAR_{} == {}'.format(elem[1], 
                                                                            str(elem[0].value)))
                             if pos != len(argument_constants_left_side)-1:
                                 outfile.write(' &&\n{}   '.format(tabs))
-                                
-                    outfile.write('){\n')
-                    tabs += '\t'
-                    
-                    # Here we have to add the solution to the data structure if the predicate has all variables
-                    # the same equal card. We check that if turning the list of leftArgs into a set the
-                    # length is 1.
-                    if len(set(rule.leftArgs)) == 1:
-                        args = ['current->b.VAR_{}'.format(x) for x in l]
-                        outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                     rule.leftVar.id.name,
-                                                                                     ", ".join(args)))
+                            
+                    if have_equal_cards or argument_constants_left_side:
+                        outfile.write('){\n')
                         tabs += '\t'
-                        outfile.write("#ifdef NDEBUG\n")
-                        outfile.write("{}fprintf(stderr, \"\\tAdding solution -> \");\n".format(tabs))
-                        outfile.write("{}print_rewriting_variable(stderr, &current->b);\n".format(tabs))
-                        outfile.write("{}fprintf(stderr, \"\\n\");\n".format(tabs))
-                        outfile.write("#endif\n")
-                        outfile.write("{}Ds_append_solution_{}({});\n".format(tabs,
-                                                                             rule.leftVar.id.name,
-                                                                             ", ".join(args)))
-                        tabs = tabs[:-1]
-                        outfile.write("{}}}\n".format(tabs))
-                
-                elif argument_constants_left_side:
-                    outfile.write('{}if('.format(tabs))
-                    
-                    for pos, elem in enumerate(argument_constants_left_side):
-                        outfile.write('current->b.VAR_{} == {}'.format(elem[1],
-                                                                       str(elem[0].value)))
-                        if pos != len(argument_constants_left_side)-1:
-                            outfile.write(' &&\n{}   '.format(tabs))
                             
-                    outfile.write('){\n')
-                    tabs += '\t'
-                    
-                
-                # Here we emit code to iterate over the necessary variables in order to get the desired 
-                # solutions, first we have to check if we are dealing with the case in which the set of
-                # common variables is empty. In that case we have to iterate over the level 0 of the
-                # data structure. This is not as efficient as it could as it will iterate over all the
-                # values stored at the level 0. Avoiding a case in which the root is node is different
-                # would solve this problem.
-                # If we have common variables then we have to check if we also have equal cards, in that
-                # case we have compute differently the number of common variables as the set of common 
-                # variables is actually a set and therefore doesn't accept duplicates.
-                # What we do is use the consulting values list which have the required duplicates.
-                # If we don't have equal cards in the set of common variables we just iterate over the
-                # list of common variables taking the position.
-                if commonVars_len == 0:
-                    outfile.write('{}Ds_get_intValues_Level0_init();\n'.format(tabs))
-                    outfile.write('{}while(Ds_get_intValues_Level0(&t0))'.format(tabs))
-                    outfile.write('{\n')
-                    tabs += '\t'
-                    # If the length of the predicate is one we also have to make sure that the value we obtain
-                    # is valid as we won't iterate to obtain more values
-                    if len(rule.consultingArgs) == 1:
-                        outfile.write('{}if (Ds_contains_solution_{}(t0))'.format(tabs,
-                                                                                  rule.consultingPred.id.name))
-                        outfile.write('{\n')
-                
-                else:
-                    # We don't have equal cards in the set of common variables, we just iterate over the set
-                    # emitting code appropriately. 
-                    if not equal_cards_query_common_vars:
-                        args_common = ', '.join(['current->b.VAR_{}'.format(str(x[1])) for x in rule.commonVars])
-                        #int_length = commonVars_len + len(argument_constants_consulting_values)
-                        int_length = commonVars_len + len(argument_constants_consulting_values)
-                    # Here we have equal cards in the set of common variables there fore we need to check which is 
-                    # the real number of common variables in the query.
-                    else:
-                        # The number of common variables is just the number of integer values of the consulting values
-                        # list
-                        number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
-                                                 
-                        args_common = ', '.join(['current->b.VAR_{}'.format(str(x))
-                                                 for x in rule.consultingArgs[:number_of_common_vars]])
-                            
-                        #int_length = number_of_common_vars + len(argument_constants_consulting_values)
-                        #commonVars_len = number_of_common_vars + len(argument_constants_consulting_values)
-                        int_length = number_of_common_vars + len(argument_constants_consulting_values)
-                        commonVars_len = number_of_common_vars
-                    
-                    if argument_constants_consulting_values:
-                            args_common += ', ' + ', '.join(str(x.value) for x in argument_constants_consulting_values)
-                     
-                    # Here we have to check if the predicate we are consulting is the type that has all its variables
-                    # the same equal card in that case we have to check against the solutions instead of iterating over
-                    # the integer list of successors which doesn't make any sense as the predicate is true or false that means
-                    # that contributes only with one solution or with none.
-                    # If we turn the list of consulting values into a set and the length is 1 that means that the predicate
-                    # has all its variables the same equal card
-                    #if (len(set(rule.consultingArgs)) != 1 and\
-                    #    getPredicateLength(rule.consultingPred.unique_id) != len(rule.commonVars)):
-                    if (len(set([x for x in rule.consultingArgs if not (isinstance(x, Argument) and x.type=='constant')])) != 1 and\
-                        getPredicateLength(rule.consultingPred.id) != len(rule.commonVars) and 
-                        sum([1 for x in rule.consultingArgs if isinstance(x, int) or (isinstance(x, Argument) and x.type=='constant')]) != len(rule.consultingArgs)):
-                        # Here we just emit code for t1 using the computed values
-                        outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
-                                      .format(tabs,
-                                              int_length,
-                                              aliasToViewNames[rule.aliasName],
-                                              args_common))
-                        
-                        outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
-                    else:
-                        outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                     rule.consultingPred.id.name,
-                                                                                     args_common))
-
-                # Here we emit code for the rest of the required t levels that value is the number
-                # of consulting values minus the number of common variables which has already been
-                # used in the t1 level
-                start = 2
-                if commonVars_len == 0:
-                    start = 1
-                for (x, y) in enumerate(xrange(commonVars_len + 1, 
-                                               len(rule.consultingArgs) - len(argument_constants_consulting_values)),
-                                        start=start):
-                    query_value = y + len(argument_constants_consulting_values)
-                    if commonVars_len == 0:
-                        args = 't0'
-                        if x > 1: args += ', '
-                        tabs = tabs + '\t' * x
-                    else:
-                        args = args_common + ', '
-                        tabs = tabs + '\t' * (x - 1)
-                       
-                    if not equal_cards_query_common_vars:
-                        args += ', '.join(['t{}->value'.format(str(i))
-                                           for i in xrange(1, x)])
-                        
-                        outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                                      .format(tabs, x, query_value,
-                                              aliasToViewNames[rule.aliasName],
-                                              args))
-                        #number_of_args = y + len(argument_constants_consulting_values)
-                        #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                        #              .format(tabs, x, number_of_args,
-                        #                      aliasToViewNames[rule.aliasName],
-                        #                      args))
-                        outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
-                                                                                  str(x)))
-                    else:
-                        #outfile.write("X: {}\t\tARGS:{}\t\tNUMBER_OF_ARGS: {}\t\tY: {}\t\tCOMMON_VARS: {}\n".format(x, args, number_of_args, y, commonVars_len))
-                        args += ', '.join(['t{}->value'.format(str(i))
-                                           for i in xrange(1, (y-commonVars_len)+1)])
-
-                        outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                                      .format(tabs, (y-commonVars_len)+1, query_value,
-                                              aliasToViewNames[rule.aliasName],
-                                              args))
-                        #number_of_args = y + len(argument_constants_consulting_values)
-                        #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                        #              .format(tabs, (y-commonVars_len)+1, number_of_args,
-                        #                      aliasToViewNames[rule.aliasName],
-                        #                      args))
-                        outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
-                                                                                  str((y-commonVars_len) + 1)))
-                                      
-                    outfile.write('{\n')
-                
-                if equal_cards_rewriting_variable or argument_constants_left_side\
-                 or argument_constants_consulting_values:
-                    tabs = '\t\t\t\t'
-                else:
-                    tabs = '\t\t\t'
-                
-                if commonVars_len == 0 and len(rule.consultingArgs) == 1:
-                    tabs += '\t'    
-                
-                tabs += '\t' * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x) 
-                                        for x in rule.consultingArgs))
-                
-                outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
-                                                               rule.rightVar.id.unique_id))
-                # Here we handle if we have equal cards in the query variables that are
-                # not in the set of common variables. As we retrieve them from the iterating
-                # lists we have to check that are equal otherwise we would count
-                # invalid answers not honoring the equal cards. To do so we have to check
-                # which of the variables not in the set of the common variables are repeated
-                if equal_cards_query_not_common_vars:
-                    if len(set(rule.consultingArgs)) != 1:
-                        # The key of the dict will be the name of the variable.
-                        # The value of the dict will be a list containing the positions in which
-                        # the variable appears repeated
-                        temp_dict = defaultdict(list)
-                        # Here we compute the first occurrence of the variables.
-                        # We compute where the first string appears in the list.
-                        number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
-                        # Here we iterate over the list of variables that are not in the set of common variables. The
-                        # variables start after the variables that belong to the set of common variables and are represented 
-                        # by its string name. We have to subtract the number of common variables as the first iterating variable
-                        # is always t1 and not t? being ? the position its the list of consultingArgs
-                        for rule_pos, var_name in enumerate(rule.consultingArgs[number_of_common_vars:], number_of_common_vars+1):
-                            temp_dict[var_name].append(rule_pos - number_of_common_vars - len(argument_constants_consulting_values))
-                              
-                        # Here we create a lists of lists removing the lists of only one member as that implies 
-                        # that is not a duplicated variable. Every list will contain the position of the duplicated 
-                        # variables
-                        lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
-                    else:
-                        lists_of_duplicated_vars = [list(xrange(len(rule.consultingArgs)))]
-                        
-                    # We only have to iterate over each list emitting code appropriately 
-                    outfile.write('{}if('.format(tabs))
-                    for pos, l in enumerate(lists_of_duplicated_vars):
-                        t = ['t{}'.format(x) for x in l]
-                        t = map(lambda x: x if (x == "t0") else x + "->value", t)
-                        outfile.write('{}'.format(' == '.join(t)))
-                        if pos != len(lists_of_duplicated_vars)-1:
-                            outfile.write(' &&\n{}   '.format(tabs))
-                    outfile.write('){\n')
-                    tabs += '\t'
-                
-                # Here we emit code to create the new variable. We start iterating
-                # from the rightArgs and check for every variable position of the
-                # answer which other variable goes if it is a variable name we check
-                # which of the "t" values is required. The "t" values are used to 
-                # iterate over the set of common vars. If is just a number it means
-                # it comes from the variable so we just to use that value. We also have
-                # to handle the case in which there are no common variables for that case
-                # we start at t0 as we have to iterate over all the variables of the other
-                # predicate.
-                for pos, var in enumerate(rule.rightArgs, start=1):
-                    outfile.write('{}VAR.VAR_{} = '.format(tabs, pos))
-                    if isinstance(var, Argument) and var.type == 'variable':
-                        t_index = rule.consultingArgs.index(var) + 1\
-                                   - commonVars_len - len(argument_constants_consulting_values)
-                        if commonVars_len == 0:
-                            if t_index == 1:
-                                outfile.write('t0;\n')
-                            else:
-                                outfile.write('t{}->value;\n'.format(str(t_index-1)))
+                    outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightVar.id.unique_id))
+                    for pos, answer_pos in enumerate(rule.rightArgs, 1):
+                        # Check if we are dealing with a constant propagated trough the datalog source code.
+                        # If we have an integer here it means it is a rewriting constant propagated value
+                        # otherwise it is a constant specified on the datalog source code.
+                        if isinstance(answer_pos, int):
+                            outfile.write('{}VAR.VAR_{} = current->b.VAR_{};\n'.format(tabs,
+                                                                                       str(pos),
+                                                                                       str(answer_pos)))
                         else:
-                            outfile.write('t{}->value;\n'.format(str(t_index)))
-                    elif isinstance(var, Argument) and var.type == 'constant':
-                        outfile.write('{};\n'.format(str(var.value)))
+                            outfile.write('{}VAR.VAR_{} = {};\n'.format(tabs,
+                                                                        str(pos),
+                                                                        str(answer_pos.value)))
+                        
+                    common_block_for_any_type_of_rule(tabs, rule, level, len(GenerationData.stratums))
+                    
+                    if have_equal_cards or argument_constants_left_side:
+                        tabs = tabs[:-1]
+                        outfile.write('{}}}\n'.format(tabs, tabs))
+                        
+                if rule.type == 2:
+                    #print rule
+                    commonVars_len = len(rule.commonVars)
+                    
+                    argument_constants_consulting_values = [ x for x in rule.consultingArgs if
+                                                               isinstance(x, Argument) and x.type == 'constant' ]
+                    
+                    # Manage the equal cards we have three cases. The equal cards can be in:
+                    # The variable we are analyzing:
+                    #    In this case we have to emit code to check that the corresponding variables, from
+                    #    we already know the value as they come from the variable are equal. If they are
+                    #    equal we can proceed otherwise we don't do anything.
+                    # The consulting variables which are in the set of common variables:
+                    #    In this case we have to emit code to handle properly the getint list value as we
+                    #    have repeated values which come from the analyzing variable appearing may be only
+                    #    one time
+                    # The consulting variables which are not in the set of common variables
+                    #    In this case we have to emit that the values we obtain iterating over the set
+                    #    of common variables are equal otherwise as in the first case we would be adding
+                    #    incorrect solutions
+                    # Variables to control the different cases every name is self describing
+                    # We transform a list into a set and check the lengths, if the lengths doesn't match
+                    # we know that we have equal cards
+                    equal_cards_rewriting_variable = (len(set(rule.leftArgs)) != len(rule.leftArgs))
+                    # For the case of the set of common variables is a little bit more complex
+                    equal_cards_query_common_vars = False
+                    equal_cards_query_not_common_vars = False
+                    # We proceed in the same way as before but now we use the consulting Values list
+                    if (len(set(rule.consultingArgs)) != len(rule.consultingArgs)):
+                        # We start extracting a list with the positions of the variables in the set of 
+                        # common variables
+                        common_var_positions = set(x[1] for x in rule.commonVars)
+                        # Next we obtain how many variables in the consulting values come with the rewriting 
+                        # variable that is how many of the we now the position represented as an integer
+                        number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
+                        # Knowing the number of common variables we can split the list of consulting values
+                        # and check for equal values in every part of the list. The first part is used to 
+                        # check for if there are equal values in the set of common variables. The last part
+                        # of the list is used to check if we have equal cards in the variables we have to 
+                        # iterate to obtain new solutions. In this case we also have to check that there are
+                        # more than one element otherwise the check for equal values using a set would give
+                        # a false positive generating incorrect code
+                        for x in rule.consultingArgs[:number_of_common_vars]:
+                            if x in common_var_positions:
+                                equal_cards_query_common_vars = True
+                                break
+                        if (len(rule.consultingArgs[number_of_common_vars:]) > 1) and \
+                           (len(rule.consultingArgs[number_of_common_vars:]) != \
+                                len(set(rule.consultingArgs[number_of_common_vars:]))):
+                            equal_cards_query_not_common_vars = True
+    
+                    # If we have equal cards in the rewriting variable we are analyzing to emit code
+                    # We have to check that the values represented by the equal cards are the same
+                    if equal_cards_rewriting_variable:
+                        # Here we create a dictionary in which every key is a variable name and its
+                        # value is its relative position on the list. We have to do it in this way as the
+                        # leftArgs represents a variable with a string and its position in the rule
+                        # but if the variable is an equal card the position will be always the same, the 
+                        # position of the first occurrence
+                        temp_dict = defaultdict(list)
+                        for rule_pos, (var_name, _) in enumerate(rule.leftArgs, 1):
+                            temp_dict[var_name].append(rule_pos)
+                                
+                        # Once we have built the dictionary we create a list of lists removing the lists
+                        # of length 1 as the represent the variables that are not equal cards
+                        lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                            
+                        # Once we have that lists of lists we only have to iterate through to emit the code
+                        # Every list will contain the positions that should be equal. We emit an if in which
+                        # every line are the positions of the list compared for equality and joined by logical 
+                        # ands
+                        outfile.write('{}if('.format(tabs))
+                        for pos, l in enumerate(lists_of_duplicated_vars):
+                            t = ['current->b.VAR_{}'.format(x) for x in l]
+                            outfile.write('{}'.format(' == '.join(t)))
+                            if pos != len(lists_of_duplicated_vars)-1:
+                                outfile.write(' &&\n{}   '.format(tabs))
+                        if argument_constants_left_side:
+                            outfile.write(' &&\n{}   '.format(tabs))
+                                                
+                            for pos, elem in enumerate(argument_constants_left_side):
+                                outfile.write('current->b.VAR_{} == {}'.format(elem[1], 
+                                                                               str(elem[0].value)))
+                                if pos != len(argument_constants_left_side)-1:
+                                    outfile.write(' &&\n{}   '.format(tabs))
+                                    
+                        outfile.write('){\n')
+                        tabs += '\t'
+                        
+                        # Here we have to add the solution to the data structure if the predicate has all variables
+                        # the same equal card. We check that if turning the list of leftArgs into a set the
+                        # length is 1.
+                        if len(set(rule.leftArgs)) == 1:
+                            args = ['current->b.VAR_{}'.format(x) for x in l]
+                            outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
+                                                                                         rule.leftVar.id.name,
+                                                                                         ", ".join(args)))
+                            tabs += '\t'
+                            outfile.write("#ifdef NDEBUG\n")
+                            outfile.write("{}fprintf(stderr, \"\\tAdding solution -> \");\n".format(tabs))
+                            outfile.write("{}print_rewriting_variable(stderr, &current->b);\n".format(tabs))
+                            outfile.write("{}fprintf(stderr, \"\\n\");\n".format(tabs))
+                            outfile.write("#endif\n")
+                            outfile.write("{}Ds_append_solution_{}({});\n".format(tabs,
+                                                                                 rule.leftVar.id.name,
+                                                                                 ", ".join(args)))
+                            tabs = tabs[:-1]
+                            outfile.write("{}}}\n".format(tabs))
+                    
+                    elif argument_constants_left_side:
+                        outfile.write('{}if('.format(tabs))
+                        
+                        for pos, elem in enumerate(argument_constants_left_side):
+                            outfile.write('current->b.VAR_{} == {}'.format(elem[1],
+                                                                           str(elem[0].value)))
+                            if pos != len(argument_constants_left_side)-1:
+                                outfile.write(' &&\n{}   '.format(tabs))
+                                
+                        outfile.write('){\n')
+                        tabs += '\t'
+                        
+                    
+                    # Here we emit code to iterate over the necessary variables in order to get the desired 
+                    # solutions, first we have to check if we are dealing with the case in which the set of
+                    # common variables is empty. In that case we have to iterate over the level 0 of the
+                    # data structure. This is not as efficient as it could as it will iterate over all the
+                    # values stored at the level 0. Avoiding a case in which the root is node is different
+                    # would solve this problem.
+                    # If we have common variables then we have to check if we also have equal cards, in that
+                    # case we have compute differently the number of common variables as the set of common 
+                    # variables is actually a set and therefore doesn't accept duplicates.
+                    # What we do is use the consulting values list which have the required duplicates.
+                    # If we don't have equal cards in the set of common variables we just iterate over the
+                    # list of common variables taking the position.
+                    if commonVars_len == 0:
+                        outfile.write('{}Ds_get_intValues_Level0_init();\n'.format(tabs))
+                        outfile.write('{}while(Ds_get_intValues_Level0(&t0))'.format(tabs))
+                        outfile.write('{\n')
+                        tabs += '\t'
+                        # If the length of the predicate is one we also have to make sure that the value we obtain
+                        # is valid as we won't iterate to obtain more values
+                        if len(rule.consultingArgs) == 1:
+                            if rule.consultingPred.negated:
+                                outfile.write('{}if (!Ds_contains_solution_{}(t0))'.format(tabs,
+                                                                                           rule.consultingPred.id.name))
+                            else:
+                                outfile.write('{}if (Ds_contains_solution_{}(t0))'.format(tabs,
+                                                                                          rule.consultingPred.id.name))
+                            outfile.write('{\n')
+                    
                     else:
-                        outfile.write('current->b.VAR_{};\n'.format(str(var)))
-                
-                # Here we just emit source code to handle the indentation and the closing }
-                # TODO: The indentation is a little bit broken right now and should be checked
-                #       but is not mandatory for the well functioning of the compiler
-                if equal_cards_query_not_common_vars:
-                    printtemp(tabs[:-1], rule)
-                else:
-                    printtemp(tabs, rule)
-
-                if equal_cards_rewriting_variable or argument_constants_left_side:
-                    tabs = tabs[:-1]
-                    outfile.write('{}}}\n'.format(tabs))
+                        # We don't have equal cards in the set of common variables, we just iterate over the set
+                        # emitting code appropriately. 
+                        if not equal_cards_query_common_vars:
+                            args_common = ', '.join(['current->b.VAR_{}'.format(str(x[1])) for x in rule.commonVars])
+                            #int_length = commonVars_len + len(argument_constants_consulting_values)
+                            int_length = commonVars_len + len(argument_constants_consulting_values)
+                        # Here we have equal cards in the set of common variables there fore we need to check which is 
+                        # the real number of common variables in the query.
+                        else:
+                            # The number of common variables is just the number of integer values of the consulting values
+                            # list
+                            number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
+                                                     
+                            args_common = ', '.join(['current->b.VAR_{}'.format(str(x))
+                                                     for x in rule.consultingArgs[:number_of_common_vars]])
+                                
+                            #int_length = number_of_common_vars + len(argument_constants_consulting_values)
+                            #commonVars_len = number_of_common_vars + len(argument_constants_consulting_values)
+                            int_length = number_of_common_vars + len(argument_constants_consulting_values)
+                            commonVars_len = number_of_common_vars
+                        
+                        if argument_constants_consulting_values:
+                                args_common += ', ' + ', '.join(str(x.value) for x in argument_constants_consulting_values)
+                         
+                        # Here we have to check if the predicate we are consulting is the type that has all its variables
+                        # the same equal card in that case we have to check against the solutions instead of iterating over
+                        # the integer list of successors which doesn't make any sense as the predicate is true or false that means
+                        # that contributes only with one solution or with none.
+                        # If we turn the list of consulting values into a set and the length is 1 that means that the predicate
+                        # has all its variables the same equal card
+                        #if (len(set(rule.consultingArgs)) != 1 and\
+                        #    getPredicateLength(rule.consultingPred.unique_id) != len(rule.commonVars)):
+                        if (len(set([x for x in rule.consultingArgs if not (isinstance(x, Argument) and x.type=='constant')])) != 1 and\
+                            getPredicateLength(rule.consultingPred.id) != len(rule.commonVars) and 
+                            sum([1 for x in rule.consultingArgs if isinstance(x, int) or (isinstance(x, Argument) and x.type=='constant')]) != len(rule.consultingArgs)):
+                            # Here we just emit code for t1 using the computed values
+                            outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
+                                          .format(tabs,
+                                                  int_length,
+                                                  aliasToViewNames[rule.aliasName],
+                                                  args_common))
+                            
+                            outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
+                        else:
+                            if rule.consultingPred.negated:
+                                outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
+                                                                                               rule.consultingPred.id.name,
+                                                                                               args_common))
+                            else:
+                                outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
+                                                                                               rule.consultingPred.id.name,
+                                                                                               args_common))
+    
+                    # Here we emit code for the rest of the required t levels that value is the number
+                    # of consulting values minus the number of common variables which has already been
+                    # used in the t1 level
+                    start = 2
+                    if commonVars_len == 0:
+                        start = 1
+                    for (x, y) in enumerate(xrange(commonVars_len + 1, 
+                                                   len(rule.consultingArgs) - len(argument_constants_consulting_values)),
+                                            start=start):
+                        query_value = y + len(argument_constants_consulting_values)
+                        if commonVars_len == 0:
+                            args = 't0'
+                            if x > 1: args += ', '
+                            tabs = tabs + '\t' * x
+                        else:
+                            args = args_common + ', '
+                            tabs = tabs + '\t' * (x - 1)
+                           
+                        if not equal_cards_query_common_vars:
+                            args += ', '.join(['t{}->value'.format(str(i))
+                                               for i in xrange(1, x)])
+                            
+                            outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
+                                          .format(tabs, x, query_value,
+                                                  aliasToViewNames[rule.aliasName],
+                                                  args))
+                            #number_of_args = y + len(argument_constants_consulting_values)
+                            #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
+                            #              .format(tabs, x, number_of_args,
+                            #                      aliasToViewNames[rule.aliasName],
+                            #                      args))
+                            outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
+                                                                                      str(x)))
+                        else:
+                            #outfile.write("X: {}\t\tARGS:{}\t\tNUMBER_OF_ARGS: {}\t\tY: {}\t\tCOMMON_VARS: {}\n".format(x, args, number_of_args, y, commonVars_len))
+                            args += ', '.join(['t{}->value'.format(str(i))
+                                               for i in xrange(1, (y-commonVars_len)+1)])
+    
+                            outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
+                                          .format(tabs, (y-commonVars_len)+1, query_value,
+                                                  aliasToViewNames[rule.aliasName],
+                                                  args))
+                            #number_of_args = y + len(argument_constants_consulting_values)
+                            #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
+                            #              .format(tabs, (y-commonVars_len)+1, number_of_args,
+                            #                      aliasToViewNames[rule.aliasName],
+                            #                      args))
+                            outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
+                                                                                      str((y-commonVars_len) + 1)))
+                                          
+                        outfile.write('{\n')
                     
-                if equal_cards_query_not_common_vars:
-                    tabs = tabs[:-1]
-                    outfile.write('{}}}\n'.format(tabs))
+                    if equal_cards_rewriting_variable or argument_constants_left_side\
+                     or argument_constants_consulting_values:
+                        tabs = '\t\t\t\t'
+                    else:
+                        tabs = '\t\t\t'
                     
-                if commonVars_len == 0 and len(rule.consultingArgs) == 1:
-                    tabs = tabs[:-1]
-                    outfile.write('{}}}\n'.format(tabs))
-                
-                for x in xrange(commonVars_len+1, len(rule.consultingArgs) - len(argument_constants_consulting_values)):
-                    tabs = tabs[:-1]
-                    outfile.write('{}'.format(tabs))
-                    outfile.write('}\n')
+                    if commonVars_len == 0 and len(rule.consultingArgs) == 1:
+                        tabs += '\t'    
                     
-                outfile.write('\t\t\t}\n')
-        outfile.write('\t\t}\n\n')
+                    tabs += '\t' * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x) 
+                                            for x in rule.consultingArgs))
+                    
+                    outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
+                                                                   rule.rightVar.id.unique_id))
+                    # Here we handle if we have equal cards in the query variables that are
+                    # not in the set of common variables. As we retrieve them from the iterating
+                    # lists we have to check that are equal otherwise we would count
+                    # invalid answers not honoring the equal cards. To do so we have to check
+                    # which of the variables not in the set of the common variables are repeated
+                    if equal_cards_query_not_common_vars:
+                        if len(set(rule.consultingArgs)) != 1:
+                            # The key of the dict will be the name of the variable.
+                            # The value of the dict will be a list containing the positions in which
+                            # the variable appears repeated
+                            temp_dict = defaultdict(list)
+                            # Here we compute the first occurrence of the variables.
+                            # We compute where the first string appears in the list.
+                            number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
+                            # Here we iterate over the list of variables that are not in the set of common variables. The
+                            # variables start after the variables that belong to the set of common variables and are represented 
+                            # by its string name. We have to subtract the number of common variables as the first iterating variable
+                            # is always t1 and not t? being ? the position its the list of consultingArgs
+                            for rule_pos, var_name in enumerate(rule.consultingArgs[number_of_common_vars:], number_of_common_vars+1):
+                                temp_dict[var_name].append(rule_pos - number_of_common_vars - len(argument_constants_consulting_values))
+                                  
+                            # Here we create a lists of lists removing the lists of only one member as that implies 
+                            # that is not a duplicated variable. Every list will contain the position of the duplicated 
+                            # variables
+                            lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
+                        else:
+                            lists_of_duplicated_vars = [list(xrange(len(rule.consultingArgs)))]
+                            
+                        # We only have to iterate over each list emitting code appropriately 
+                        outfile.write('{}if('.format(tabs))
+                        for pos, l in enumerate(lists_of_duplicated_vars):
+                            t = ['t{}'.format(x) for x in l]
+                            t = map(lambda x: x if (x == "t0") else x + "->value", t)
+                            outfile.write('{}'.format(' == '.join(t)))
+                            if pos != len(lists_of_duplicated_vars)-1:
+                                outfile.write(' &&\n{}   '.format(tabs))
+                        outfile.write('){\n')
+                        tabs += '\t'
+                    
+                    # Here we emit code to create the new variable. We start iterating
+                    # from the rightArgs and check for every variable position of the
+                    # answer which other variable goes if it is a variable name we check
+                    # which of the "t" values is required. The "t" values are used to 
+                    # iterate over the set of common vars. If is just a number it means
+                    # it comes from the variable so we just to use that value. We also have
+                    # to handle the case in which there are no common variables for that case
+                    # we start at t0 as we have to iterate over all the variables of the other
+                    # predicate.
+                    for pos, var in enumerate(rule.rightArgs, start=1):
+                        outfile.write('{}VAR.VAR_{} = '.format(tabs, pos))
+                        if isinstance(var, Argument) and var.type == 'variable':
+                            t_index = rule.consultingArgs.index(var) + 1\
+                                       - commonVars_len - len(argument_constants_consulting_values)
+                            if commonVars_len == 0:
+                                if t_index == 1:
+                                    outfile.write('t0;\n')
+                                else:
+                                    outfile.write('t{}->value;\n'.format(str(t_index-1)))
+                            else:
+                                outfile.write('t{}->value;\n'.format(str(t_index)))
+                        elif isinstance(var, Argument) and var.type == 'constant':
+                            outfile.write('{};\n'.format(str(var.value)))
+                        else:
+                            outfile.write('current->b.VAR_{};\n'.format(str(var)))
+                    
+                    # Here we just emit source code to handle the indentation and the closing }
+                    # TODO: The indentation is a little bit broken right now and should be checked
+                    #       but is not mandatory for the well functioning of the compiler
+                    if equal_cards_query_not_common_vars:
+                        common_block_for_any_type_of_rule(tabs[:-1], rule, level, len(GenerationData.stratums))
+                    else:
+                        common_block_for_any_type_of_rule(tabs, rule, level, len(GenerationData.stratums))
+    
+                    if equal_cards_rewriting_variable or argument_constants_left_side:
+                        tabs = tabs[:-1]
+                        outfile.write('{}}}\n'.format(tabs))
+                        
+                    if equal_cards_query_not_common_vars:
+                        tabs = tabs[:-1]
+                        outfile.write('{}}}\n'.format(tabs))
+                        
+                    if commonVars_len == 0 and len(rule.consultingArgs) == 1:
+                        tabs = tabs[:-1]
+                        outfile.write('{}}}\n'.format(tabs))
+                    
+                    for x in xrange(commonVars_len+1, len(rule.consultingArgs) - len(argument_constants_consulting_values)):
+                        tabs = tabs[:-1]
+                        outfile.write('{}'.format(tabs))
+                        outfile.write('}\n')
+                        
+                    outfile.write('\t\t\t}\n')
+            outfile.write('\t\t}\n\n')
+        outfile.write('\tsolver_queue{0}.head = solver_queue{0}.head->next;\n'.format(str(level)))
+        outfile.write('\tfree(current);\n')
+        outfile.write('\t}\n\n')
         
 # In this function we emit code to close the file descriptors opened before
 # to store the answers in files. The file descriptor is called fp_{} plus the
@@ -1490,14 +1519,13 @@ def fill_file(filename, orig_file, dest_file):
     return True
               
 def generate_code_from_template(output_directory, stratums,
-                                blocksOrder, predicateTypes, 
-                                answersToStore, printVariables,
-                                idToStratumLevels):
+                                predicateTypes, answersToStore, 
+                                printVariables, idToStratumLevels):
     # Make the necessary data to generate the source code available to the rest of the functions
-    GD = namedtuple('GD', ['stratums', 'predicateTypes', 'blocksOrder',
-                           'answersToStore', 'printVariables', 'idToStratumLevels'])
+    GD = namedtuple('GD', ['stratums', 'predicateTypes', 'answersToStore', 
+                           'printVariables', 'idToStratumLevels'])
     
-    globals()['GenerationData'] = GD(stratums, blocksOrder, predicateTypes,
+    globals()['GenerationData'] = GD(stratums, predicateTypes,
                                      answersToStore, printVariables,
                                      idToStratumLevels)
     

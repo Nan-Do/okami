@@ -90,13 +90,7 @@ int solver_compute(){
 	SolverNode current;
 	TYPE_REWRITING_VARIABLE VAR;
 
-	while (solver.head){
-		current = solver.head;
-
 %% fill_SolverCompute
-		solver.head = solver.head->next;
-		free(current);
-	}
 
 	return TRUE;
 }
