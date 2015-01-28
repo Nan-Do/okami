@@ -313,6 +313,10 @@ def fillStratumQueueInitializers(outfile):
         outfile.write('\tFact fact;\n')
         outfile.write('\tTYPE_REWRITING_VARIABLE VAR;\n\n')
         
+        outfile.write('#ifdef NDEBUG\n')
+        outfile.write('\t\tfprintf(stderr, "STRATUM LEVEL: {}\\n");\n'.format(str(stratum_level)))
+        outfile.write('#endif\n\n')
+        
         # Get the predicates that belong to the current stratum level
         idsVars = (idVar for (idVar, levels) in extensionalToStratumLevels.iteritems()
                                 if stratum_level in levels)
@@ -365,10 +369,10 @@ def fillSolverCompute(outfile):
     # This function emits code regardless we are dealing with a type 1 or type2 function it has 
     # extracted to the function so we don't have to write it twice. Also is used to emit the tabs
     # for the source code properly.
-    def common_block_for_any_type_of_rule(tabs, rule, level, num_of_stratums):
+    def common_block_for_any_type_of_rule(tabs, rule, level, num_of_stratums, idToStratumLevels):
         # Do we have to store the answer??
         if rule.rightVar.id in answersToStore:
-            predicate_id = rule.rightVar.id
+            variable_id = rule.rightVar.id
 
             #if rule.type == 2:
             #    tabs = '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x)\
@@ -378,23 +382,30 @@ def fillSolverCompute(outfile):
                             x in xrange(1, len(rule.rightArgs)+1))
             
             outfile.write('\n{}if (!Ds_contains_solution_{}({}))'.format(tabs,
-                                                                         predicate_id.name,
+                                                                         variable_id.name,
                                                                          args))
             tabs += '\t'
             outfile.write('{\n')
             outfile.write('#ifdef NDEBUG\n')
+            # Print the variable information
             outfile.write('{}fprintf(stderr, "\\tAdding variable -> ");\n'.format(tabs))
             outfile.write('{}print_rewriting_variable(stderr, &VAR);\n'.format(tabs))
             outfile.write('{}fprintf(stderr, "\\n");\n'.format(tabs))
+            # Print the levels in which the variable is going to be added. Here is printed for
+            # debugging purposes.
+            for level in idToStratumLevels[variable_id]:
+                outfile.write('{}fprintf(stderr, "\\t  Queue {}\\n");\n'.format(tabs, str(level)))
             outfile.write('#endif\n\n')
             
-            if level == num_of_stratums:
-                outfile.write('{}SolverQueue_append(&solver_queue{}, &VAR);\n'.format(tabs, str(level)))
-            else:
-                outfile.write('{}SolverQueue_append(&solver_queue{}, &VAR);\n'.format(tabs, str(level + 1)))
+            # To compute a program a variable can be required to be evaluated in different queues, here we
+            # make sure that the variable is added to every required queue. IdToStratums is a dictionary that
+            # contains the required information to emit the code. It takes as a key a variable_id and returns
+            # the queue levels in which is required.
+            for queue_level in idToStratumLevels[variable_id]:
+                outfile.write('{}SolverQueue_append(&solver_queue{}, &VAR);\n'.format(tabs, str(queue_level)))
             outfile.write('{}Ds_append_solution_{}({});\n'.format(tabs,
-                                                                    predicate_id.name,
-                                                                    args))
+                                                                  variable_id.name,
+                                                                  args))
             tabs = tabs[:-1]
             outfile.write('{}'.format(tabs))
             outfile.write('}\n')
@@ -411,6 +422,7 @@ def fillSolverCompute(outfile):
     answersToStore = GenerationData.answersToStore
     printVariables = GenerationData.printVariables
     outputTuples = GenerationData.answersToStore
+    idToStratumLevels = GenerationData.idToStratumLevels
     
     # Here we emit code to handle the different stratums in the solver_compute function
     for level, stratum in enumerate(GenerationData.stratums, start=1):
@@ -430,12 +442,21 @@ def fillSolverCompute(outfile):
     
             outfile.write('\t\tif (current->b.PREDICATE == {})'.format(predicate_id.unique_id))
             outfile.write('{\n')
-            
-            # Do we have to print the variable
-            if predicate_id in printVariables:
+
+            # The answer can be represented in more than one level (stratum). We need to 
+            # assure that we only emit the answer once, otherwise the solution would appear 
+            # as many times as it appears in the different level. In which level we store
+            # the answer is meaningless but we have to make sure that we only do it once,
+            # so we store in the first stratum the answer appears represented. To do this
+            # we sort the levels the in which the variable appears take the first one and
+            # check that is the level that the code is being emitted. 
+            level_to_store_answer = sorted(idToStratumLevels[predicate_id])[0]
+            # Do we have to print the variable to stdout?.
+            if level == level_to_store_answer and predicate_id in printVariables:
                 outfile.write("\t\t\tprint_answer(stdout, &current->b);\n")
                 
-            if predicate_id in outputTuples:
+            # Is it a solution? Then print it to a file.
+            if level == level_to_store_answer and predicate_id in outputTuples:
                 outfile.write("\t\t\tprint_answer(fp_{}, &current->b);\n".format(predicate_id.name))
             
             # Debug information
@@ -451,6 +472,8 @@ def fillSolverCompute(outfile):
             #outfile.write('#endif\n')
             
             # Here we emit code to add data to the data structure if we are in a type 2 rule.
+            # Again we only store the variable to the database if we are in the first level (stratum)
+            # the variable appears in.
             # We emit debugging code via a c macro to check what is going to be added
             # to the data structure. We show the view and the values being added.
             # After we use the appropriate call to add the solution to the data structure
@@ -460,10 +483,10 @@ def fillSolverCompute(outfile):
                   
                 # Debug information: If the predicate has length 1 the it becomes a solution and has to be
                 # treated as such. Otherwise we insert a value into the list as normal
-                if pred_length == 1:
+                if (level == level_to_store_answer) and (pred_length == 1):
                     outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
                     outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(predicate_id.name))
-                else:
+                elif (level == level_to_store_answer):
                     for view in predsToViewNames[predicate_id]:
                         args = ', '.join('current->b.VAR_{}'.format(x) for
                                          x in viewNamesToCombinations[view])
@@ -486,10 +509,10 @@ def fillSolverCompute(outfile):
                 # This is part in which we add the solution to the data structure. If the predicate has length
                 # 1 we have to add directly the solution, as by convention there is no level node of length 0
                 # and the predicates of length 1 are turned into solutions
-                if pred_length == 1:
+                if (level == level_to_store_answer) and (pred_length == 1):
                     outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(predicate_id.name))
                     outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
-                else:
+                elif (level == level_to_store_answer):
                     for view in predsToViewNames[predicate_id]:
                         args = ', '.join('current->b.VAR_{}'.format(x) for
                                          x in viewNamesToCombinations[view])
@@ -522,7 +545,7 @@ def fillSolverCompute(outfile):
                 if rule.type == 1:
                     # Do we have equal cards? If so we need to be sure they match before process the variable 
                     have_equal_cards = (len(set(rule.leftArgs)) != len(rule.leftArgs))
-                    # Check if we have constant arguments (constants propagated trough the datalog source code
+                    # Check if we have constant arguments (constants propagated trough the datalog source code)
                     if have_equal_cards:
                         temp_dict = defaultdict(list)
                         for rule_pos, (var_name, _) in enumerate(rule.leftArgs, 1):
@@ -566,7 +589,8 @@ def fillSolverCompute(outfile):
                                                                         str(pos),
                                                                         str(answer_pos.value)))
                         
-                    common_block_for_any_type_of_rule(tabs, rule, level, len(GenerationData.stratums))
+                    common_block_for_any_type_of_rule(tabs, rule, level, len(GenerationData.stratums),
+                                                      idToStratumLevels)
                     
                     if have_equal_cards or argument_constants_left_side:
                         tabs = tabs[:-1]
@@ -911,9 +935,11 @@ def fillSolverCompute(outfile):
                     # TODO: The indentation is a little bit broken right now and should be checked
                     #       but is not mandatory for the well functioning of the compiler
                     if equal_cards_query_not_common_vars:
-                        common_block_for_any_type_of_rule(tabs[:-1], rule, level, len(GenerationData.stratums))
+                        common_block_for_any_type_of_rule(tabs[:-1], rule, level, len(GenerationData.stratums),
+                                                          idToStratumLevels)
                     else:
-                        common_block_for_any_type_of_rule(tabs, rule, level, len(GenerationData.stratums))
+                        common_block_for_any_type_of_rule(tabs, rule, level, len(GenerationData.stratums),
+                                                          idToStratumLevels)
     
                     if equal_cards_rewriting_variable or argument_constants_left_side:
                         tabs = tabs[:-1]

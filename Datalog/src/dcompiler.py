@@ -178,7 +178,6 @@ USAGE
         # in the list it has to be evaluated first. For example rules_per_stratum[0] will 
         # contain the rules that belong to the first stratum of a given program
         rules_per_stratum = stratifyRules(rulesTable)
-        num_of_stratums = len(rules_per_stratum)
         
         # stratums will contain the list of stratums. The definition of what is a Stratum
         # can be consulted at Types.py 
@@ -211,9 +210,10 @@ USAGE
             block1 = []; block2 = []; block3 = [] 
             for equation in equationsTable:
                 idToStratumLevels[equation.leftVar.id].add(level)
+                idToStratumLevels[equation.rightVar.id].add(level)
                 
                 # Check for negated predicates
-                if equation.type == 2 and equation.consultingPred.negated:
+                if level == 1 and equation.type == 2 and equation.consultingPred.negated:
                     idToStratumLevels[equation.consultingPred.id].add(level)
                 
                 if level == len(rules_per_stratum):
@@ -228,14 +228,10 @@ USAGE
                       equation.consultingPred.id not in block1:
                     block1.append(equation.consultingPred.id)
                     
-                # To add a variable we check that is the right block
-                # and that has not already been added as a variable
-                # can appear in more than one equation. One optimization
-                # would be use a set to check if a variable in the block
-                # but as the number of equations is usually small would
-                # be both a waste on time and memory. 
-                # beyond a threshold and use in that case.
-                # TODO: We could check if the number of a variables goes 
+                # To add a variable we check that is the correct block
+                # and that has not already been added as a variable. The variable
+                # can appear in more than one equation and level. One optimization
+                # would be use a set to check if a variable belongs to the block.
                 if equation.leftVar.id in ordering_for_blocks[0] and\
                      equation.leftVar.id not in block1:
                     block1.append(equation.leftVar.id)
@@ -246,22 +242,13 @@ USAGE
                      equation.leftVar.id not in block3:
                     block3.append(equation.leftVar.id)
                     
-                # This can be a little bit tricky the condition of the level
-                # checking if we are on the last stratum is used because the 
-                # variable might appear only on the right side of a equation
-                # of the last stratum and we have to reference it otherwise
-                # we will lost it. This is an optimization to only use 
-                # reference a variable in the stratum were is used.
-                if level == num_of_stratums and\
-                     equation.rightVar.id in ordering_for_blocks[0] and\
-                     equation.rightVar.id not in block1:
+                if equation.rightVar.id in ordering_for_blocks[0] and\
+                   equation.rightVar.id not in block1:
                     block1.append(equation.rightVar.id)
-                elif level == num_of_stratums and\
-                     equation.rightVar.id in ordering_for_blocks[1] and\
+                elif equation.rightVar.id in ordering_for_blocks[1] and\
                      equation.rightVar.id not in block2:
                     block2.append(equation.rightVar.id)
-                elif level == num_of_stratums and\
-                     equation.rightVar.id in ordering_for_blocks[2] and\
+                elif equation.rightVar.id in ordering_for_blocks[2] and\
                      equation.rightVar.id not in block3:
                     block3.append(equation.rightVar.id)
     
@@ -309,6 +296,10 @@ USAGE
             logging.debug("Block order:")
             for block, ordering in enumerate(chain(ordering), start=1):
                 logging.debug("  Block %i  -> %s", block, str(ordering))
+                
+        logging.debug("Identifiers To Stratum Levels:")
+        for var, key in idToStratumLevels.iteritems():
+            logging.debug("  %s -> %s" % (var, key))
             
         if args.show_rewriting_equations:
             for level, stratum in enumerate(stratums, start=1):
