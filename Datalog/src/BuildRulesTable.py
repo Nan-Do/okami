@@ -17,6 +17,44 @@ def addRuleDependencyToGraph(graph, head, body):
         #    graph[pred] = dict()
         graph[pred][head] = 0
          
+# This function checks if a rule is unsafe. If a rule is unsafe can't be 
+# evaluated.
+def isAnUnsafeRule(head, body):
+    vars_h = [x.value for x in head.arguments if x.type == 'variable' ]
+    
+    if len(body) == 1:
+        # Check that all the variables of the body appear on the head
+        vars_b = [x.value for x in body[0].arguments if x.type == 'variable' ]
+        
+        if not set(vars_h).issubset(set(vars_b)):
+            return True
+        
+        # Rules of type one can't contain negated predicates this is unsafe
+        if body[0].negated:
+            return True
+    
+    elif len(body) == 2:
+        vars_b1 = [x.value for x in body[0].arguments if x.type == 'variable' ]
+        vars_b2 = [x.value for x in body[1].arguments if x.type == 'variable' ]
+        
+        # Both predicates can't be negated
+        if body[0].negated and body[1].negated:
+            return True
+        # All the variables in the negated predicate must appear in the other predicate of the rule
+        if body[0].negated and not set(vars_b1).issubset(set(vars_b2)):
+            return True
+
+        if body[1].negated and not set(vars_b2).issubset(set(vars_b1)):
+            return True
+            
+        # Check that all the variables of the head exist in the body
+        if not body[0].negated and not body[1].negated:
+            if not set(vars_h).issubset(set(vars_b1).union(set(vars_b2))):
+                return True
+
+    return False
+
+
 def buildRulesTable(filename, test=False):
     """This function is in charge to build the rules table, the rules table
        is a data structure containing a description for all the logical
@@ -48,6 +86,12 @@ def buildRulesTable(filename, test=False):
                 logging.error('Parsing:%s:Line:%i', filename, line_no)
                 logging.error('Parsing:%s', v.message)
 
+            sys.exit(0)
+            
+        if isAnUnsafeRule(head, body):
+            logging.error('Analyzing:%s:Line:%i', filename, line_no)
+            logging.error('Analyzing:Unsafe rule')
+            
             sys.exit(0)
             
         body_predicates_ids = [predicate.id for predicate in body]
