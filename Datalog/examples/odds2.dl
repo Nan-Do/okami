@@ -1,0 +1,2 @@
+odd(X) :- n_1_10(X), ~even(X).
+odd_and_mult3(X) :- odd(X), ~not_mult_3(X).

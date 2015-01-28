@@ -34,6 +34,7 @@ Datalog_Examples = ['flights.datalog',
                     'example13.dl',
                     'example14.dl',
                     'example15.dl',
+                    # Here start the examples that contain constant objects
                     'constants1.dl',
                     'constants2.dl',
                     'constants3.dl',
@@ -44,7 +45,18 @@ Datalog_Examples = ['flights.datalog',
                     'constants8.dl',
                     'constants9.dl',
                     'constants10.dl',
-                    'constants11.dl'
+                    'constants11.dl',
+                    # Here start negated programs
+                     'odds.dl',
+                     'odds2.dl',
+                     'negated.dl',
+                     'negated2.dl',
+                     'negated3.dl',
+                     'negated4.dl',
+                     'negated5.dl',
+                     'negated6.dl',
+                     'negated7.dl',
+                     'negated8.dl'
                     ]
 
 logging.basicConfig(level=logging.INFO,

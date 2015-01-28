@@ -1,0 +1,8 @@
+not_mult_3(1).
+not_mult_3(2).
+not_mult_3(4).
+not_mult_3(5).
+not_mult_3(1).
+not_mult_3(7).
+not_mult_3(8).
+not_mult_3(10).
