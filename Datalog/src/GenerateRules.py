@@ -10,7 +10,7 @@ from collections import defaultdict
 
 # This function takes care of pretty printing the rewriting equations.
 def rewritingEquationPrinter(EquationsTable):
-    # This auxiliary function makes an string of the parameter it receives. If
+    # These auxiliary function makes an string of the parameter it receives. If
     # it is an integer it means it is a propagated constant trough the rewriting 
     # variable, if it is an argument it means it can be a constant specified on 
     # the program or a variable in which case we just have to call str on it 
