@@ -5,9 +5,10 @@ Created on Jan 27, 2014
 '''
 
 from itertools import repeat
-from Types import Argument, Predicate, Identifier
+from Types import Argument, Predicate, Identifier,\
+                  AssignationExpression, BooleanExpression
 
-import random, string
+import random, string, re
 
 # This variable is used to generate the uniqueIds of the predicates.
 # In case of being True a random generated text chunk will be added
@@ -19,6 +20,63 @@ def random_generator(size=6, chars=string.ascii_letters+string.digits):
 
 def removeRuleSpaces(rule):
     return "".join([x for x in rule if x != " " and x != " \t" and x != "\n"])
+
+# This function is used to parse assignation expressions of the kind A = B + C
+# The grammar is VAR = NUMBER|VARIABLE + [+-*/] + NUMBER|VARIABLE. Clousure added
+# to compute the compilation of the regex only once.
+def clousure_get_assignation_expression():
+    VAR = '[A-Za-z]+'
+    NUMBER = '[0-9]+'
+    VAR_OR_NUMBER = "(" + VAR + "|" + NUMBER + ")"
+    EXPRESSION = "("+ VAR + ")" + "=" + VAR_OR_NUMBER + r"([\+-\\\*]+)" + VAR_OR_NUMBER
+    assignation = re.compile(EXPRESSION)
+    def _(rule, start_position):
+        match = assignation.match(rule[start_position:])
+        if match == None:
+            return None, start_position
+
+        left_side = match.groups()[0]
+        operator = match.groups()[2]
+        right_side_arguments = []
+        for arg in match.groups()[1::2]:
+            try:
+                right_side_arguments.append(Argument('constant', int(arg)))
+            except ValueError:
+                right_side_arguments.append(Argument('variable', arg))
+
+        return AssignationExpression('assignation', Argument('variable', left_side),
+                                     right_side_arguments, operator),\
+               start_position + match.end()
+    return _
+get_assignation_expression = clousure_get_assignation_expression()
+
+# This function is used to parse boolean expressions of the kind A < B
+# The grammar is NUMBER|VARIABLE < NUMBER|VARIABLE. Clousure added
+# to compute the compilation of the regex only once.
+def clousure_get_boolean_expression():
+    VAR = '[A-Za-z]+'
+    NUMBER = '[0-9]+'
+    VAR_OR_NUMBER = "(" + VAR + "|" + NUMBER + ")"
+    EXPRESSION = VAR_OR_NUMBER + "(==|<|>|<=|>=|!=)" + VAR_OR_NUMBER
+    boolean = re.compile(EXPRESSION)
+    def _(rule, start_position):
+        match = boolean.match(rule[start_position:])
+        if match == None:
+            return None, start_position
+
+        #return match.groups(), start_position + match.end()
+        operator = match.groups()[1]
+        right_side_arguments = []
+        for arg in match.groups()[0::2]:
+            try:
+                right_side_arguments.append(Argument('constant', int(arg)))
+            except ValueError:
+                right_side_arguments.append(Argument('variable', arg))
+
+        return BooleanExpression('boolean', right_side_arguments, operator),\
+               start_position + match.end()
+    return _
+get_boolean_expression = clousure_get_boolean_expression()
 
 def decorate_get_predicate():
     uniqueIds = {}
@@ -106,20 +164,29 @@ def parseRule(rule, check_restricted=False):
     if not v:
         raise ValueError('Head separator not found')
     
+    parser_body_elements = [get_predicate, get_assignation_expression,
+                            get_boolean_expression]
+
     # Get the body.
     body = []
-    # Check if we are parsing a restricted body or not
-    if check_restricted:
-        r = repeat(True, 2)
-    else:
-        r = repeat(True)
-        
-    for _ in r:
-        body_element, position = get_predicate(rule, position)
-        if body_element == None:
+    # We don't check if we are parsing a restricted body or not.
+    # TODO: Check if we are dealing with a restricted body and act
+    # appropriately if we have to generate code for it
+    while True:
+        # We check if the next element is a predicate or one of
+        # the supported expressions (assignment or boolean)
+        # otherwise we rise an error.
+        element_parsed = False
+        for parser_element in parser_body_elements:
+            element, position = parser_element(rule, position)
+            if element == None:
+                continue
+            element_parsed = True
+            body.append(element)
+
+        if element_parsed == False:
             raise ValueError('Incorrect body')
-        body.append(body_element)
-        
+
         # Check if arrived to the end of the rule in an incorrect position
         if position>=len(rule):
             raise ValueError('Unfishined rule')

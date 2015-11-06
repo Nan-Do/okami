@@ -123,3 +123,38 @@ ViewsData = namedtuple('ViewsData',['viewNamesToCombinations', 'aliasToViewNames
                                     'predsToViewNames', 'viewsOrdering'],
                        verbose=False)
 
+
+# AssignationExpression is a named tuple that represents the information we need
+# to handle expressions on the rules. The assignation expressions must be of the
+# form "A = B + C" where A must be a variable on the head of the logical rule and
+# B and C can be variables or constants. The parser will take as a valid any
+# arithmetic operator (+, -, /, *). 'rightArgs' is a list with the arguments on
+# the right side ordered by appearance in the example's case [B, C]
+#      type -> A string with the value 'assignation' it will identify the
+#              kind of expression.
+#   leftArg -> An argument representing the variable of the left side of
+#              the expression it must be a predicate.
+# rightArgs -> A list of two elements of arguments containing the elements
+#              of the right side of the expression.
+#  operator -> A string containing the character representing the operator
+#              used at the expression.
+AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArg',
+                                                             'rightArgs', 'operator'],
+                                   verbose=False)
+
+
+# BooleanExpression is a named tuple that represents the information we need
+# to handle expressions on the rules. The boolean expressions must be of the
+# form "A < B" where A and B must be variables or constants. The parser will
+# take as a valid the usual comparison operators (<, <=, >, >=, ==, !=).
+# 'rightArgs' is a list with the arguments of the expression ordered by
+# appearance in the example's case [A, B]
+#      type -> A string with the value 'boolean' it will identify the kind
+#              of expression.
+# rightArgs -> A list of two elements of arguments containing the elements
+#              of the right side of the expression.
+#  operator -> A string containing the character representing the operator
+#              used at the expression.
+BooleanExpression = namedtuple('BooleanExpression', ['type', 'rightArgs',
+                                                     'operator'],
+                               verbose=False)
