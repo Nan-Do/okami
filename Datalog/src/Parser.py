@@ -77,9 +77,10 @@ def clousure_get_boolean_expression():
     return _
 get_boolean_expression = clousure_get_boolean_expression()
 
-def decorate_get_predicate():
+# Clousure used to avoid adding the uniqueIds dictionary as a global variable.
+def clousure_get_predicate():
     uniqueIds = {}
-    def get_predicate_function(rule, start_position):
+    def _(rule, start_position):
         """ This function is used to parse a predicate of the 
         form NAME(VAR1,...,VARN) from the start position"""
         
@@ -124,8 +125,8 @@ def decorate_get_predicate():
             
         #return (name, variables), last_var_position+1
         return Predicate(Identifier(name, uniqueId), is_negated, arguments), last_var_position+1
-    return get_predicate_function
-get_predicate = decorate_get_predicate()
+    return _
+get_predicate = clousure_get_predicate()
 
 def get_head_separator(rule, start_position):
     """ Checks that from the starting position what we have is the head rule
