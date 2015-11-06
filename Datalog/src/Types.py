@@ -59,11 +59,14 @@ RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type',
 #     leftSideName -> Name of the left side variable
 #     leftSideArgs -> List of arguments of the left side of the rewriting rule.
 #     rightSideName -> Name of the left side variable
-#     rightSideArgs -> List of arguments of the right side of the rewriting rule.
-#     common_vars -> list of tuples containing the names of the variables and its position inside the rule.
-#                    It only stores the variables which are shared, it respects the order inside the rule.
+#     rightSideArgs -> List of arguments of the right side of the rewriting
+#                      rule.
+#     common_vars -> list of tuples containing the names of the variables and
+#                    its position inside the rule. It only stores the variables
+#                    which are shared, it respects the order inside the rule.
 #     consultingPred -> Name of the predicate that will be consulted
-#     consultingArgs -> List of arguments containing the values that will be queried on the database
+#     consultingArgs -> List of arguments containing the values that will be
+#                       queried on the database
 RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
                                                'leftVar', 'leftArgs', 
                                                'rightVar', 'rightArgs', 
@@ -85,8 +88,8 @@ RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
 PredicateTypes = namedtuple('PredicateTypes', ['intensional', 'extensional'],
                             verbose=False)
 
-# Ordering is a named tuple. It contains three lists of identifiers. Every list is an 
-# ordering for the evaluation of the different variables.
+# Ordering is a named tuple. It contains three lists of identifiers. Every 
+# list is an ordering for the evaluation of the different variables.
 # block1 -> The identifiers belonging to the first block
 # block2 -> The identifiers belonging to the second block
 # block3 -> The identifiers belonging to the third block

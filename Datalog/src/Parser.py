@@ -4,7 +4,6 @@ Created on Jan 27, 2014
 @author: nando
 '''
 
-from itertools import repeat
 from Types import Argument, Predicate, Identifier,\
                   AssignationExpression, BooleanExpression
 
