@@ -166,9 +166,9 @@ def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
     
 def fillHypothesis(outfile):
-    hypothesis = set(x.leftVar.id.unique_id for x in getEquationsFromAllStratums())
-    hypothesis |= set(x.rightVar.id.unique_id for x in getEquationsFromAllStratums())
-    hypothesis |= set(x.consultingPred.id.unique_id for x in getEquationsFromAllStratums() if (x.type == 2 and x.consultingPred.negated))
+    hypothesis = set(x.leftVar.id.uniqueId for x in getEquationsFromAllStratums())
+    hypothesis |= set(x.rightVar.id.uniqueId for x in getEquationsFromAllStratums())
+    hypothesis |= set(x.consultingPred.id.uniqueId for x in getEquationsFromAllStratums() if (x.type == 2 and x.consultingPred.negated))
     outfile.write('/* Hipothesys */\n')
     for hypothesis, pos in zip(hypothesis, count()):
         line = '#define {}\t{}\n'.format(hypothesis, str(pos))
@@ -258,7 +258,7 @@ def fillOutputTuplesFiles(outfile):
     outfile.write(';\n')
     
 def fillPrintRewritingVariable(outfile):
-    for position, ((pred_name, pred_unique_id), length) in enumerate(getAllPredicatesLengths()):
+    for position, ((pred_name, pred_uniqueId), length) in enumerate(getAllPredicatesLengths()):
         if position == 0:
             conditional = 'if'
         else:
@@ -267,11 +267,11 @@ def fillPrintRewritingVariable(outfile):
         formatting = ', '.join(['%i' for x in xrange(length)])
         variables = ', '.join(['b->VAR_' + str(x) for x in xrange(1, length+1)])
         
-        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_unique_id))
+        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_uniqueId))
         outfile.write('\t\tfprintf(file, "X_{}({}).", {});\n'.format(pred_name, formatting, variables))
         
 def fillPrintAnswer(outfile):
-    for position, ((pred_name, pred_unique_id), length) in enumerate(getAllPredicatesLengths()):
+    for position, ((pred_name, pred_uniqueId), length) in enumerate(getAllPredicatesLengths()):
         if position == 0:
             conditional = 'if'
         else:
@@ -280,7 +280,7 @@ def fillPrintAnswer(outfile):
         formatting = ', '.join(['%i' for x in xrange(length)])
         variables = ', '.join(['b->VAR_' + str(x) for x in xrange(1, length+1)])
         
-        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_unique_id))
+        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_uniqueId))
         outfile.write('\t\tfprintf(file, "{}({}).\\n", {});\n'.format(pred_name, formatting, variables))
 
 
@@ -339,7 +339,7 @@ def fillStratumQueueInitializers(outfile):
             outfile.write('\t\treturn FALSE;\n')
             outfile.write('\t}\n')
             outfile.write('\twhile (parser_get_fact(fp, NULL, &fact) == 1){\n')
-            outfile.write('\t\tVAR.PREDICATE = {};\n'.format(idVar.unique_id))
+            outfile.write('\t\tVAR.PREDICATE = {};\n'.format(idVar.uniqueId))
             
             for x in xrange(length):
                 outfile.write('\t\tVAR.VAR_{} = fact.values[{}];\n'.format(str(x+1), x))
@@ -440,7 +440,7 @@ def fillSolverCompute(outfile):
             rules = (x for x in getEquationsFromAllStratums()
                            if x.leftVar.id == variable_id)
     
-            outfile.write('\t\tif (current->b.PREDICATE == {})'.format(variable_id.unique_id))
+            outfile.write('\t\tif (current->b.PREDICATE == {})'.format(variable_id.uniqueId))
             outfile.write('{\n')
 
             # The answer can be represented in more than one level (stratum). We need to 
@@ -575,7 +575,7 @@ def fillSolverCompute(outfile):
                         outfile.write('){\n')
                         tabs += '\t'
                             
-                    outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightVar.id.unique_id))
+                    outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightVar.id.uniqueId))
                     for pos, answer_pos in enumerate(rule.rightArgs, 1):
                         # Check if we are dealing with a constant propagated trough the datalog source code.
                         # If we have an integer here it means it is a rewriting constant propagated value
@@ -778,7 +778,7 @@ def fillSolverCompute(outfile):
                         # If we turn the list of consulting values into a set and the length is 1 that means that the predicate
                         # has all its variables the same equal card
                         #if (len(set(rule.consultingArgs)) != 1 and\
-                        #    getPredicateLength(rule.consultingPred.unique_id) != len(rule.commonVars)):
+                        #    getPredicateLength(rule.consultingPred.uniqueId) != len(rule.commonVars)):
                         if (len(set([x for x in rule.consultingArgs if not (isinstance(x, Argument) and x.type=='constant')])) != 1 and\
                             getPredicateLength(rule.consultingPred.id) != len(rule.commonVars) and 
                             sum([1 for x in rule.consultingArgs if isinstance(x, int) or (isinstance(x, Argument) and x.type=='constant')]) != len(rule.consultingArgs)):
@@ -865,7 +865,7 @@ def fillSolverCompute(outfile):
                                             for x in rule.consultingArgs))
                     
                     outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
-                                                                   rule.rightVar.id.unique_id))
+                                                                   rule.rightVar.id.uniqueId))
                     # Here we handle if we have equal cards in the query variables that are
                     # not in the set of common variables. As we retrieve them from the iterating
                     # lists we have to check that are equal otherwise we would count

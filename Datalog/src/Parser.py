@@ -9,9 +9,9 @@ from Types import Argument, Predicate, Identifier
 
 import random, string
 
-# This variable is used to generate the unique_ids of the predicates.
+# This variable is used to generate the uniqueIds of the predicates.
 # In case of being True a random generated text chunk will be added
-# to the unique_id representing the predicate.
+# to the uniqueId representing the predicate.
 GENERATE_RANDOM_CHUNK=True
 
 def random_generator(size=6, chars=string.ascii_letters+string.digits):
@@ -21,7 +21,7 @@ def removeRuleSpaces(rule):
     return "".join([x for x in rule if x != " " and x != " \t" and x != "\n"])
 
 def decorate_get_predicate():
-    unique_ids = {}
+    uniqueIds = {}
     def get_predicate_function(rule, start_position):
         """ This function is used to parse a predicate of the 
         form NAME(VAR1,...,VARN) from the start position"""
@@ -37,15 +37,15 @@ def decorate_get_predicate():
             is_negated = True
             name = name[1:]
         
-        if name in unique_ids:
-            unique_id = unique_ids[name]
+        if name in uniqueIds:
+            uniqueId = uniqueIds[name]
         else:
             if GENERATE_RANDOM_CHUNK:
-                unique_id = name + '_' + random_generator(5)
+                uniqueId = name + '_' + random_generator(5)
             else:
-                unique_id = name
+                uniqueId = name
                 
-            unique_ids[name] = unique_id
+            uniqueIds[name] = uniqueId
 
         last_var_position = rule.find(')', end_name_position+1)
         if end_name_position == -1:
@@ -66,7 +66,7 @@ def decorate_get_predicate():
         #print arguments
             
         #return (name, variables), last_var_position+1
-        return Predicate(Identifier(name, unique_id), is_negated, arguments), last_var_position+1
+        return Predicate(Identifier(name, uniqueId), is_negated, arguments), last_var_position+1
     return get_predicate_function
 get_predicate = decorate_get_predicate()
 

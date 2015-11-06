@@ -7,9 +7,9 @@ Created on Jul 12, 2013
 from collections import namedtuple
 
 # Identifier is a named tuple. It will be used to identify variables and predicates.
-# Name will be a string with a name and unique_id will be a string uniquely among
+# Name will be a string with a name and uniqueId will be a string uniquely among
 # all the identifiers.
-Identifier = namedtuple('Identifier', ['name', 'unique_id'], verbose=False)
+Identifier = namedtuple('Identifier', ['name', 'uniqueId'], verbose=False)
 
 # Argument is a named tuple. Type will hold the type (variable or constant) 
 # value will contain the value of the argument. In case of a constant it
