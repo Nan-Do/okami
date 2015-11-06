@@ -188,7 +188,7 @@ def parseRule(rule, check_restricted=False):
             raise ValueError('Incorrect body')
 
         # Check if arrived to the end of the rule in an incorrect position
-        if position>=len(rule):
+        if position >= len(rule):
             raise ValueError('Unfishined rule')
         
         # Is this the end of the rule?
