@@ -29,14 +29,16 @@ def logError(filename, line_no, error_type, error_message):
 
 # This function checks if a rule is unsafe. If a rule is unsafe can't be 
 # evaluated.
-def isAnUnsafeRule(head, body):
+def isAnUnsafeRule(head, body, assignation):
     vars_h = [x.value for x in head.arguments if x.type == 'variable' ]
     
     if len(body) == 1:
         # Check that all the variables of the body appear on the head
-        vars_b = [x.value for x in body[0].arguments if x.type == 'variable' ]
+        body_vars = [x.value for x in body[0].arguments if x.type == 'variable' ]
+        if assignation:
+            body_vars.append(assignation.leftArg.value)
         
-        if not set(vars_h).issubset(set(vars_b)):
+        if not set(vars_h).issubset(set(body_vars)):
             return True
         
         # Rules of type one can't contain negated predicates this is unsafe
@@ -59,7 +61,10 @@ def isAnUnsafeRule(head, body):
             
         # Check that all the variables of the head exist in the body
         if not body[0].negated and not body[1].negated:
-            if not set(vars_h).issubset(set(vars_b1).union(set(vars_b2))):
+            body_vars = set(vars_b1).union(set(vars_b2))
+            if assignation:
+                body_vars.add(assignation.leftArg.value)
+            if not set(vars_h).issubset(body_vars):
                 return True
 
     return False
@@ -101,7 +106,13 @@ def buildRulesTable(filename, test=False):
             
         predicates_of_the_body = [x for x in body if isinstance(x, Predicate)]
         assignation_exp_of_the_body = [x for x in body if isinstance(x, AssignationExpression)]
+        assignation = None
+        if assignation_exp_of_the_body:
+            assignation = assignation_exp_of_the_body[0]
         boolean_exp_of_the_body = [x for x in body if isinstance(x, BooleanExpression)]
+        boolean = None
+        if boolean_exp_of_the_body:
+            boolean = boolean_exp_of_the_body[0]
         
         if len(predicates_of_the_body) > 2:
             logError(filename,
@@ -117,7 +128,7 @@ def buildRulesTable(filename, test=False):
                      'Only one assignation expression per rule is supported')
             sys.exit(0)
         
-        if isAnUnsafeRule(head, predicates_of_the_body):
+        if isAnUnsafeRule(head, predicates_of_the_body, assignation):
             logError(filename,
                      line_no,
                      None,
