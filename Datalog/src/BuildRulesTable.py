@@ -8,7 +8,7 @@ import sys
 import logging
 
 from Parser import parseRule
-from Types import LogicRule, PredicateTypes
+from Types import LogicRule, PredicateTypes, Predicate
 from collections import defaultdict
 
 def addRuleDependencyToGraph(graph, head, body):
@@ -88,19 +88,20 @@ def buildRulesTable(filename, test=False):
 
             sys.exit(0)
             
-        if isAnUnsafeRule(head, body):
+        predicates_of_the_body = [x for x in body if isinstance(x, Predicate)]
+        if isAnUnsafeRule(head, predicates_of_the_body):
             logging.error('Analyzing:%s:Line:%i', filename, line_no)
             logging.error('Analyzing:Unsafe rule')
             
             sys.exit(0)
             
-        body_predicates_ids = [predicate.id for predicate in body]
-        negated_predicate_ids = [predicate.id for predicate in body if predicate.negated]
+        body_predicates_ids = [predicate.id for predicate in predicates_of_the_body]
+        negated_predicate_ids = [predicate.id for predicate in predicates_of_the_body if predicate.negated]
         head_preds_ids.add(head.id)
         negated_preds.update(negated_predicate_ids)
         body_preds_ids.update(body_predicates_ids)
         addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids)
-        rulesTable.append(LogicRule(head, body, len(body), line_no+1, line))
+        rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), line_no+1, line))
             
     f.close()
     return (rulesTable, PredicateTypes(head_preds_ids, body_preds_ids.difference(head_preds_ids)), dependency_graph, negated_preds)
