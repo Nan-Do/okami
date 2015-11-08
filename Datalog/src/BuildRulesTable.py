@@ -70,6 +70,38 @@ def isAnUnsafeRule(head, body, assignation):
     return False
 
 
+def checkLeftSideVariableOnAssignationAppearsOnTheHead(head, assignation):
+    assignation_var = assignation.leftArg.value
+    vars_head = [x.value for x in head.arguments if x.type == 'variable' ]
+    
+    if assignation_var in vars_head:
+        return True
+    
+    return False
+
+
+def checkRightSideVariablesOnAssignationAppearOnTheBody(predicates_of_the_body, assignation):
+    assignation_vars = set([x.value for x in assignation.rightArgs if x.type == 'variable'])
+    predicate_vars = set([y.value for x in predicates_of_the_body
+                                  for y in x.arguments if y.type == 'variable'])
+    
+    if assignation_vars.issubset(predicate_vars):
+        return True
+    
+    return False
+
+
+def checkBooleanExpressionVariablesAppearOnTheBode(predicates_of_the_body, boolean):
+    boolean_vars = set([x.value for x in boolean.rightArgs if x.type == 'variable'])
+    predicate_vars = set([y.value for x in predicates_of_the_body
+                                  for y in x.arguments if y.type == 'variable'])
+    
+    if boolean_vars.issubset(predicate_vars):
+        return True
+    
+    return False
+
+
 def buildRulesTable(filename, test=False):
     """This function is in charge to build the rules table, the rules table
        is a data structure containing a description for all the logical
@@ -105,15 +137,19 @@ def buildRulesTable(filename, test=False):
             sys.exit(0)
             
         predicates_of_the_body = [x for x in body if isinstance(x, Predicate)]
+        
         assignation_exp_of_the_body = [x for x in body if isinstance(x, AssignationExpression)]
         assignation = None
         if assignation_exp_of_the_body:
             assignation = assignation_exp_of_the_body[0]
+        
         boolean_exp_of_the_body = [x for x in body if isinstance(x, BooleanExpression)]
         boolean = None
         if boolean_exp_of_the_body:
             boolean = boolean_exp_of_the_body[0]
         
+        # Start for semantic error on the logical rules:
+        # These errors can be found on the predicates or the expressions
         if len(predicates_of_the_body) > 2:
             logError(filename,
                      line_no,
@@ -127,6 +163,13 @@ def buildRulesTable(filename, test=False):
                      None,
                      'Only one assignation expression per rule is supported')
             sys.exit(0)
+            
+        if len(boolean_exp_of_the_body) > 1:
+                logError(filename,
+                         line_no,
+                         None,
+                         'Only one boolean expression per rule is supported')
+                sys.exit(0)
         
         if isAnUnsafeRule(head, predicates_of_the_body, assignation):
             logError(filename,
@@ -135,18 +178,37 @@ def buildRulesTable(filename, test=False):
                      'Unsafe rule')
             sys.exit(0)
             
-        if len(boolean_exp_of_the_body) > 1:
+        if assignation:
+            if not checkLeftSideVariableOnAssignationAppearsOnTheHead(head, assignation):
+                logError(filename,
+                         line_no,
+                         None,
+                         'The variable on the left side of the assignation expression must ' +
+                         'appear on the predicate of head of the rule')
+                sys.exit(0)
+                
+            if not checkRightSideVariablesOnAssignationAppearOnTheBody(predicates_of_the_body, assignation):
+                logError(filename,
+                         line_no,
+                         None,
+                         'The variables on the right side of the assignation expression must ' +
+                         'appear on the predicates of the body of the rule')
+                sys.exit(0)
+                
+        if boolean:
+            if not checkBooleanExpressionVariablesAppearOnTheBode(predicates_of_the_body, boolean):
+                logError(filename,
+                         line_no,
+                         None,
+                         'The variables of the boolean expression must ' +
+                         'appear on the predicates of the body of the rule')
+                sys.exit(0)
+                
+        if assignation and boolean:
             logError(filename,
                      line_no,
                      None,
-                     'Only one boolean expression per rule is supported')
-            sys.exit(0)
-        
-        if assignation_exp_of_the_body and boolean_exp_of_the_body:
-            logError(filename,
-                     line_no,
-                     None,
-                     'Simultaneous assignation and a boolean expressions on rules not supported')
+                     'Simultaneous assignation and a boolean expressions on rules is not supported')
             sys.exit(0)
             
         body_predicates_ids = [predicate.id for predicate in predicates_of_the_body]
