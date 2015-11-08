@@ -27,7 +27,7 @@ def clousure_get_assignation_expression():
     VAR = '[A-Za-z]+'
     NUMBER = '[0-9]+'
     VAR_OR_NUMBER = "(" + VAR + "|" + NUMBER + ")"
-    EXPRESSION = "("+ VAR + ")" + "=" + VAR_OR_NUMBER + r"([\+-\\\*]+)" + VAR_OR_NUMBER
+    EXPRESSION = "("+ VAR + ")" + "=" + VAR_OR_NUMBER + r"([\+-\\\*])" + VAR_OR_NUMBER
     assignation = re.compile(EXPRESSION)
     def _(rule, start_position):
         match = assignation.match(rule[start_position:])
