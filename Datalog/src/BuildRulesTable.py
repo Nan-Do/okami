@@ -8,9 +8,10 @@ import sys
 import logging
 
 from collections import defaultdict
+from itertools import chain
 
 from Parser import parseRule
-from Types import LogicRule, PredicateTypes, Predicate
+from Types import LogicRule, PredicateTypes, Predicate, Argument
 from Types import AssignationExpression, BooleanExpression
 
 
@@ -91,8 +92,9 @@ def checkRightSideVariablesOnAssignationAppearOnTheBody(predicates_of_the_body, 
     return False
 
 
-def checkBooleanExpressionVariablesAppearOnTheBode(predicates_of_the_body, boolean):
-    boolean_vars = set([x.value for x in boolean.rightArgs if x.type == 'variable'])
+def checkBooleanExpressionVariablesAppearOnTheBody(predicates_of_the_body, boolean):
+    boolean_vars = set([x.value for x in chain(boolean.leftSide, boolean.rightSide)
+                        if isinstance(x, Argument) and x.type == 'variable'] )
     predicate_vars = set([y.value for x in predicates_of_the_body
                                   for y in x.arguments if y.type == 'variable'])
     
@@ -196,7 +198,7 @@ def buildRulesTable(filename, test=False):
                 sys.exit(0)
                 
         if boolean:
-            if not checkBooleanExpressionVariablesAppearOnTheBode(predicates_of_the_body, boolean):
+            if not checkBooleanExpressionVariablesAppearOnTheBody(predicates_of_the_body, boolean):
                 logError(filename,
                          line_no,
                          None,
