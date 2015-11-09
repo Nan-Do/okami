@@ -164,8 +164,7 @@ def parseRule(rule, check_restricted=False):
     if not v:
         raise ValueError('Head separator not found')
     
-    parser_body_elements = [get_predicate, get_assignation_expression,
-                            get_boolean_expression]
+    parser_body_elements = [get_predicate, get_boolean_expression]
 
     # Get the body.
     body = []
