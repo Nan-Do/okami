@@ -126,7 +126,15 @@ ViewsData = namedtuple('ViewsData',['viewNamesToCombinations', 'aliasToViewNames
                                     'predsToViewNames', 'viewsOrdering'],
                        verbose=False)
 
+# Expression is a namedtuple used to represents arithmetic expressions that can
+# be used on assignation or boolean expressions.
+# Contents:
+#   leftArg -> an argument representing the left side of the expression
+#  rightArg -> an argument representing the right side of the expression
+#  operator -> a string representing the arithmetic operator "+-*/"
+ArithmeticExpression = namedtuple('Expression', ['leftArg', 'rightArg', 'operator'])
 
+# AssignationExpression IS DEPRECATED!!!
 # AssignationExpression is a named tuple that represents the information we need
 # to handle expressions on the rules. The assignation expressions must be of the
 # form "A = B + C" where A must be a variable on the head of the logical rule and
@@ -154,10 +162,14 @@ AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArg',
 # appearance in the example's case [A, B]
 #      type -> A string with the value 'boolean' it will identify the kind
 #              of expression.
-# rightArgs -> A list of two elements of arguments containing the elements
-#              of the right side of the expression.
+#  leftSide -> An ArithmeticExpression (another of the defined types). As
+#              we might have only one variable or a constant on the expression
+#              both fields can be None.
+# rightSide -> An expression (another of the defined types). As we might
+#              have only one variable or a constant on the expression both
+#              fields can be None.
 #  operator -> A string containing the character representing the operator
 #              used at the expression.
-BooleanExpression = namedtuple('BooleanExpression', ['type', 'rightArgs',
-                                                     'operator'],
+BooleanExpression = namedtuple('BooleanExpression', ['type', 'leftSide',
+                                                     'rightSide', 'operator'],
                                verbose=False)

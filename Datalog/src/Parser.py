@@ -5,7 +5,8 @@ Created on Jan 27, 2014
 '''
 
 from Types import Argument, Predicate, Identifier,\
-                  AssignationExpression, BooleanExpression
+                  AssignationExpression, BooleanExpression,\
+                  ArithmeticExpression
 
 import random, string, re
 
@@ -20,14 +21,27 @@ def random_generator(size=6, chars=string.ascii_letters+string.digits):
 def removeRuleSpaces(rule):
     return "".join([x for x in rule if x != " " and x != " \t" and x != "\n"])
 
+def makeArgument(arg):
+    try:
+        return Argument('constant', int(arg))
+    except ValueError:
+        return Argument('variable', arg)
+
 # This function is used to parse assignation expressions of the kind A = B + C
-# The grammar is VAR = NUMBER|VARIABLE + [+-*/] + NUMBER|VARIABLE. Clousure added
-# to compute the compilation of the regex only once.
+# The grammar is:
+#   VARIABLE_OR_NUMBER ::= VARIABLE | NUMBER
+#   ARITHMETIC_EXPRESSION ::= VARIABLE_OR_NUMBER ARITHMETIC_OPERATOR
+#                             VARIABLE_OR_NUMBER
+#   ASSIGNATION_EXPRESSION ::= VARIABLE_OR_NUMBER EQUAL_OPERATOR
+#                              ARITHMETIC_EXPRESSION
+# Clousure added to compute the compilation of the regexes only once.
+# THIS FUNCTION IS DEPRECATED BY NOW!!!. May be used again on future
+# extensions.
 def clousure_get_assignation_expression():
     VAR = '[A-Za-z]+'
     NUMBER = '[0-9]+'
     VAR_OR_NUMBER = "(" + VAR + "|" + NUMBER + ")"
-    EXPRESSION = "("+ VAR + ")" + "=" + VAR_OR_NUMBER + r"([\+-\\\*])" + VAR_OR_NUMBER
+    EXPRESSION = "("+ VAR + ")" + "=" + VAR_OR_NUMBER + r"([\+\-\*/])" + VAR_OR_NUMBER
     assignation = re.compile(EXPRESSION)
     def _(rule, start_position):
         match = assignation.match(rule[start_position:])
@@ -49,30 +63,59 @@ def clousure_get_assignation_expression():
     return _
 get_assignation_expression = clousure_get_assignation_expression()
 
-# This function is used to parse boolean expressions of the kind A < B
-# The grammar is NUMBER|VARIABLE < NUMBER|VARIABLE. Clousure added
-# to compute the compilation of the regex only once.
+# This function is used to parse boolean expressions of the kind
+# A < B where A and B can be expressions.
+# The grammar is:
+#  VARIABLE_OR_NUMBER ::= VARIABLE | NUMBER
+#  ARITHMETIC_EXPRESSION ::= VARIABLE_OR_NUMBER ARITHMETIC_OPERATOR
+#                            VARIABLE_OR_NUMBER
+#  EXPRESSION ::= VARIABLE_OR_NUMBER | ARITHMETIC_EXPRESSION
+#  BOOLEAN_EXPRESSION ::= EXPRESSION BOOLEAN_OPERATOR EXPRESSION
+# Clousure added to compute the compilation of the regexes only once.
+# Please take in mind that arithmetic expressions can't be nested (Y+1+N)
+# will not be parsed.
 def clousure_get_boolean_expression():
     VAR = '[A-Za-z]+'
     NUMBER = '[0-9]+'
     VAR_OR_NUMBER = "(" + VAR + "|" + NUMBER + ")"
-    EXPRESSION = VAR_OR_NUMBER + "(==|<|>|<=|>=|!=)" + VAR_OR_NUMBER
-    boolean = re.compile(EXPRESSION)
+    EXPRESSION = VAR_OR_NUMBER + r"([\+\-\*/])" +\
+                 VAR_OR_NUMBER
+    BOOLEAN_EXPRESSION = "([A-Za-z0-9\+\*\-/]+)" +\
+                         "(==|<|>|<=|>=|!=)" +\
+                         "([A-Za-z0-9\+\*\-/]+)"
+    arg = re.compile(VAR_OR_NUMBER + "$")
+    expression = re.compile(EXPRESSION + "$")
+    boolean = re.compile(BOOLEAN_EXPRESSION)
     def _(rule, start_position):
         match = boolean.match(rule[start_position:])
         if match == None:
             return None, start_position
 
-        #return match.groups(), start_position + match.end()
-        operator = match.groups()[1]
-        right_side_arguments = []
-        for arg in match.groups()[0::2]:
-            try:
-                right_side_arguments.append(Argument('constant', int(arg)))
-            except ValueError:
-                right_side_arguments.append(Argument('variable', arg))
-
-        return BooleanExpression('boolean', right_side_arguments, operator),\
+        left_side, operator, right_side = match.groups()
+        
+        left_expression = None
+        if (arg.match(left_side)):
+            left_expression = ArithmeticExpression(makeArgument(left_side), None, None)
+        elif expression.match(left_side):
+            arg1, op, arg2 = expression.match(left_side).groups()
+            left_expression = ArithmeticExpression(makeArgument(arg1),
+                                                   makeArgument(arg2),
+                                                   op)
+        else:
+            return None, start_position
+        
+        right_expression = None
+        if (arg.match(right_side)):
+            right_expression = ArithmeticExpression(makeArgument(right_side), None, None)
+        elif expression.match(right_side):
+            arg1, op, arg2 = expression.match(right_side).groups()
+            right_expression = ArithmeticExpression(makeArgument(arg1),
+                                                    makeArgument(arg2),
+                                                    op)
+        else:
+            return None, start_position
+        
+        return BooleanExpression('boolean', left_expression, right_expression, operator),\
                start_position + match.end()
     return _
 get_boolean_expression = clousure_get_boolean_expression()
