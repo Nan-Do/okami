@@ -16,13 +16,6 @@ Identifier = namedtuple('Identifier', ['name', 'uniqueId'], verbose=False)
 # will contain the integer value. Right now constants can only be integers.
 Argument = namedtuple('Argument', ['type', 'value'], verbose=False)
 
-# This type will hold the arguments of the boolean expressions (Ex: A < B)
-# the peculiarity is that the boolean argument can represent another argument
-# variable or an arithmetic expression. Check the grammar of boolean expressions
-# for further information. The type will be a string with the value "argument"
-# or "expression"
-BooleanArgument = namedtuple('BooleanArgument', ['type', 'value'], verbose=False)
-
 # Predicate is a named tuple. Contents
 #          id -> It will be the identifier for the predicate.
 #     negated -> Boolean that indicates if the predicate is negated in the program.

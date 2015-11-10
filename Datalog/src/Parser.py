@@ -6,7 +6,7 @@ Created on Jan 27, 2014
 
 from Types import Argument, Predicate, Identifier,\
                   AssignationExpression, BooleanExpression,\
-                  ArithmeticExpression, BooleanArgument
+                  ArithmeticExpression
 
 import random, string, re
 
@@ -95,25 +95,22 @@ def clousure_get_boolean_expression():
         
         left_argument = None
         if (arg.match(left_side)):
-            left_argument = BooleanArgument('argument',
-                                            makeArgument(left_side))
+            left_argument = makeArgument(left_side)
         elif expression.match(left_side):
             arg1, op, arg2 = expression.match(left_side).groups()
-            left_argument = BooleanArgument('expression',
-                                            ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
-                                                                 op))
+            left_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                                 op)
         else:
             return None, start_position
         
         right_argument = None
         if (arg.match(right_side)):
-            right_argument = BooleanArgument('argument',
-                                             makeArgument(right_side))
+            right_argument = makeArgument(right_side)
         elif expression.match(right_side):
             arg1, op, arg2 = expression.match(right_side).groups()
-            right_argument = BooleanArgument('expression',
-                                             ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
-                                                                  op))
+            right_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                                   op)
+                                                    
         else:
             return None, start_position
         
