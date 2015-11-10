@@ -6,7 +6,7 @@ Created on Jan 27, 2014
 
 from Types import Argument, Predicate, Identifier,\
                   AssignationExpression, BooleanExpression,\
-                  ArithmeticExpression
+                  ArithmeticExpression, BooleanArgument
 
 import random, string, re
 
@@ -64,7 +64,7 @@ def clousure_get_assignation_expression():
 get_assignation_expression = clousure_get_assignation_expression()
 
 # This function is used to parse boolean expressions of the kind
-# A < B where A and B can be expressions.
+# A < B where A and B can be arithmetic expressions or arguments.
 # The grammar is:
 #  VARIABLE_OR_NUMBER ::= VARIABLE | NUMBER
 #  ARITHMETIC_EXPRESSION ::= VARIABLE_OR_NUMBER ARITHMETIC_OPERATOR
@@ -93,29 +93,31 @@ def clousure_get_boolean_expression():
 
         left_side, operator, right_side = match.groups()
         
-        left_expression = None
+        left_argument = None
         if (arg.match(left_side)):
-            left_expression = ArithmeticExpression(makeArgument(left_side), None, None)
+            left_argument = BooleanArgument('argument',
+                                            makeArgument(left_side))
         elif expression.match(left_side):
             arg1, op, arg2 = expression.match(left_side).groups()
-            left_expression = ArithmeticExpression(makeArgument(arg1),
-                                                   makeArgument(arg2),
-                                                   op)
+            left_argument = BooleanArgument('expression',
+                                            ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                                                 op))
         else:
             return None, start_position
         
-        right_expression = None
+        right_argument = None
         if (arg.match(right_side)):
-            right_expression = ArithmeticExpression(makeArgument(right_side), None, None)
+            right_argument = BooleanArgument('argument',
+                                             makeArgument(right_side))
         elif expression.match(right_side):
             arg1, op, arg2 = expression.match(right_side).groups()
-            right_expression = ArithmeticExpression(makeArgument(arg1),
-                                                    makeArgument(arg2),
-                                                    op)
+            right_argument = BooleanArgument('expression',
+                                             ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                                                  op))
         else:
             return None, start_position
         
-        return BooleanExpression('boolean', left_expression, right_expression, operator),\
+        return BooleanExpression('boolean', (left_argument, right_argument), operator),\
                start_position + match.end()
     return _
 get_boolean_expression = clousure_get_boolean_expression()

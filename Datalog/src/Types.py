@@ -16,6 +16,13 @@ Identifier = namedtuple('Identifier', ['name', 'uniqueId'], verbose=False)
 # will contain the integer value. Right now constants can only be integers.
 Argument = namedtuple('Argument', ['type', 'value'], verbose=False)
 
+# This type will hold the arguments of the boolean expressions (Ex: A < B)
+# the peculiarity is that the boolean argument can represent another argument
+# variable or an arithmetic expression. Check the grammar of boolean expressions
+# for further information. The type will be a string with the value "argument"
+# or "expression"
+BooleanArgument = namedtuple('BooleanArgument', ['type', 'value'], verbose=False)
+
 # Predicate is a named tuple. Contents
 #          id -> It will be the identifier for the predicate.
 #     negated -> Boolean that indicates if the predicate is negated in the program.
@@ -46,9 +53,11 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'lineno', 'rule'],
 #     leftSideArgs -> List of arguments of the left side of the rewriting rule.
 #     rightSideName -> Name of the left side variable
 #     rightSideArgs -> List of arguments of the right side of the rewriting rule.
+#     booleanExpressions -> List of booleanExpressions
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
                                                'leftVar', 'leftArgs', 
-                                               'rightVar', 'rightArgs'],
+                                               'rightVar', 'rightArgs',
+                                               'booleanExpressions'],
                             verbose=False)
 
 # May be add a field ViewName to store the viewName every rule is associated to.
@@ -67,13 +76,14 @@ RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type',
 #     consultingPred -> Name of the predicate that will be consulted
 #     consultingArgs -> List of arguments containing the values that will be
 #                       queried on the database
+#     booleanExpressions -> List of booleanExpressions
 RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
                                                'leftVar', 'leftArgs', 
                                                'rightVar', 'rightArgs', 
                                                'commonVars', 'consultingPred', 
                                                'consultingArgs', 'aliasName', 
-                                               'combinationView'
-                                               ],
+                                               'combinationView',
+                                               'booleanExpressions'],
                             verbose=False)
 
 # PredicateTypes is a named tuple that represents the different kind of 
@@ -129,10 +139,11 @@ ViewsData = namedtuple('ViewsData',['viewNamesToCombinations', 'aliasToViewNames
 # Expression is a namedtuple used to represents arithmetic expressions that can
 # be used on assignation or boolean expressions.
 # Contents:
-#   leftArg -> an argument representing the left side of the expression
-#  rightArg -> an argument representing the right side of the expression
+#      args -> a tuple of two elements containing the arguments of the expression.
+#              the left side will be the first element and right side will be the
+#              second element.
 #  operator -> a string representing the arithmetic operator "+-*/"
-ArithmeticExpression = namedtuple('Expression', ['leftArg', 'rightArg', 'operator'])
+ArithmeticExpression = namedtuple('ArithmeticExpression', ['args', 'operator'])
 
 # AssignationExpression IS DEPRECATED!!!
 # AssignationExpression is a named tuple that represents the information we need
@@ -156,20 +167,17 @@ AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArg',
 
 # BooleanExpression is a named tuple that represents the information we need
 # to handle expressions on the rules. The boolean expressions must be of the
-# form "A < B" where A and B must be variables or constants. The parser will
-# take as a valid the usual comparison operators (<, <=, >, >=, ==, !=).
-# 'rightArgs' is a list with the arguments of the expression ordered by
-# appearance in the example's case [A, B]
+# form "A < B" where A and B must be variables or constants or arithmetic
+# expressions (check the grammar definition for further explanation). The
+# parser will take as a valid the usual comparison operators (<, <=, >,
+# >=, ==, !=). 'args' is a list of BooleanArguments of the expression ordered 
+# by appearance in the example's case [A, B]
 #      type -> A string with the value 'boolean' it will identify the kind
 #              of expression.
-#  leftSide -> An ArithmeticExpression (another of the defined types). As
-#              we might have only one variable or a constant on the expression
-#              both fields can be None.
-# rightSide -> An expression (another of the defined types). As we might
-#              have only one variable or a constant on the expression both
-#              fields can be None.
+#      args -> A tuple of two elements containing the arguments of the expression.
+#              the left side will be the first element and right side will be the
+#              second element.
 #  operator -> A string containing the character representing the operator
 #              used at the expression.
-BooleanExpression = namedtuple('BooleanExpression', ['type', 'leftSide',
-                                                     'rightSide', 'operator'],
+BooleanExpression = namedtuple('BooleanExpression', ['type', 'args', 'operator'],
                                verbose=False)
