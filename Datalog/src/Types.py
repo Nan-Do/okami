@@ -134,7 +134,11 @@ ViewsData = namedtuple('ViewsData',['viewNamesToCombinations', 'aliasToViewNames
 # Contents:
 #      args -> a tuple of two elements containing the arguments of the expression.
 #              the left side will be the first element and right side will be the
-#              second element.
+#              second element. When it belongs to the logic rules table it will 
+#              contain arguments and/or arithmetic expressions. When it belongs
+#              to the rewriting equations table it will contain predicates 
+#              representing constants, positions or arithmetic expressions whose
+#              argument variables have also been transformed to positions.
 #  operator -> a string representing the arithmetic operator "+-*/"
 ArithmeticExpression = namedtuple('ArithmeticExpression', ['args', 'operator'])
 
@@ -169,7 +173,11 @@ AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArg',
 #              of expression.
 #      args -> A tuple of two elements containing the arguments of the expression.
 #              the left side will be the first element and right side will be the
-#              second element.
+#              second element. When it belongs to the logic rules table it will 
+#              contain arguments and/or arithmetic expressions. When it belongs
+#              to the rewriting equations table it will contain predicates 
+#              representing constants, positions or arithmetic expressions whose
+#              argument variables have also been transformed to positions.
 #  operator -> A string containing the character representing the operator
 #              used at the expression.
 BooleanExpression = namedtuple('BooleanExpression', ['type', 'args', 'operator'],
