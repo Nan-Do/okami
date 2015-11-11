@@ -51,11 +51,12 @@ def rewritingEquationPrinter(EquationsTable):
                     side = stringify(b_arg)
                 else:
                     a_args, a_op = b_arg
-                    side = parentify(stringify(a_args[0]) + " " + a_op + " "+ stringify(a_args[1]))
+                    #side = parentify(stringify(a_args[0]) + " " + a_op + " "+ stringify(a_args[1]))
+                    side = stringify(a_args[0]) + " " + a_op + " "+ stringify(a_args[1])
                 boolean_expression_str += side
                 if p2 == 0:
                     boolean_expression_str += " " + b_op + " "
-            boolean_expression_str = parentify(boolean_expression_str)
+            #boolean_expression_str = parentify(boolean_expression_str)
             boolean_expressions_str += boolean_expression_str
             if p1 > 0:
                 boolean_expressions_str += " && "
