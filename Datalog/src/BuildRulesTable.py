@@ -94,7 +94,6 @@ def checkRightSideVariablesOnAssignationAppearOnTheBody(predicates_of_the_body, 
 
 
 def checkBooleanExpressionVariablesAppearOnTheBody(predicates_of_the_body, boolean):
-    print boolean
     boolean_vars = set()
     for arg in boolean.args:
         if isinstance(arg, Argument) and arg.type == 'variable':
