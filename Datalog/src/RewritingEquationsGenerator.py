@@ -4,8 +4,8 @@ Created on Jul 11, 2013
 @author: nando
 '''
 
-from Types import RewritingRule1, RewritingRule2
-from Types import ViewsData, Argument, Variable
+from Types import RewritingRule1, RewritingRule2, ArithmeticExpression
+from Types import ViewsData, Argument, Variable, BooleanExpression
 
 from itertools import chain
 from collections import defaultdict
@@ -41,6 +41,23 @@ def rewritingEquationPrinter(EquationsTable):
                 right_side.append(str(element.value))
         right_side = ", ".join(right_side)
         
+        # Here we build the string for the expressions.
+        boolean_expressions_str = ''
+        for p1, (_, b_args, b_op) in enumerate(eq.booleanExpressions):
+            for p2, b_arg in enumerate(b_args):
+                side = ''
+                if isinstance(b_arg, int) or isinstance(b_arg, Argument):
+                    side = stringify(b_arg)
+                else:
+                    a_args, a_op = b_arg
+                    side = "(" + stringify(a_args[0]) + " " + a_op + " "+ stringify(a_args[1]) + ")"
+                boolean_expressions_str += side
+                if p2 == 0:
+                    boolean_expressions_str += " " + b_op + " "
+            boolean_expressions_str = "(" + boolean_expressions_str + ")"
+            if p1 > 0:
+                boolean_expressions_str += " && "
+                
         # Here we create the rule. 
         rewriting_rule = "x_" + eq.leftVar.id.name + parentify(left_side) +\
             " " + unichr(8658) + "  " +  "x_" + eq.rightVar.id.name + parentify(right_side)
@@ -60,9 +77,42 @@ def rewritingEquationPrinter(EquationsTable):
                                   "  " + eq.aliasName + parentify(consulting_values_str)
             else:
                 rewriting_rule += " / " + unichr(8708) + " " + eq.aliasName + parentify(consulting_values_str)
+        
+        if boolean_expressions_str:
+            rewriting_rule += " if " + boolean_expressions_str
+        
         rewriting_rule.encode('utf-8')
                 
         print rewriting_rule
+
+
+# This functions takes a boolean expression and substitutes all the variable
+# arguments on it by the positions they represent. It will return a new 
+# booleanExpression instead of modifying the old one.
+def recreateBooleanExpression(expression, d):
+    _, b_args, b_op = expression
+    boolean_args = []
+    for b_arg in b_args:
+        if isinstance(b_arg, Argument):
+            if b_arg.type == 'variable' and b_arg in d:
+                boolean_args.append(d[b_arg])
+            else:
+                boolean_args.append(b_arg)
+        else:
+            arithmetic_args = []
+            arith_args, a_op = b_arg
+            for a_arg in arith_args:
+                if a_arg.type == 'variable' and a_arg in d:
+                    arithmetic_args.append(d[a_arg])
+                else:
+                    arithmetic_args.append(a_arg)
+            boolean_args.append(ArithmeticExpression(arithmetic_args,
+                                                     a_op))
+    
+    return BooleanExpression('boolean',
+                             boolean_args,
+                             b_op)
+
 
 # In this function we create a dictionary whose keys will be the arguments
 # which represents variables and the values are its positions inside the 
@@ -111,9 +161,15 @@ def generateRuleType_1(rule, rule_number):
     left_side_var = Variable(body.id, body.negated)
     right_side_var = Variable(head.id, False)
     
+    # We have to rebuild the booleanExpressions type substituting the variables by
+    # its position on the rule
+    booleanExpressions = [recreateBooleanExpression(x, d) for x in rule.body
+                                if isinstance(x, BooleanExpression)]
+    
     return RewritingRule1(rule_number, 1,
                           left_side_var, left_side_args,
-                          right_side_var, right_side_args)
+                          right_side_var, right_side_args,
+                          booleanExpressions)
 
 # This function generates the rewriting rules for logic rules of type 2. It 
 # reorders the values to its right position both for the left side of the
@@ -178,11 +234,17 @@ def generateRuleType_2a(rule, rule_number):
     right_side_var = Variable(head.id, False)
     consulting_pred_var = Variable(hyp_2.id, hyp_2.negated)
     
+    # We have to rebuild the booleanExpressions type substituting the variables by
+    # its position on the rule
+    booleanExpressions = [recreateBooleanExpression(x, d) for x in rule.body
+                                if isinstance(x, BooleanExpression)]
+    
     return RewritingRule2(rule_number, 2, 
                           left_side_var, left_side_args, 
                           right_side_var, right_side_args, 
                           common_args, consulting_pred_var,
-                          order, view_name, combination)
+                          order, view_name, combination,
+                          booleanExpressions)
 
 # This function is analogous to the previous one but it takes care of the
 # other hypothesis of the rules of type 2.  
@@ -235,11 +297,17 @@ def generateRuleType_2b(rule, rule_number):
     right_side_var = Variable(head.id, False)
     consulting_pred_var = Variable(hyp_1.id, hyp_1.negated)
     
+    # We have to rebuild the booleanExpressions type substituting the variables by
+    # its position on the rule
+    booleanExpressions = [recreateBooleanExpression(x, d) for x in rule.body
+                                if isinstance(x, BooleanExpression)]
+    
     return RewritingRule2(rule_number, 2, 
                           left_side_var, left_side_args, 
                           right_side_var, right_side_args, 
                           common_args, consulting_pred_var,
-                          order, view_name, combination)  
+                          order, view_name, combination,
+                          booleanExpressions)
         
 def analyzeRule(rule):
     head, body = rule.head, rule.body
