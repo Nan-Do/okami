@@ -27,34 +27,36 @@ def rewritingEquationPrinter(EquationsTable):
         left_side = []
         for argument, position in eq.leftArgs:
             if argument.type == 'variable':
-                left_side.append('c_' + str(position))
+                left_side.append(stringify((position)))
             else:
-                left_side.append(str(argument.value))
+                left_side.append(stringify(argument))
         left_side = ", ".join(left_side)
                 
         # Here we are doing the same but for the right side.
         right_side = []
         for element in  eq.rightArgs:
             if isinstance(element, int):
-                right_side.append('c_' + str(element))
+                right_side.append(stringify(element))
             else:
-                right_side.append(str(element.value))
+                right_side.append(stringify(element))
         right_side = ", ".join(right_side)
         
         # Here we build the string for the expressions.
         boolean_expressions_str = ''
         for p1, (_, b_args, b_op) in enumerate(eq.booleanExpressions):
+            boolean_expression_str = ''
             for p2, b_arg in enumerate(b_args):
                 side = ''
                 if isinstance(b_arg, int) or isinstance(b_arg, Argument):
                     side = stringify(b_arg)
                 else:
                     a_args, a_op = b_arg
-                    side = "(" + stringify(a_args[0]) + " " + a_op + " "+ stringify(a_args[1]) + ")"
-                boolean_expressions_str += side
+                    side = parentify(stringify(a_args[0]) + " " + a_op + " "+ stringify(a_args[1]))
+                boolean_expression_str += side
                 if p2 == 0:
-                    boolean_expressions_str += " " + b_op + " "
-            boolean_expressions_str = "(" + boolean_expressions_str + ")"
+                    boolean_expression_str += " " + b_op + " "
+            boolean_expression_str = parentify(boolean_expression_str)
+            boolean_expressions_str += boolean_expression_str
             if p1 > 0:
                 boolean_expressions_str += " && "
                 
