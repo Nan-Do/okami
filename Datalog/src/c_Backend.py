@@ -366,9 +366,17 @@ def fillStratumQueueInitializers(outfile):
         outfile.write('}\n\n')
     
 def fillSolverCompute(outfile):
-    # This function emits code regardless we are dealing with a type 1 or type2 function it has 
-    # extracted to the function so we don't have to write it twice. Also is used to emit the tabs
-    # for the source code properly.
+    # This function emits code regardless we are dealing with a type 1 or type2 rewriting equation.
+    # This function has been extracted as a closure so we don't have to write the piece of twice. 
+    # Also is used to emit the tabs for the source code properly.
+    # Parameters:
+    #  tabs -> A string. Representing the number of tabs that we have to print when emitting code.
+    #  rule -> A RewritingRule1 or RewritingRule2. Represents the rewriting equation.
+    # level -> An integer. Represents the stratum we are in.
+    # num_of_stratums -> An integer. Represents the total number of stratums required by the 
+    #                    Datalog program.
+    # idToStratumLevels -> A dictionary. The dictionary is a mapping between the identifiers and
+    #                      the stratum level they belong.
     def common_block_for_any_type_of_rule(tabs, rule, level, num_of_stratums, idToStratumLevels):
         # Do we have to store the answer??
         if rule.rightVar.id in answersToStore:
@@ -397,6 +405,56 @@ def fillSolverCompute(outfile):
                 outfile.write('{}fprintf(stderr, "\\t  Queue {}\\n");\n'.format(tabs, str(level)))
             outfile.write('#endif\n\n')
             
+            if rule.booleanExpressions:
+                outfile.write("{}if (".format(tabs))
+                boolean_expressions_str = ''
+                for p1, (_, b_args, b_op) in enumerate(rule.booleanExpressions):
+                    boolean_expression_str = ''
+                    for p2, b_arg in enumerate(b_args):
+                        side = ''
+                        if isinstance(b_arg, int):
+                            side = "current->b.VAR_" + str(b_arg)
+                        elif isinstance(b_arg, Argument):
+                            if b_arg.type == "constant":
+                                side = str(b_arg.value)
+                            else:
+                                t_index = rule.consultingArgs.index(b_arg) + 1\
+                                            - len(rule.commonVars) - len([ x for x in rule.consultingArgs if
+                                                                       isinstance(x, Argument) and x.type == 'constant' ])
+                                side = "t{}->value".format(str(t_index))
+                        else:
+                            a_args, a_op = b_arg
+                            if isinstance(a_args[0], int):
+                                side = "current->b.VAR_" + str(a_args[0])
+                            elif isinstance(a_args[0], Argument):
+                                if a_args[0].type == "constant":
+                                    side = str(a_args[0].value)
+                                else:
+                                    t_index = rule.consultingArgs.index(a_args[0]) + 1\
+                                            - len(rule.commonVars) - len([ x for x in rule.consultingArgs if
+                                                                       isinstance(x, Argument) and x.type == 'constant' ])
+                                    side = "t{}->value".format(str(t_index))
+                            side += " " + a_op + " "
+                            
+                            if isinstance(a_args[1], int):
+                                side += "current->b.VAR_" + str(a_args[1])
+                            elif isinstance(a_args[1], Argument):
+                                if a_args[1].type == "constant":
+                                    side += str(a_args[1].value)
+                                else:
+                                    t_index = rule.consultingArgs.index(a_args[1]) + 1\
+                                            - len(rule.commonVars) - len([ x for x in rule.consultingArgs if
+                                                                       isinstance(x, Argument) and x.type == 'constant' ])
+                                    side += "t{}->value".format(str(t_index))
+                            side = "(" + side +")"
+                            
+                        boolean_expression_str += side
+                        if p2 == 0:
+                            boolean_expression_str += " " + b_op + " "
+                outfile.write(boolean_expression_str)
+                outfile.write("){\n")
+                tabs += "\t"
+            
             # To compute a program a variable can be required to be evaluated in different queues, here we
             # make sure that the variable is added to every required queue. IdToStratums is a dictionary that
             # contains the required information to emit the code. It takes as a key a variable_id and returns
@@ -409,6 +467,12 @@ def fillSolverCompute(outfile):
             tabs = tabs[:-1]
             outfile.write('{}'.format(tabs))
             outfile.write('}\n')
+            
+            if rule.booleanExpressions:
+                tabs = tabs[:-1]
+                outfile.write('{}'.format(tabs))
+                outfile.write('}\n')
+                
         else:
             outfile.write('{}SolverQueue_append(&solver, &VAR);\n'.format(tabs))
             
