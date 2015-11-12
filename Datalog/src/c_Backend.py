@@ -451,7 +451,11 @@ def fillSolverCompute(outfile):
                         boolean_expression_str += side
                         if p2 == 0:
                             boolean_expression_str += " " + b_op + " "
-                outfile.write(boolean_expression_str)
+                    boolean_expressions_str += "(" + boolean_expression_str + ")"
+                    if p1 != len(rule.booleanExpressions) - 1:
+                        boolean_expressions_str += " && "
+                        
+                outfile.write(boolean_expressions_str)
                 outfile.write("){\n")
                 tabs += "\t"
             
