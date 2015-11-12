@@ -56,7 +56,16 @@ Datalog_Examples = ['flights.datalog',
                      'negated5.dl',
                      'negated6.dl',
                      'negated7.dl',
-                     'negated8.dl'
+                     'negated8.dl',
+                     # Programs with boolean expressions
+                     'booleanOneRule.dl',
+                     'booleanOneRuleExpression.dl',
+                     'booleanOneRuleExpression2.dl',
+                     'booleanOneRuleExpression3.dl',
+                     'booleanCanReach.dl',
+                     'booleanCanReach2.dl',
+                     'booleanTwoRules.dl',
+                     'booleanTwoRules2.dl'
                     ]
 
 logging.basicConfig(level=logging.INFO,

@@ -1,0 +1,4 @@
+link(X, Y) :- l(X, Y).
+link(Y, X) :- link(X, Y).
+can_reach(X, Y) :- link(X, Y).
+can_reach(X, Y) :- link(X, Z), can_reach(Z, Y), X != Y.

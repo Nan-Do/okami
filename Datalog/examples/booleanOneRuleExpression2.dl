@@ -1,0 +1,1 @@
+path(X, Y) :- edge(X, Y), X != Y.
