@@ -65,7 +65,8 @@ Datalog_Examples = ['flights.datalog',
                      'booleanCanReach.dl',
                      'booleanCanReach2.dl',
                      'booleanTwoRules.dl',
-                     'booleanTwoRules2.dl'
+                     'booleanTwoRules2.dl',
+                     'booleanTwoExpressions.dl'
                     ]
 
 logging.basicConfig(level=logging.INFO,
