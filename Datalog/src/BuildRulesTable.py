@@ -159,6 +159,13 @@ def buildRulesTable(filename, test=False):
         
         # Start for semantic error on the logical rules:
         # These errors can be found on the predicates or the expressions
+        if len(predicates_of_the_body) == 0:
+            logError(filename,
+                     line_no,
+                     'Parsing',
+                     'Rules are required to have at least one predicate')
+            sys.exit(0)
+            
         if len(predicates_of_the_body) > 2:
             logError(filename,
                      line_no,
