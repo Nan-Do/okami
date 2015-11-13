@@ -75,17 +75,20 @@ get_assignation_expression = clousure_get_assignation_expression()
 # Please take in mind that arithmetic expressions can't be nested (Y+1+N)
 # will not be parsed.
 def clousure_get_boolean_expression():
-    VAR = '[A-Z][A-Za-z]*'
+    VAR = '[A-Z][A-Za-z0-9_]*'
     NUMBER = '[0-9]+'
     VAR_OR_NUMBER = "(" + VAR + "|" + NUMBER + ")"
     EXPRESSION = VAR_OR_NUMBER + r"([\+\-\*/\%])" +\
                  VAR_OR_NUMBER
+    EXPRESSION_WITH_PARENTHESES = "\(" + VAR_OR_NUMBER +\
+            r"([\+\-\*/\%])" + VAR_OR_NUMBER + "\)"
     EXPRESSION_SIDE = "([A-Za-z0-9\+\*\-/\(\)\%]+)"
     BOOLEAN_EXPRESSION = EXPRESSION_SIDE +\
                          "(==|<|>|<=|>=|!=)" +\
                          EXPRESSION_SIDE
     arg = re.compile(VAR_OR_NUMBER + "$")
     expression = re.compile(EXPRESSION + "$")
+    expression_with_parentheses = re.compile(EXPRESSION_WITH_PARENTHESES)
     boolean = re.compile(BOOLEAN_EXPRESSION)
     def _(rule, start_position):
         match = boolean.match(rule[start_position:])
@@ -101,6 +104,10 @@ def clousure_get_boolean_expression():
             arg1, op, arg2 = expression.match(left_side).groups()
             left_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
                                                  op)
+        elif expression_with_parentheses.match(left_side):
+            arg1, op, arg2 = expression_with_parentheses.match(left_side).groups()
+            left_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                                 op)
         else:
             return None, start_position
         
@@ -111,7 +118,10 @@ def clousure_get_boolean_expression():
             arg1, op, arg2 = expression.match(right_side).groups()
             right_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
                                                    op)
-                                                    
+        elif expression_with_parentheses.match(right_side):
+            arg1, op, arg2 = expression_with_parentheses.match(right_side).groups()
+            right_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                                 op)
         else:
             return None, start_position
         
@@ -123,14 +133,22 @@ get_boolean_expression = clousure_get_boolean_expression()
 # Clousure used to avoid adding the uniqueIds dictionary as a global variable.
 def clousure_get_predicate():
     uniqueIds = {}
+    NEGATION_CHAR = '~?'
+    NAME = NEGATION_CHAR + '[a-zA-Z][A-Za-z0-9_]*'
+    name_match = re.compile(NAME + "$")
     def _(rule, start_position):
         """ This function is used to parse a predicate of the 
         form NAME(VAR1,...,VARN) from the start position"""
         
+        # Get the identifier name of the predicate. If the identifier 
+        # name is not something valid stop parsing it as a Predicate.
         end_name_position = rule.find('(', start_position)
-        if end_name_position == -1:
+        if (end_name_position == -1) or (end_name_position == start_position):
             return None, start_position
+
         name = rule[start_position:end_name_position]
+        if name_match.match(name) == None:
+            return None, start_position
         
         is_negated = False
         # Check if the predicated is negated
@@ -212,8 +230,7 @@ def parseRule(rule, check_restricted=False):
     # Get the body.
     body = []
     # We don't check if we are parsing a restricted body or not.
-    # TODO: Check if we are dealing with a restricted body and act
-    # appropriately if we have to generate code for it
+    # That is handled later on at BuildRulesTables.
     while True:
         # We check if the next element is a predicate or one of
         # the supported expressions (assignment or boolean)
@@ -221,10 +238,11 @@ def parseRule(rule, check_restricted=False):
         element_parsed = False
         for parser_element in parser_body_elements:
             element, position = parser_element(rule, position)
-            if element == None:
-                continue
-            element_parsed = True
-            body.append(element)
+            if element != None:
+                element_parsed = True
+                body.append(element)
+                break
+
 
         if element_parsed == False:
             raise ValueError('Incorrect body')
