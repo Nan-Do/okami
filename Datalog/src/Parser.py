@@ -75,14 +75,15 @@ get_assignation_expression = clousure_get_assignation_expression()
 # Please take in mind that arithmetic expressions can't be nested (Y+1+N)
 # will not be parsed.
 def clousure_get_boolean_expression():
-    VAR = '[A-Za-z]+'
+    VAR = '[A-Z][A-Za-z]*'
     NUMBER = '[0-9]+'
     VAR_OR_NUMBER = "(" + VAR + "|" + NUMBER + ")"
-    EXPRESSION = VAR_OR_NUMBER + r"([\+\-\*/])" +\
+    EXPRESSION = VAR_OR_NUMBER + r"([\+\-\*/\%])" +\
                  VAR_OR_NUMBER
-    BOOLEAN_EXPRESSION = "([A-Za-z0-9\+\*\-/]+)" +\
+    EXPRESSION_SIDE = "([A-Za-z0-9\+\*\-/\(\)\%]+)"
+    BOOLEAN_EXPRESSION = EXPRESSION_SIDE +\
                          "(==|<|>|<=|>=|!=)" +\
-                         "([A-Za-z0-9\+\*\-/]+)"
+                         EXPRESSION_SIDE
     arg = re.compile(VAR_OR_NUMBER + "$")
     expression = re.compile(EXPRESSION + "$")
     boolean = re.compile(BOOLEAN_EXPRESSION)
