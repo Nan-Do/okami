@@ -128,6 +128,9 @@ def buildRulesTable(filename, test=False):
     
     dependency_graph = defaultdict(lambda: defaultdict(int))
     
+    # Dictionary to from predicate to its length to check we don't redefine its definition
+    preds_to_length = dict()
+    
     head_preds_ids = set() 
     body_preds_ids = set()
     negated_preds = set()
@@ -172,6 +175,26 @@ def buildRulesTable(filename, test=False):
                      'Parsing',
                      'Rules can\'t contain more than two predicates')
             sys.exit(0)
+           
+        # Check that we are not redefining a predicate 
+        if head.id not in preds_to_length:
+            preds_to_length[head.id] = len(head.arguments)
+        elif len(head.arguments) != preds_to_length[head.id]:
+                logError(filename,
+                     line_no,
+                     None,
+                     'Head of the rule redefines a predicate:' + head.id.name)
+                sys.exit(0)
+        for body_predicate in [x for x in body if isinstance(x, Predicate)]:
+            if body_predicate.id not in preds_to_length:
+                preds_to_length[body_predicate.id] = len(body_predicate.arguments)
+            elif len(body_predicate.arguments) != preds_to_length[body_predicate.id]:
+                print body_predicate
+                logError(filename,
+                     line_no,
+                     None,
+                     'Body of the rule redefines a predicate:' + body_predicate.id.name )
+                sys.exit(0)
         
         if len(assignation_exp_of_the_body) > 1:
             logError(filename,
