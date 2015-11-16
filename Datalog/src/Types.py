@@ -22,6 +22,12 @@ Argument = namedtuple('Argument', ['type', 'value'], verbose=False)
 #   arguments -> A list of arguments.
 Predicate = namedtuple('Predicate', ['id', 'negated', 'arguments'], verbose=False)
 
+# Negated a named tuple that represents the negated elements on the rewriting 
+# equations. It is composed by:
+#          id -> It will be the identifier for the predicate.
+#   arguments -> A list of arguments.
+NegatedElement = namedtuple('NegatedElement', ['id', 'arguments'], verbose=False)
+
 # Variable is a named tuple. Contents
 #         id -> It will be the identifier for the predicate.
 #    negated -> Boolean that indicates if the predicate is negated in the program.
@@ -47,6 +53,7 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'negated', 'lineno'
 #     leftSideArgs -> List of arguments of the left side of the rewriting rule.
 #     rightSideName -> Name of the left side variable
 #     rightSideArgs -> List of arguments of the right side of the rewriting rule.
+#     negatedElements -> List of NegatedElements.
 #     booleanExpressions -> List of booleanExpressions
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
                                                'leftVar', 'leftArgs', 
@@ -162,9 +169,6 @@ ArithmeticExpression = namedtuple('ArithmeticExpression', ['args', 'operator'])
 AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArg',
                                                              'rightArgs', 'operator'],
                                    verbose=False)
-
-
-NegatedElement = namedtuple('NegatedElement', ['id', 'arguments'], verbose=False)
 
 # BooleanExpression is a named tuple that represents the information we need
 # to handle expressions on the rules. The boolean expressions must be of the
