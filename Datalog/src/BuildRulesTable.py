@@ -148,14 +148,20 @@ def buildRulesTable(filename, test=False):
                          v.message)
             sys.exit(0)
         
-        #predicates_of_the_body = [x for x in body if isinstance(x, Predicate)]
-        predicates_of_the_body = [x for x in body if isinstance(x, Predicate) and not x.negated]
-        assignation_exp_of_the_body = [x for x in body if isinstance(x, AssignationExpression)]
+        # Obtain the different elements that compose the body of the rule.
+        predicates_of_the_body = [x for x in body if isinstance(x, Predicate) 
+                                                            and not x.negated]
+        negated_preds_of_the_body = [x for x in body if isinstance(x, Predicate) 
+                                                                and x.negated]
+        assignation_exp_of_the_body = [x for x in body if isinstance(x, 
+                                                                     AssignationExpression)]
+        boolean_exp_of_the_body = [x for x in body if isinstance(x, 
+                                                                 BooleanExpression)]
+        
         assignation = None
         if assignation_exp_of_the_body:
             assignation = assignation_exp_of_the_body[0]
         
-        boolean_exp_of_the_body = [x for x in body if isinstance(x, BooleanExpression)]
         boolean = None
         if boolean_exp_of_the_body:
             boolean = boolean_exp_of_the_body[0]
@@ -249,12 +255,14 @@ def buildRulesTable(filename, test=False):
                      'Simultaneous assignation and a boolean expressions on rules is not supported')
             sys.exit(0)
             
-        body_predicates_ids = [predicate.id for predicate in predicates_of_the_body]
-        negated_predicate_ids = [predicate.id for predicate in predicates_of_the_body if predicate.negated]
+        negated_predicate_ids = [neg_pred.id for neg_pred in negated_preds_of_the_body]
         has_negated_predicate_ids = len(negated_predicate_ids) != 0
-        head_preds_ids.add(head.id)
         negated_preds.update(negated_predicate_ids)
+        
+        body_predicates_ids = [predicate.id for predicate in predicates_of_the_body] + negated_predicate_ids
         body_preds_ids.update(body_predicates_ids)
+        
+        head_preds_ids.add(head.id)
         addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids)
         rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), has_negated_predicate_ids, line_no+1, line))
             
