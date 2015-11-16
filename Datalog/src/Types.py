@@ -33,10 +33,11 @@ Variable = namedtuple('Variable', ['id', 'negated'], verbose=False)
 #     body -> List of tuples. Every tuple contains two elements,
 #             the first one the name of the predicate and the
 #             second one the list of arguments.
-#     type -> The type of the rules (How many hypothesis it has 1 or 2)
+#     type -> An integer with the type of the rules (How many hypothesis it has 1 or 2)
+#    negated -> Boolean value indicating if the rule contains negated hypothesis.
 #     lineno -> The line of the rule in the file
 #     rule -> string representation of the rule 
-LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'lineno', 'rule'],
+LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'negated', 'lineno', 'rule'],
                         verbose=False)
 
 #  RewritingRule1 is a named tuple. Contents:
@@ -50,6 +51,7 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'lineno', 'rule'],
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
                                                'leftVar', 'leftArgs', 
                                                'rightVar', 'rightArgs',
+                                               'negatedElements',
                                                'booleanExpressions'],
                             verbose=False)
 
@@ -161,6 +163,8 @@ AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArg',
                                                              'rightArgs', 'operator'],
                                    verbose=False)
 
+
+NegatedElement = namedtuple('NegatedElement', ['id', 'arguments'], verbose=False)
 
 # BooleanExpression is a named tuple that represents the information we need
 # to handle expressions on the rules. The boolean expressions must be of the

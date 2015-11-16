@@ -5,7 +5,8 @@ Created on Jul 11, 2013
 '''
 
 from Types import RewritingRule1, RewritingRule2, ArithmeticExpression
-from Types import ViewsData, Argument, Variable, BooleanExpression
+from Types import ViewsData, Argument, Variable, BooleanExpression, Predicate
+from Types import NegatedElement
 
 from itertools import chain
 from collections import defaultdict
@@ -169,9 +170,15 @@ def generateRuleType_1(rule, rule_number):
     booleanExpressions = [recreateBooleanExpression(x, d) for x in rule.body
                                 if isinstance(x, BooleanExpression)]
     
+    # Handle negated expressions
+    negatedElements = []
+    for neg_pred in [x for x in rule.body if isinstance(x, Predicate) and x.negated]:
+        negatedElements.append(NegatedElement(neg_pred.id, neg_pred.arguments))
+    
     return RewritingRule1(rule_number, 1,
                           left_side_var, left_side_args,
                           right_side_var, right_side_args,
+                          negatedElements,
                           booleanExpressions)
 
 # This function generates the rewriting rules for logic rules of type 2. It 
@@ -383,19 +390,43 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
     for rule_number, logic_rule in enumerate(rulesTable, start=1):
         
         #analyzeRule(logic_rule)
+        #print logic_rule
         if logic_rule.type == 1:
-            equationsTable.append(generateRuleType_1(logic_rule, rule_number))
-
+            rewriting_rule = generateRuleType_1(logic_rule, rule_number)
+            equationsTable.append(rewriting_rule)
+            
+            for neg_elem in rewriting_rule.negatedElements:
+                c = predicate_to_ViewData[neg_elem.id]
+                combinationView = []
+                aliasName = neg_elem.id.name + '_'
+                for argument in neg_elem.arguments:
+                    if argument.type == 'variable':
+                        aliasName += argument.value.lower()
+                    else:
+                        aliasName += str(argument.value)
+                    for arg2, pos in rewriting_rule.leftArgs:
+                        if argument == arg2:
+                            combinationView.append(pos)
+                print neg_elem.id, combinationView
+                viewName = next((x[0] for x in c if combinationView == x[1]), None)
+                if viewName == None:
+                    if len(c) == 0:
+                        viewName = neg_elem.id.name + '_view_1'
+                    else:
+                        viewName = neg_elem.id.name + '_view_' + str(int(c[-1][0][-1]) + 1)
+                        
+                    predicate_to_ViewData[neg_elem.id].append((viewName, combinationView))
+                    
+                if aliasName not in alias_to_ViewNames:
+                    alias_to_ViewNames[aliasName] = viewName
+                elif alias_to_ViewNames[aliasName] != viewName:
+                    new_alias = aliasName + '_' + str(rewriting_rule.ruleNumber)
+                    alias_to_ViewNames[new_alias] = viewName
+                    rewriting_rule = rewriting_rule._replace(aliasName=new_alias)
+            
         if logic_rule.type == 2:
             for rewriting_rule in [generateRuleType_2a(logic_rule, rule_number),
-                              generateRuleType_2b(logic_rule, rule_number)]:
-                
-                # If the rewriting rule has the left variable negated we have to continue.
-                # Negated predicates are only used to be queried, practically this restrict 
-                # the set of valid solutions. The database is populated as an extensional 
-                # database or in a previous stratum 
-                if rewriting_rule.leftVar.negated:
-                    continue
+                                   generateRuleType_2b(logic_rule, rule_number)]:
                 
                 if (not check_consulting_values(rewriting_rule.consultingArgs)):
                     print "Warning with rule: " + logic_rule.rule + " Consulting predicate " +\

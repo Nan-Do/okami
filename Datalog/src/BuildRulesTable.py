@@ -147,9 +147,9 @@ def buildRulesTable(filename, test=False):
                          'Parsing',
                          v.message)
             sys.exit(0)
-            
-        predicates_of_the_body = [x for x in body if isinstance(x, Predicate)]
         
+        #predicates_of_the_body = [x for x in body if isinstance(x, Predicate)]
+        predicates_of_the_body = [x for x in body if isinstance(x, Predicate) and not x.negated]
         assignation_exp_of_the_body = [x for x in body if isinstance(x, AssignationExpression)]
         assignation = None
         if assignation_exp_of_the_body:
@@ -189,7 +189,6 @@ def buildRulesTable(filename, test=False):
             if body_predicate.id not in preds_to_length:
                 preds_to_length[body_predicate.id] = len(body_predicate.arguments)
             elif len(body_predicate.arguments) != preds_to_length[body_predicate.id]:
-                print body_predicate
                 logError(filename,
                      line_no,
                      None,
@@ -252,11 +251,12 @@ def buildRulesTable(filename, test=False):
             
         body_predicates_ids = [predicate.id for predicate in predicates_of_the_body]
         negated_predicate_ids = [predicate.id for predicate in predicates_of_the_body if predicate.negated]
+        has_negated_predicate_ids = len(negated_predicate_ids) != 0
         head_preds_ids.add(head.id)
         negated_preds.update(negated_predicate_ids)
         body_preds_ids.update(body_predicates_ids)
         addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids)
-        rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), line_no+1, line))
+        rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), has_negated_predicate_ids, line_no+1, line))
             
     f.close()
     return (rulesTable, PredicateTypes(head_preds_ids, body_preds_ids.difference(head_preds_ids)), dependency_graph, negated_preds)
