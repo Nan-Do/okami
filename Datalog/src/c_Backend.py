@@ -140,13 +140,14 @@ def getNegatedPredicates():
 # the same equal card. Also all the predicates that belong to a rule of type 2
 # and all its variables are in the set of the Common variables are required to
 # be considered solutions.
-def getAllSolutions():
+def getAllSolutions(include_negated_solutions=True):
     solutions = set()
     solutions |= GenerationData.answersToStore
     solutions |= getPredicatesWithAllVariablesBeingTheSameEqualCard()
     solutions |= getPredicatesWithAllVariablesBeingInTheSharedSet()
     solutions |= getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()
-    solutions |= getNegatedPredicates()
+    if include_negated_solutions:
+        solutions |= getNegatedPredicates()
     return solutions
 
 # This function returns all the identifiers for the identifiers we have to query
@@ -399,11 +400,28 @@ def fillSolverCompute(outfile):
             args = ', '.join('VAR.VAR_{}'.format(x) for 
                             x in xrange(1, len(equation.rightArgs)+1))
             
-            outfile.write('\n{}if (!Ds_contains_solution_{}({}))'.format(tabs,
+            outfile.write('\n{}if (!Ds_contains_solution_{}({})'.format(tabs,
                                                                          variable_id.name,
                                                                          args))
+            for negated_element in equation.negatedElements:
+                negated_positions = []
+                
+                if equation.type == 1:
+                    for negated_arg in negated_element.arguments:
+                        for argument, position in equation.leftArgs:
+                            if negated_arg == argument:
+                                negated_positions.append(position)
+                else:
+                    print "TODO: HANDLE FOR EQUATIONS OF TYPE 2 THAT HAVE NEGATED ELEMENTS"
+                    sys.exit(0)
+                
+                negated_arguments = ', '.join('VAR.VAR_{}'.format(x) for x in negated_positions)
+                outfile.write(' &&\n{}{}!Ds_contains_solution_{}({})'.format(tabs,
+                                                                           '    ',
+                                                                           negated_element.id.name,
+                                                                           negated_arguments))
             tabs += '\t'
-            outfile.write('{\n')
+            outfile.write('){\n')
             outfile.write('#ifdef NDEBUG\n')
             # Print the variable information
             outfile.write('{}fprintf(stderr, "\\tAdding variable -> ");\n'.format(tabs))
@@ -589,7 +607,9 @@ def fillSolverCompute(outfile):
                 # and the predicates of length 1 are turned into solutions
                 if (level == level_to_store_answer) and (pred_length == 1):
                     outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(variable_id.name))
-                    outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
+                    # If the variable only appears as a negated predicate we don't have to insert it to the database
+                    if variable_id in getAllSolutions(include_negation=False):
+                        outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
                 elif (level == level_to_store_answer):
                     for view in predsToViewNames[variable_id]:
                         args = ', '.join('current->b.VAR_{}'.format(x) for
@@ -1517,19 +1537,21 @@ def fillDataStructureLevelFreeFunctions(outfile):
         outfile.write('{}*&d = NULL;\n'.format(tabs))        
         outfile.write('}\n\n')
 
-# As the level 1 node is currently treated diferently from the other type of nodes  
-# levels is necessary to store the solutions formed by heads of length 1, also if we 
-# have body predicates of length 1 in the rules they became solutions.
+# The level 1 node is currently treated differently from the other type of nodes
+# of the data-structure (this is a implentation decision).  
+# We check for all the possible solutions of length 1 or predicates and emit code
+# appropriately.
 def fillDataStructureRootSolutions(outfile):
     answers_of_length_1 = set()
     predicates_in_rules_of_length_1 = set()
-    for rule in getEquationsFromAllStratums():
-        if len(rule.rightArgs) == 1:
-            answers_of_length_1.add(rule.rightVar.id)
-        if len(rule.leftArgs) == 1:
-            predicates_in_rules_of_length_1.add(rule.leftVar.id)
-        if rule.type == 2 and len(rule.consultingArgs) == 1 and rule.consultingPred.negated:
-            answers_of_length_1.add(rule.consultingPred.id)
+    for equation in getEquationsFromAllStratums():
+        if len(equation.rightArgs) == 1:
+            answers_of_length_1.add(equation.rightVar.id)
+        if equation.type == 2 and len(equation.leftArgs) == 1:
+            predicates_in_rules_of_length_1.add(equation.leftVar.id)
+        for negated_element in equation.negatedElements:
+            if len(negated_element.arguments) == 1:
+                answers_of_length_1.add(negated_element.id)
             
     if answers_of_length_1:
         outfile.write("/* Solution of length 1 */\n")
