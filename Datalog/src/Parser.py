@@ -73,7 +73,8 @@ get_assignation_expression = clousure_get_assignation_expression()
 #  BOOLEAN_EXPRESSION ::= EXPRESSION BOOLEAN_OPERATOR EXPRESSION
 # Clousure added to compute the compilation of the regexes only once.
 # Please take in mind that arithmetic expressions can't be nested (Y+1+N)
-# will not be parsed.
+# will not be parsed. Also adding parentheses to the boolean expression
+# won't parse either.
 def clousure_get_boolean_expression():
     VAR = '[A-Z][A-Za-z0-9_]*'
     NUMBER = '[0-9]+'
@@ -95,8 +96,12 @@ def clousure_get_boolean_expression():
         if match == None:
             return None, start_position
 
+        # Split the main expression
         left_side, operator, right_side = match.groups()
         
+        # Check the left side it can be an expression with or without parentheses
+        # or an argument (a variable or a constant). If nothing matches return
+        # the error.
         left_argument = None
         if (arg.match(left_side)):
             left_argument = makeArgument(left_side)
@@ -111,6 +116,9 @@ def clousure_get_boolean_expression():
         else:
             return None, start_position
         
+        # Check the left side it can be an expression with or without parentheses
+        # or an argument (a variable or a constant). If nothing matches return
+        # the error.
         right_argument = None
         if (arg.match(right_side)):
             right_argument = makeArgument(right_side)
