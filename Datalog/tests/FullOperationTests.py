@@ -71,7 +71,8 @@ Datalog_Examples = ['flights.datalog',
                     'booleanOneRuleExpression4.dl',
                     'booleanOneRuleExpression5.dl',
                     'booleanOneRuleExpression6.dl',
-                    'odds-restricted.dl']
+                    'odds-restricted.dl',
+                    'negation-boolean.dl']
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s",
