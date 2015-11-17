@@ -608,7 +608,7 @@ def fillSolverCompute(outfile):
                 if (level == level_to_store_answer) and (pred_length == 1):
                     outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(variable_id.name))
                     # If the variable only appears as a negated predicate we don't have to insert it to the database
-                    if variable_id in getAllSolutions(include_negation=False):
+                    if variable_id in getAllSolutions(include_negated_solutions=False):
                         outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
                 elif (level == level_to_store_answer):
                     for view in predsToViewNames[variable_id]:
