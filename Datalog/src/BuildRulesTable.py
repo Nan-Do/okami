@@ -255,15 +255,19 @@ def buildRulesTable(filename, test=False):
                      'Simultaneous assignation and a boolean expressions on rules is not supported')
             sys.exit(0)
             
+        # Build the dependency graph that is the graph that for nodes contains predicates
+        # and the edges joins body nodes to head nodes. Negated predicates also count to 
+        # build the dependency graph
+        head_preds_ids.add(head.id)
+            
+        body_predicates_ids = [predicate.id for predicate in predicates_of_the_body]
+        body_preds_ids.update(body_predicates_ids)
+            
         negated_predicate_ids = [neg_pred.id for neg_pred in negated_preds_of_the_body]
         has_negated_predicate_ids = len(negated_predicate_ids) != 0
         negated_preds.update(negated_predicate_ids)
         
-        body_predicates_ids = [predicate.id for predicate in predicates_of_the_body] + negated_predicate_ids
-        body_preds_ids.update(body_predicates_ids)
-        
-        head_preds_ids.add(head.id)
-        addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids)
+        addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids + negated_predicate_ids)
         rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), has_negated_predicate_ids, line_no+1, line))
             
     f.close()

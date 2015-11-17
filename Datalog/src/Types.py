@@ -53,7 +53,8 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'negated', 'lineno'
 #     leftSideArgs -> List of arguments of the left side of the rewriting rule.
 #     rightSideName -> Name of the left side variable
 #     rightSideArgs -> List of arguments of the right side of the rewriting rule.
-#     negatedElements -> List of NegatedElements.
+#     negatedElements -> List of NegatedElements. If the equation has to query a 
+#                        negated element it will be listed here.
 #     booleanExpressions -> List of booleanExpressions
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
                                                'leftVar', 'leftArgs', 
@@ -78,6 +79,8 @@ RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type',
 #     consultingPred -> Name of the predicate that will be consulted
 #     consultingArgs -> List of arguments containing the values that will be
 #                       queried on the database
+#     negatedElements -> List of NegatedElements. If the equation has to query a 
+#                        negated element it will be listed here.
 #     booleanExpressions -> List of booleanExpressions
 RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
                                                'leftVar', 'leftArgs', 
@@ -85,6 +88,7 @@ RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
                                                'commonVars', 'consultingPred', 
                                                'consultingArgs', 'aliasName', 
                                                'combinationView',
+                                               'negatedElements',
                                                'booleanExpressions'],
                             verbose=False)
 

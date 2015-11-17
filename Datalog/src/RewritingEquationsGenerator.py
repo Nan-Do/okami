@@ -253,7 +253,7 @@ def generateRuleType_2a(rule, rule_number):
                           left_side_var, left_side_args, 
                           right_side_var, right_side_args, 
                           common_args, consulting_pred_var,
-                          order, view_name, combination,
+                          order, view_name, combination, [],
                           booleanExpressions)
 
 # This function is analogous to the previous one but it takes care of the
@@ -316,7 +316,7 @@ def generateRuleType_2b(rule, rule_number):
                           left_side_var, left_side_args, 
                           right_side_var, right_side_args, 
                           common_args, consulting_pred_var,
-                          order, view_name, combination,
+                          order, view_name, combination, [],
                           booleanExpressions)
         
 def analyzeRule(rule):
@@ -407,7 +407,7 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
                     for arg2, pos in rewriting_rule.leftArgs:
                         if argument == arg2:
                             combinationView.append(pos)
-                print neg_elem.id, combinationView
+                #print neg_elem.id, combinationView
                 viewName = next((x[0] for x in c if combinationView == x[1]), None)
                 if viewName == None:
                     if len(c) == 0:

@@ -13,7 +13,7 @@ from operator import attrgetter
 from itertools import count, chain
 from datetime import datetime
 from functools import wraps
-from Types import Argument
+from Types import Argument, NegatedElement
 
 # Settings for the parser
 DELIMITER = '%%'
@@ -53,8 +53,10 @@ def getPredicateLength(predicate):
             return len(eq.leftArgs)
         elif predicate == eq.rightVar.id:
             return len(eq.rightArgs)
-        elif (eq.type == 2) and (predicate == eq.consultingPred.id):
-            return len(eq.consultingArgs)
+        else:
+            for negated_elment in eq.negatedElements:
+                if predicate == negated_elment.id:
+                    return len(negated_elment.arguments)
             
     #print "None"
     return None
@@ -126,10 +128,9 @@ def getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
 def getNegatedPredicates():
     answers = set()
     for eq in getEquationsFromAllStratums():
-        if (eq.type == 2 and eq.consultingPred.negated):
-            #print "Adding predicate id", eq.consultingPred.id, " From a negated predicate"
-            answers.add(eq.consultingPred.id)
-            
+        for negated_element in eq.negatedElements:
+            answers.add(negated_element.id )
+    
     return answers
 
 
@@ -148,6 +149,13 @@ def getAllSolutions():
     solutions |= getNegatedPredicates()
     return solutions
 
+# This function returns all the identifiers for the identifiers we have to query
+# on the database.
+def getAllConsultingPredicates():
+    return set(eq.consultingPred.id for eq in
+                    getEquationsFromAllStratums() if eq.type == 2)
+    
+    
 # This function returns a list containing tuples in which the first element
 # is a predicate name and the second element is its length.
 def getAllPredicatesLengths():
@@ -166,9 +174,11 @@ def fillProgramName(outfile):
     outfile.write('#define PROGRAM_NAME "{}"'.format('solver'))
     
 def fillHypothesis(outfile):
-    hypothesis = set(x.leftVar.id.uniqueId for x in getEquationsFromAllStratums())
-    hypothesis |= set(x.rightVar.id.uniqueId for x in getEquationsFromAllStratums())
-    hypothesis |= set(x.consultingPred.id.uniqueId for x in getEquationsFromAllStratums() if (x.type == 2 and x.consultingPred.negated))
+    hypothesis = set(eq.leftVar.id.uniqueId for eq in getEquationsFromAllStratums())
+    hypothesis |= set(eq.rightVar.id.uniqueId for eq in getEquationsFromAllStratums())
+    hypothesis |= set(negated_element.id.uniqueId 
+                            for eq in getEquationsFromAllStratums()
+                            for negated_element in eq.negatedElements)
     outfile.write('/* Hipothesys */\n')
     for hypothesis, pos in zip(hypothesis, count()):
         line = '#define {}\t{}\n'.format(hypothesis, str(pos))
@@ -585,24 +595,20 @@ def fillSolverCompute(outfile):
                         args = ', '.join('current->b.VAR_{}'.format(x) for
                                          x in viewNamesToCombinations[view])
                         
-                        #if predicate in getPredicatesWithAllVariablesBeingInTheSharedSet():
-                        if variable_id in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
-                                            getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants():
+                        # If the identifier pertains to the solutions we have to append it as a solution
+                        # to the database. Check the getAllSolutions function to know what it is considered
+                        # to be a solution.
+                        if variable_id in getAllSolutions():
                             outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(variable_id.name,
                                                                                       args))
-    #                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
-    #                                                                               view,
-    #                                                                               args))
-    #                    else:
-    #                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
-    #                                                                               view,
-    #                                                                               args))
-                        # TODO: Optimization
-                        #       Check that the predicate appears in other rule otherwise this sentence 
-                        #       is not required
-                        outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
-                                                                                   view,
-                                                                                   args))
+                        
+                        # We have to update the database if the identifier pertains to a variable
+                        # that is going to be consulted in the database. That means it pertains to
+                        # an equation  
+                        if variable_id in getAllConsultingPredicates():
+                            outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
+                                                                                 view,
+                                                                                 args))
                         outfile.write('\n')
             
                     
