@@ -387,17 +387,17 @@ def fillSolverCompute(outfile):
     #                    Datalog program.
     # idToStratumLevels -> A dictionary. The dictionary is a mapping between the identifiers and
     #                      the stratum level they belong.
-    def common_block_for_any_type_of_rule(tabs, rule, level, num_of_stratums, idToStratumLevels):
+    def common_block_for_any_type_of_rule(tabs, equation, level, num_of_stratums, idToStratumLevels):
         # Do we have to store the answer??
-        if rule.rightVar.id in answersToStore:
-            variable_id = rule.rightVar.id
+        if equation.rightVar.id in answersToStore:
+            variable_id = equation.rightVar.id
 
-            #if rule.type == 2:
+            #if equation.type == 2:
             #    tabs = '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x)\
-            #                            for x in rule.consultingArgs))
+            #                            for x in equation.consultingArgs))
                                 
             args = ', '.join('VAR.VAR_{}'.format(x) for 
-                            x in xrange(1, len(rule.rightArgs)+1))
+                            x in xrange(1, len(equation.rightArgs)+1))
             
             outfile.write('\n{}if (!Ds_contains_solution_{}({}))'.format(tabs,
                                                                          variable_id.name,
@@ -415,10 +415,10 @@ def fillSolverCompute(outfile):
                 outfile.write('{}fprintf(stderr, "\\t  Queue {}\\n");\n'.format(tabs, str(level)))
             outfile.write('#endif\n\n')
             
-            if rule.booleanExpressions:
+            if equation.booleanExpressions:
                 outfile.write("{}if (".format(tabs))
                 boolean_expressions_str = ''
-                for p1, (_, b_args, b_op) in enumerate(rule.booleanExpressions):
+                for p1, (_, b_args, b_op) in enumerate(equation.booleanExpressions):
                     boolean_expression_str = ''
                     for p2, b_arg in enumerate(b_args):
                         side = ''
@@ -428,8 +428,8 @@ def fillSolverCompute(outfile):
                             if b_arg.type == "constant":
                                 side = str(b_arg.value)
                             else:
-                                t_index = rule.consultingArgs.index(b_arg) + 1\
-                                            - len(rule.commonVars) - len([ x for x in rule.consultingArgs if
+                                t_index = equation.consultingArgs.index(b_arg) + 1\
+                                            - len(equation.commonVars) - len([ x for x in equation.consultingArgs if
                                                                        isinstance(x, Argument) and x.type == 'constant' ])
                                 side = "t{}->value".format(str(t_index))
                         else:
@@ -440,8 +440,8 @@ def fillSolverCompute(outfile):
                                 if a_args[0].type == "constant":
                                     side = str(a_args[0].value)
                                 else:
-                                    t_index = rule.consultingArgs.index(a_args[0]) + 1\
-                                            - len(rule.commonVars) - len([ x for x in rule.consultingArgs if
+                                    t_index = equation.consultingArgs.index(a_args[0]) + 1\
+                                            - len(equation.commonVars) - len([ x for x in equation.consultingArgs if
                                                                        isinstance(x, Argument) and x.type == 'constant' ])
                                     side = "t{}->value".format(str(t_index))
                             side += " " + a_op + " "
@@ -452,8 +452,8 @@ def fillSolverCompute(outfile):
                                 if a_args[1].type == "constant":
                                     side += str(a_args[1].value)
                                 else:
-                                    t_index = rule.consultingArgs.index(a_args[1]) + 1\
-                                            - len(rule.commonVars) - len([ x for x in rule.consultingArgs if
+                                    t_index = equation.consultingArgs.index(a_args[1]) + 1\
+                                            - len(equation.commonVars) - len([ x for x in equation.consultingArgs if
                                                                        isinstance(x, Argument) and x.type == 'constant' ])
                                     side += "t{}->value".format(str(t_index))
                             side = "(" + side +")"
@@ -462,7 +462,7 @@ def fillSolverCompute(outfile):
                         if p2 == 0:
                             boolean_expression_str += " " + b_op + " "
                     boolean_expressions_str += "(" + boolean_expression_str + ")"
-                    if p1 != len(rule.booleanExpressions) - 1:
+                    if p1 != len(equation.booleanExpressions) - 1:
                         boolean_expressions_str += " && "
                         
                 outfile.write(boolean_expressions_str)
@@ -482,7 +482,7 @@ def fillSolverCompute(outfile):
             outfile.write('{}'.format(tabs))
             outfile.write('}\n')
             
-            if rule.booleanExpressions:
+            if equation.booleanExpressions:
                 tabs = tabs[:-1]
                 outfile.write('{}'.format(tabs))
                 outfile.write('}\n')
