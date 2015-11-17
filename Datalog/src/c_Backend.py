@@ -140,14 +140,13 @@ def getNegatedPredicates():
 # the same equal card. Also all the predicates that belong to a rule of type 2
 # and all its variables are in the set of the Common variables are required to
 # be considered solutions.
-def getAllSolutions(include_negated_solutions=True):
+def getAllSolutions():
     solutions = set()
     solutions |= GenerationData.answersToStore
     solutions |= getPredicatesWithAllVariablesBeingTheSameEqualCard()
     solutions |= getPredicatesWithAllVariablesBeingInTheSharedSet()
     solutions |= getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()
-    if include_negated_solutions:
-        solutions |= getNegatedPredicates()
+    solutions |= getNegatedPredicates()
     return solutions
 
 # This function returns all the identifiers for the identifiers we have to query
@@ -404,18 +403,21 @@ def fillSolverCompute(outfile):
                                                                          variable_id.name,
                                                                          args))
             for negated_element in equation.negatedElements:
-                negated_positions = []
-                
+                negated_arguments_str = []
+
                 if equation.type == 1:
                     for negated_arg in negated_element.arguments:
-                        for argument, position in equation.leftArgs:
-                            if negated_arg == argument:
-                                negated_positions.append(position)
+                        if negated_arg.type == 'constant':
+                            negated_arguments_str.append(str(negated_arg.value))
+                        else:
+                            for argument, position in equation.leftArgs:
+                                if negated_arg == argument:
+                                    negated_arguments_str.append('current->b.VAR_{}'.format(position))
                 else:
                     print "TODO: HANDLE FOR EQUATIONS OF TYPE 2 THAT HAVE NEGATED ELEMENTS"
                     sys.exit(0)
                 
-                negated_arguments = ', '.join('VAR.VAR_{}'.format(x) for x in negated_positions)
+                negated_arguments = ', '.join(negated_arguments_str)
                 outfile.write(' &&\n{}{}!Ds_contains_solution_{}({})'.format(tabs,
                                                                            '    ',
                                                                            negated_element.id.name,
@@ -608,7 +610,7 @@ def fillSolverCompute(outfile):
                 if (level == level_to_store_answer) and (pred_length == 1):
                     outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(variable_id.name))
                     # If the variable only appears as a negated predicate we don't have to insert it to the database
-                    if variable_id in getAllSolutions(include_negated_solutions=False):
+                    if variable_id in getAllConsultingPredicates():
                         outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
                 elif (level == level_to_store_answer):
                     for view in predsToViewNames[variable_id]:
@@ -618,7 +620,9 @@ def fillSolverCompute(outfile):
                         # If the identifier pertains to the solutions we have to append it as a solution
                         # to the database. Check the getAllSolutions function to know what it is considered
                         # to be a solution.
-                        if variable_id in getAllSolutions():
+                        if variable_id in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
+                                          getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()|\
+                                          getNegatedPredicates():
                             outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(variable_id.name,
                                                                                       args))
                         

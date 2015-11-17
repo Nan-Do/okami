@@ -404,9 +404,10 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
                         aliasName += argument.value.lower()
                     else:
                         aliasName += str(argument.value)
-                    for arg2, pos in rewriting_rule.leftArgs:
-                        if argument == arg2:
-                            combinationView.append(pos)
+                    #----------------- for arg2, pos in rewriting_rule.leftArgs:
+                        #---------------------------------- if argument == arg2:
+                            #----------------------- combinationView.append(pos)
+                combinationView = [ x for x in xrange(1, len(neg_elem.arguments) +1 )]
                 #print neg_elem.id, combinationView
                 viewName = next((x[0] for x in c if combinationView == x[1]), None)
                 if viewName == None:

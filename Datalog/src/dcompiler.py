@@ -210,14 +210,19 @@ USAGE
             block1 = []; block2 = []; block3 = [] 
             for equation in equationsTable:
                 idToStratumLevels[equation.leftVar.id].add(level)
-                idToStratumLevels[equation.rightVar.id].add(level)
                 
-                # Check for negated predicates
-                if level == 1 and equation.type == 2 and equation.consultingPred.negated:
-                    idToStratumLevels[equation.consultingPred.id].add(level)
-                
+                # Check for the right side of the rules if we are in the last
+                # stratum level they might not appear in another one.
                 if level == len(rules_per_stratum):
                     idToStratumLevels[equation.rightVar.id].add(level)
+                
+                # Check for negated predicates
+                for negatedElement in equation.negatedElements:
+                    idToStratumLevels[negatedElement.id].add(level)
+                    
+                    if negatedElement.id in ordering_for_blocks[0] and\
+                       negatedElement.id not in block1:
+                        block1.append(negatedElement.id)
                     
                 # Here we have to contemplate if we are dealing with a negated
                 # predicate in that case we have to reference it or otherwise
