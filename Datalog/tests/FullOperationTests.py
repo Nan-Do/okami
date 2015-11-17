@@ -47,31 +47,31 @@ Datalog_Examples = ['flights.datalog',
                     'constants10.dl',
                     'constants11.dl',
                     # Here start negated programs
-                     'odds.dl',
-                     'odds2.dl',
-                     'negated.dl',
-                     'negated2.dl',
-                     'negated3.dl',
-                     'negated4.dl',
-                     'negated5.dl',
-                     'negated6.dl',
-                     'negated7.dl',
-                     'negated8.dl',
-                     # Programs with boolean expressions
-                     'booleanOneRule.dl',
-                     'booleanOneRuleExpression.dl',
-                     'booleanOneRuleExpression2.dl',
-                     'booleanOneRuleExpression3.dl',
-                     'booleanCanReach.dl',
-                     'booleanCanReach2.dl',
-                     'booleanTwoRules.dl',
-                     'booleanTwoRules2.dl',
-                     'booleanTwoExpressions.dl',
-                     'booleanOneRuleExpression4.dl',
-                     'booleanOneRuleExpression5.dl',
-                     'booleanOneRuleExpression6.dl',
-                     'odds-restricted.dl'
-                    ]
+                    'odds.dl',
+                    'odds2.dl',
+                    'negated.dl',
+                    'negated2.dl',
+                    'negated3.dl',
+                    'negated4.dl',
+                    'negated5.dl',
+                    'negated6.dl',
+                    'negated7.dl',
+                    'negated8.dl',
+                    'negated9.dl',
+                    # Programs with boolean expressions
+                    'booleanOneRule.dl',
+                    'booleanOneRuleExpression.dl',
+                    'booleanOneRuleExpression2.dl',
+                    'booleanOneRuleExpression3.dl',
+                    'booleanCanReach.dl',
+                    'booleanCanReach2.dl',
+                    'booleanTwoRules.dl',
+                    'booleanTwoRules2.dl',
+                    'booleanTwoExpressions.dl',
+                    'booleanOneRuleExpression4.dl',
+                    'booleanOneRuleExpression5.dl',
+                    'booleanOneRuleExpression6.dl',
+                    'odds-restricted.dl']
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s",
@@ -82,12 +82,12 @@ index = os.getcwd().rfind('/')
 base_dir = os.getcwd()[:index]
 compiler_dir = os.path.join(base_dir, 'src')
 solver_dir = os.path.join(TMP_DIR, GENERATED_DIR)
- 
+
 for example in Datalog_Examples:
     # If the solver directory exists remove it
     if os.path.exists(solver_dir):
         shutil.rmtree(solver_dir)
-        
+
     # Change to the compiler directory and generate the solver for the given
     # program
     os.chdir(compiler_dir)
@@ -100,8 +100,8 @@ for example in Datalog_Examples:
         logging.error("Code not emitted.")
         logging.error("EXITING")
         sys.exit()
-        
-    # Change to the solver directory, compile it and check that the solver was 
+
+    # Change to the solver directory, compile it and check that the solver was
     # created
     logging.info("Compiling the source code")
     os.chdir(solver_dir)
@@ -110,14 +110,14 @@ for example in Datalog_Examples:
         logging.info('Compiled successfully')
     else:
         logging.info('Compilation failed')
-        
-    # Copy the input files, execute the solver and check we got the correct 
+
+    # Copy the input files, execute the solver and check we got the correct
     # answers
     logging.info('Copying the files into compiler directory')
     data_dir = os.path.join(base_dir, 'examples', example.split('.')[0])
     input_files =  glob.glob(os.path.join(data_dir, '*.input'))
     output_files =  glob.glob(os.path.join(data_dir, '*.output'))
-    answer_names = [] 
+    answer_names = []
     for pos, src in enumerate(chain(input_files, output_files)):
         name =  os.path.basename(src).split('.')[0]
         chunk = '.tuples'
@@ -131,7 +131,7 @@ for example in Datalog_Examples:
     subprocess.call('./solver', shell=SHOW_SHELL)
     logging.info('Solver finished')
     logging.info('Checking that the answers are correct')
-    
+
     # Compare the results with the results that should be obtained
     for answer in answer_names:
         if not os.path.exists(answer + '.tuples'):
@@ -143,12 +143,12 @@ for example in Datalog_Examples:
         #subprocess.Popen(['sort', answer + '-CorrectAnswer.tuples', '-o' + answer + '-CorrectAnswer.tuples'])
         #time.sleep(0.01)
         p = subprocess.Popen(['diff', answer + '.tuples', answer + '-CorrectAnswer.tuples'], stdout=subprocess.PIPE)
-        
+
         if p.stdout.read():
             logging.error(answer + '.tuples doesn\'t contain the proper answers')
             sys.exit()
-            
+
     logging.info('Generated answers are correct')
     logging.info('FINISHED\n')
-        
-        
+
+
