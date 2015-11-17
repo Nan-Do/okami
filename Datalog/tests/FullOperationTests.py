@@ -58,6 +58,7 @@ Datalog_Examples = ['flights.datalog',
                     'negated7.dl',
                     'negated8.dl',
                     'negated9.dl',
+                    'twonegatedpredicates.dl',
                     # Programs with boolean expressions
                     'booleanOneRule.dl',
                     'booleanOneRuleExpression.dl',
