@@ -42,7 +42,7 @@ def rewritingEquationPrinter(EquationsTable):
                 right_side.append(stringify(element))
         right_side = ", ".join(right_side)
         
-        # Here we build the string for the expressions.
+        # Here we build the string for the boolean expressions of the equation.
         boolean_expressions_str = ''
         for p1, (_, b_args, b_op) in enumerate(eq.booleanExpressions):
             boolean_expression_str = ''
@@ -57,20 +57,37 @@ def rewritingEquationPrinter(EquationsTable):
                 boolean_expression_str += side
                 if p2 == 0:
                     boolean_expression_str += " " + b_op + " "
-            #boolean_expression_str = parentify(boolean_expression_str)
-            boolean_expressions_str += boolean_expression_str
-            if p1 > 0:
+            
+            boolean_expressions_str += parentify(boolean_expression_str)
+            #boolean_expressions_str += boolean_expression_str
+            if p1 != len(eq.booleanExpressions) - 1:
                 boolean_expressions_str += " && "
+        
+        # Here we build the string for the negated elements of the equation.        
+        negated_elements_str = ""
+        for pos, negated_element in enumerate(eq.negatedElements):
+            neg_args = []
+            for neg_arg in negated_element.arguments:
+                if neg_arg.type == 'constant':
+                    neg_args.append(str(neg_arg.value))
+                else:
+                    found = False
+                    for argument, position in eq.leftArgs:
+                        if neg_arg == argument:
+                            neg_args.append("c_" + str(position))
+                            found = True
+                            break
+                    if not found:
+                        neg_args.append(argument.value)
+            
+            negated_elements_str += negated_element.id.name + "(" + ", ".join(neg_args) + ")"
+            if pos != len(eq.negatedElements) - 1:
+                negated_elements_str += ", "
                 
         # Here we create the rule. 
         rewriting_rule = "x_" + eq.leftVar.id.name + parentify(left_side) +\
             " " + unichr(8658) + "  " +  "x_" + eq.rightVar.id.name + parentify(right_side)
-        # If we are dealing with a type 2 rule we have to construct the database query for it.
-        if eq.type == 1 and eq.leftVar.negated:
-            domain_capital = ', '.join(unichr(120123) + "_" + str(x) for x in xrange(1, len(eq.leftArgs)+1))
-            domain_small = ', '.join(unichr(120149) + "_" + str(x) for x in xrange(1, len(eq.leftArgs)+1))
-            rewriting_rule += ' ' + unichr(8704) + parentify(domain_capital) + " " + unichr(8713) + \
-                                "  " + eq.leftVar.id.name + parentify(domain_small)
+            
         if eq.type == 2:
             consulting_values_str = ', '.join([stringify(x) for x in eq.consultingArgs])
             consulting_variables = [x.value for x in eq.consultingArgs if (isinstance(x, Argument) and x.type == 'variable')]
@@ -82,8 +99,11 @@ def rewritingEquationPrinter(EquationsTable):
             else:
                 rewriting_rule += " / " + unichr(8708) + " " + eq.aliasName + parentify(consulting_values_str)
         
+        if negated_elements_str:
+            rewriting_rule += " | " +  unichr(8713) + " " + negated_elements_str
+        
         if boolean_expressions_str:
-            rewriting_rule += " if " + boolean_expressions_str
+            rewriting_rule += " if " + parentify(boolean_expressions_str)
         
         rewriting_rule.encode('utf-8')
                 

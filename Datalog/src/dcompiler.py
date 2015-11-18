@@ -24,8 +24,8 @@ import logging
 
 from itertools import chain
 from collections import defaultdict
-from argparse import ArgumentParser
-from argparse import RawDescriptionHelpFormatter
+#from argparse import ArgumentParser
+#from argparse import RawDescriptionHelpFormatter
 
 # Compiler code imports
 from BuildRulesTable import buildRulesTable
@@ -110,6 +110,11 @@ USAGE
         else:
             logging_level = logging.INFO
             
+        # If we are going to show the rewriting equations we don't want to show any
+        # logging information
+        if args.show_rewriting_equations:
+            logging_level = logging.CRITICAL
+        
         # Specifing the options for the logging module
         logging.basicConfig(level=logging_level,
                             format="%(asctime)s %(levelname)s %(message)s",
