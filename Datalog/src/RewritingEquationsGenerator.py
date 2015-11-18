@@ -66,21 +66,21 @@ def rewritingEquationPrinter(EquationsTable):
         # Here we build the string for the negated elements of the equation.        
         negated_elements_str = ""
         for pos, negated_element in enumerate(eq.negatedElements):
-            neg_args = []
-            for neg_arg in negated_element.arguments:
-                if neg_arg.type == 'constant':
-                    neg_args.append(str(neg_arg.value))
+            negated_arguments = []
+            for negated_argument in negated_element.arguments:
+                if negated_argument.type == 'constant':
+                    negated_arguments.append(str(negated_argument.value))
                 else:
                     found = False
                     for argument, position in eq.leftArgs:
-                        if neg_arg == argument:
-                            neg_args.append("c_" + str(position))
+                        if negated_argument == argument:
+                            negated_arguments.append("c_" + str(position))
                             found = True
                             break
                     if not found:
-                        neg_args.append(argument.value)
+                        negated_arguments.append(negated_argument.value)
             
-            negated_elements_str += negated_element.id.name + "(" + ", ".join(neg_args) + ")"
+            negated_elements_str += negated_element.id.name + "(" + ", ".join(negated_arguments) + ")"
             if pos != len(eq.negatedElements) - 1:
                 negated_elements_str += ", "
                 
@@ -96,11 +96,11 @@ def rewritingEquationPrinter(EquationsTable):
             if consulting_variables:
                 rewriting_rule += " " + unichr(8704) + parentify(consulting_variables_str) + " " + unichr(8712) +\
                                   "  " + eq.aliasName + parentify(consulting_values_str)
-            else:
-                rewriting_rule += " / " + unichr(8708) + " " + eq.aliasName + parentify(consulting_values_str)
+            #else:
+            #    rewriting_rule += " / " + unichr(8708) + " " + eq.aliasName + parentify(consulting_values_str)
         
         if negated_elements_str:
-            rewriting_rule += " | " +  unichr(8713) + " " + negated_elements_str
+            rewriting_rule += " / " + unichr(8708) + " " + negated_elements_str
         
         if boolean_expressions_str:
             rewriting_rule += " if " + parentify(boolean_expressions_str)
@@ -269,12 +269,17 @@ def generateRuleType_2a(rule, rule_number):
     booleanExpressions = [recreateBooleanExpression(x, d) for x in rule.body
                                 if isinstance(x, BooleanExpression)]
     
+    # Handle negated expressions
+    negatedElements = []
+    for neg_pred in [x for x in rule.body if isinstance(x, Predicate) and x.negated]:
+        negatedElements.append(NegatedElement(neg_pred.id, neg_pred.arguments))
+    
     return RewritingRule2(rule_number, 2, 
                           left_side_var, left_side_args, 
                           right_side_var, right_side_args, 
                           common_args, consulting_pred_var,
-                          order, view_name, combination, [],
-                          booleanExpressions)
+                          order, view_name, combination, 
+                          negatedElements, booleanExpressions)
 
 # This function is analogous to the previous one but it takes care of the
 # other hypothesis of the rules of type 2.  
@@ -332,12 +337,17 @@ def generateRuleType_2b(rule, rule_number):
     booleanExpressions = [recreateBooleanExpression(x, d) for x in rule.body
                                 if isinstance(x, BooleanExpression)]
     
+    # Handle negated expressions
+    negatedElements = []
+    for neg_pred in [x for x in rule.body if isinstance(x, Predicate) and x.negated]:
+        negatedElements.append(NegatedElement(neg_pred.id, neg_pred.arguments))
+    
     return RewritingRule2(rule_number, 2, 
                           left_side_var, left_side_args, 
                           right_side_var, right_side_args, 
                           common_args, consulting_pred_var,
-                          order, view_name, combination, [],
-                          booleanExpressions)
+                          order, view_name, combination,
+                          negatedElements, booleanExpressions)
         
 def analyzeRule(rule):
     head, body = rule.head, rule.body
