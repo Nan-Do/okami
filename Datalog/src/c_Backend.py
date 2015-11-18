@@ -402,41 +402,10 @@ def fillSolverCompute(outfile):
             outfile.write('\n{}if (!Ds_contains_solution_{}({})'.format(tabs,
                                                                          variable_id.name,
                                                                          args))
-            for negated_element in equation.negatedElements:
-                negated_arguments_str = []
-
-                if equation.type == 1:
-                    for negated_arg in negated_element.arguments:
-                        if negated_arg.type == 'constant':
-                            negated_arguments_str.append(str(negated_arg.value))
-                        else:
-                            for argument, position in equation.leftArgs:
-                                if negated_arg == argument:
-                                    negated_arguments_str.append('current->b.VAR_{}'.format(position))
-                else:
-                    print "TODO: HANDLE FOR EQUATIONS OF TYPE 2 THAT HAVE NEGATED ELEMENTS"
-                    sys.exit(0)
-                
-                negated_arguments = ', '.join(negated_arguments_str)
-                outfile.write(' &&\n{}{}!Ds_contains_solution_{}({})'.format(tabs,
-                                                                           '    ',
-                                                                           negated_element.id.name,
-                                                                           negated_arguments))
-            tabs += '\t'
-            outfile.write('){\n')
-            outfile.write('#ifdef NDEBUG\n')
-            # Print the variable information
-            outfile.write('{}fprintf(stderr, "\\tAdding variable -> ");\n'.format(tabs))
-            outfile.write('{}print_rewriting_variable(stderr, &VAR);\n'.format(tabs))
-            outfile.write('{}fprintf(stderr, "\\n");\n'.format(tabs))
-            # Print the levels in which the variable is going to be added. Here is printed for
-            # debugging purposes.
-            for level in idToStratumLevels[variable_id]:
-                outfile.write('{}fprintf(stderr, "\\t  Queue {}\\n");\n'.format(tabs, str(level)))
-            outfile.write('#endif\n\n')
             
             if equation.booleanExpressions:
-                outfile.write("{}if (".format(tabs))
+                outfile.write( ' &&\n{0}{1}/* Boolean expression conditions */\n{0}{1}'.format(tabs, 
+                                                                                               '    '))
                 boolean_expressions_str = ''
                 for p1, (_, b_args, b_op) in enumerate(equation.booleanExpressions):
                     boolean_expression_str = ''
@@ -483,11 +452,49 @@ def fillSolverCompute(outfile):
                             boolean_expression_str += " " + b_op + " "
                     boolean_expressions_str += "(" + boolean_expression_str + ")"
                     if p1 != len(equation.booleanExpressions) - 1:
-                        boolean_expressions_str += " && "
+                        boolean_expressions_str += " &&\n{}{}".format(tabs,
+                                                                      '    ')
                         
                 outfile.write(boolean_expressions_str)
-                outfile.write("){\n")
-                tabs += "\t"
+            
+            if equation.negatedElements:
+                outfile.write( ' && \n{0}{1}/* Negated predicates */'.format(tabs,
+                                                                                    '    '))
+            
+            for (pos, negated_element) in enumerate(equation.negatedElements):
+                negated_arguments_str = []
+
+                if equation.type == 1:
+                    for negated_arg in negated_element.arguments:
+                        if negated_arg.type == 'constant':
+                            negated_arguments_str.append(str(negated_arg.value))
+                        else:
+                            for argument, position in equation.leftArgs:
+                                if negated_arg == argument:
+                                    negated_arguments_str.append('current->b.VAR_{}'.format(position))
+                else:
+                    print "TODO: HANDLE FOR EQUATIONS OF TYPE 2 THAT HAVE NEGATED ELEMENTS"
+                    sys.exit(0)
+                
+                negated_arguments = ', '.join(negated_arguments_str)
+                outfile.write('\n{}{}!Ds_contains_solution_{}({})'.format(tabs,
+                                                                          '    ',
+                                                                          negated_element.id.name,
+                                                                          negated_arguments))
+                if (pos != len(equation.negatedElements) - 1):
+                    outfile.write(' &&')
+            tabs += '\t'
+            outfile.write('){\n')
+            outfile.write('#ifdef NDEBUG\n')
+            # Print the variable information
+            outfile.write('{}fprintf(stderr, "\\tAdding variable -> ");\n'.format(tabs))
+            outfile.write('{}print_rewriting_variable(stderr, &VAR);\n'.format(tabs))
+            outfile.write('{}fprintf(stderr, "\\n");\n'.format(tabs))
+            # Print the levels in which the variable is going to be added. Here is printed for
+            # debugging purposes.
+            for level in idToStratumLevels[variable_id]:
+                outfile.write('{}fprintf(stderr, "\\t  Queue {}\\n");\n'.format(tabs, str(level)))
+            outfile.write('#endif\n\n')
             
             # To compute a program a variable can be required to be evaluated in different queues, here we
             # make sure that the variable is added to every required queue. IdToStratums is a dictionary that
@@ -501,12 +508,6 @@ def fillSolverCompute(outfile):
             tabs = tabs[:-1]
             outfile.write('{}'.format(tabs))
             outfile.write('}\n')
-            
-            if equation.booleanExpressions:
-                tabs = tabs[:-1]
-                outfile.write('{}'.format(tabs))
-                outfile.write('}\n')
-                
         else:
             outfile.write('{}SolverQueue_append(&solver, &VAR);\n'.format(tabs))
             
