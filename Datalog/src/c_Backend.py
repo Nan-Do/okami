@@ -837,12 +837,8 @@ def fillSolverCompute(outfile):
                         # If the length of the predicate is one we also have to make sure that the value we obtain
                         # is valid as we won't iterate to obtain more values
                         if len(rule.consultingArgs) == 1:
-                            if rule.consultingPred.negated:
-                                outfile.write('{}if (!Ds_contains_solution_{}(t0))'.format(tabs,
-                                                                                           rule.consultingPred.id.name))
-                            else:
-                                outfile.write('{}if (Ds_contains_solution_{}(t0))'.format(tabs,
-                                                                                          rule.consultingPred.id.name))
+                            outfile.write('{}if (Ds_contains_solution_{}(t0))'.format(tabs,
+                                                                                      rule.consultingPred.id.name))
                             outfile.write('{\n')
                     
                     else:
@@ -890,14 +886,9 @@ def fillSolverCompute(outfile):
                             
                             outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
                         else:
-                            if rule.consultingPred.negated:
-                                outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                               rule.consultingPred.id.name,
-                                                                                               args_common))
-                            else:
-                                outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                               rule.consultingPred.id.name,
-                                                                                               args_common))
+                            outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
+                                                                                          rule.consultingPred.id.name,
+                                                                                          args_common))
     
                     # Here we emit code for the rest of the required t levels that value is the number
                     # of consulting values minus the number of common variables which has already been
