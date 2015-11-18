@@ -13,7 +13,7 @@ from operator import attrgetter
 from itertools import count, chain
 from datetime import datetime
 from functools import wraps
-from Types import Argument, NegatedElement
+from Types import Argument
 
 # Settings for the parser
 DELIMITER = '%%'
