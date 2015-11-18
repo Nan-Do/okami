@@ -8,7 +8,6 @@ import sys
 import logging
 
 from collections import defaultdict
-from itertools import chain
 
 from Parser import parseRule
 from Types import LogicRule, PredicateTypes, Predicate, Argument
