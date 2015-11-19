@@ -214,12 +214,12 @@ USAGE
             # Build the dictionary to establish the stratum level of the variables.
             block1 = []; block2 = []; block3 = [] 
             for equation in equationsTable:
-                idToStratumLevels[equation.leftVar.id].add(level)
+                idToStratumLevels[equation.leftVariable.id].add(level)
                 
                 # Check for the right side of the rules if we are in the last
                 # stratum level they might not appear in another one.
                 if level == len(rules_per_stratum):
-                    idToStratumLevels[equation.rightVar.id].add(level)
+                    idToStratumLevels[equation.rightVariable.id].add(level)
                 
                 # Check for negated predicates
                 for negatedElement in equation.negatedElements:
@@ -233,34 +233,34 @@ USAGE
                 # predicate in that case we have to reference it or otherwise
                 # its values wont be stored on the database if the predicate
                 # only appears as a negated predicate
-                if equation.type == 2 and equation.consultingPred.negated and\
-                      equation.consultingPred.id in ordering_for_blocks[0] and\
-                      equation.consultingPred.id not in block1:
-                    block1.append(equation.consultingPred.id)
+                if equation.type == 2 and equation.consultingPredicate.negated and\
+                      equation.consultingPredicate.id in ordering_for_blocks[0] and\
+                      equation.consultingPredicate.id not in block1:
+                    block1.append(equation.consultingPredicate.id)
                     
                 # To add a variable we check that is the correct block
                 # and that has not already been added as a variable. The variable
                 # can appear in more than one equation and level. One optimization
                 # would be use a set to check if a variable belongs to the block.
-                if equation.leftVar.id in ordering_for_blocks[0] and\
-                     equation.leftVar.id not in block1:
-                    block1.append(equation.leftVar.id)
-                elif equation.leftVar.id in ordering_for_blocks[1] and\
-                     equation.leftVar.id not in block2:
-                    block2.append(equation.leftVar.id)
-                elif equation.leftVar.id in ordering_for_blocks[2] and\
-                     equation.leftVar.id not in block3:
-                    block3.append(equation.leftVar.id)
+                if equation.leftVariable.id in ordering_for_blocks[0] and\
+                     equation.leftVariable.id not in block1:
+                    block1.append(equation.leftVariable.id)
+                elif equation.leftVariable.id in ordering_for_blocks[1] and\
+                     equation.leftVariable.id not in block2:
+                    block2.append(equation.leftVariable.id)
+                elif equation.leftVariable.id in ordering_for_blocks[2] and\
+                     equation.leftVariable.id not in block3:
+                    block3.append(equation.leftVariable.id)
                     
-                if equation.rightVar.id in ordering_for_blocks[0] and\
-                   equation.rightVar.id not in block1:
-                    block1.append(equation.rightVar.id)
-                elif equation.rightVar.id in ordering_for_blocks[1] and\
-                     equation.rightVar.id not in block2:
-                    block2.append(equation.rightVar.id)
-                elif equation.rightVar.id in ordering_for_blocks[2] and\
-                     equation.rightVar.id not in block3:
-                    block3.append(equation.rightVar.id)
+                if equation.rightVariable.id in ordering_for_blocks[0] and\
+                   equation.rightVariable.id not in block1:
+                    block1.append(equation.rightVariable.id)
+                elif equation.rightVariable.id in ordering_for_blocks[1] and\
+                     equation.rightVariable.id not in block2:
+                    block2.append(equation.rightVariable.id)
+                elif equation.rightVariable.id in ordering_for_blocks[2] and\
+                     equation.rightVariable.id not in block3:
+                    block3.append(equation.rightVariable.id)
     
             stratums.append(Stratum(equationsTable, viewsData, Ordering(block1, block2, block3)))
                 

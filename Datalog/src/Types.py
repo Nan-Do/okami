@@ -57,8 +57,8 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'negated', 'lineno'
 #                        negated element it will be listed here.
 #     booleanExpressions -> List of booleanExpressions
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
-                                               'leftVar', 'leftArgs', 
-                                               'rightVar', 'rightArgs',
+                                               'leftVariable', 'leftArguments', 
+                                               'rightVariable', 'rightArguments',
                                                'negatedElements',
                                                'booleanExpressions'],
                             verbose=False)
@@ -76,17 +76,17 @@ RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type',
 #     common_vars -> list of tuples containing the names of the variables and
 #                    its position inside the rule. It only stores the variables
 #                    which are shared, it respects the order inside the rule.
-#     consultingPred -> Name of the predicate that will be consulted
-#     consultingArgs -> List of arguments containing the values that will be
+#     consultingPredicate -> Name of the predicate that will be consulted
+#     consultingArguments -> List of arguments containing the values that will be
 #                       queried on the database
 #     negatedElements -> List of NegatedElements. If the equation has to query a 
 #                        negated element it will be listed here.
 #     booleanExpressions -> List of booleanExpressions
 RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
-                                               'leftVar', 'leftArgs', 
-                                               'rightVar', 'rightArgs', 
-                                               'commonVars', 'consultingPred', 
-                                               'consultingArgs', 'aliasName', 
+                                               'leftVariable', 'leftArguments', 
+                                               'rightVariable', 'rightArguments', 
+                                               'commonVariables', 'consultingPredicate', 
+                                               'consultingArguments', 'aliasName', 
                                                'combinationView',
                                                'negatedElements',
                                                'booleanExpressions'],
@@ -160,18 +160,18 @@ ArithmeticExpression = namedtuple('ArithmeticExpression', ['args', 'operator'])
 # to handle expressions on the rules. The assignation expressions must be of the
 # form "A = B + C" where A must be a variable on the head of the logical rule and
 # B and C can be variables or constants. The parser will take as a valid any
-# arithmetic operator (+, -, /, *). 'rightArgs' is a list with the arguments on
+# arithmetic operator (+, -, /, *). 'rightArguments' is a list with the arguments on
 # the right side ordered by appearance in the example's case [B, C]
 #      type -> A string with the value 'assignation' it will identify the
 #              kind of expression.
-#   leftArg -> An argument representing the variable of the left side of
+#   leftArgument -> An argument representing the variable of the left side of
 #              the expression it must be a predicate.
-# rightArgs -> A list of two elements of arguments containing the elements
+# rightArguments -> A list of two elements of arguments containing the elements
 #              of the right side of the expression.
 #  operator -> A string containing the character representing the operator
 #              used at the expression.
-AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArg',
-                                                             'rightArgs', 'operator'],
+AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArgument',
+                                                             'rightArguments', 'operator'],
                                    verbose=False)
 
 # BooleanExpression is a named tuple that represents the information we need

@@ -28,7 +28,7 @@ def rewritingEquationPrinter(EquationsTable):
         # which case are propagated through the rewriting variable or by constants specified on the
         # program itself.
         left_side = []
-        for argument, position in eq.leftArgs:
+        for argument, position in eq.leftArguments:
             if argument.type == 'variable':
                 left_side.append(stringify((position)))
             else:
@@ -37,7 +37,7 @@ def rewritingEquationPrinter(EquationsTable):
                 
         # Here we are doing the same but for the right side.
         right_side = []
-        for element in  eq.rightArgs:
+        for element in  eq.rightArguments:
             if isinstance(element, int):
                 right_side.append(stringify(element))
             else:
@@ -74,7 +74,7 @@ def rewritingEquationPrinter(EquationsTable):
                     negated_arguments.append(str(negated_argument.value))
                 else:
                     found = False
-                    for argument, position in eq.leftArgs:
+                    for argument, position in eq.leftArguments:
                         if negated_argument == argument:
                             negated_arguments.append("c_" + str(position))
                             found = True
@@ -87,12 +87,12 @@ def rewritingEquationPrinter(EquationsTable):
                 negated_elements_str += ", "
                 
         # Here we create the rule. 
-        rewriting_rule = "x_" + eq.leftVar.id.name + parentify(left_side) +\
-            " " + unichr(8658) + "  " +  "x_" + eq.rightVar.id.name + parentify(right_side)
+        rewriting_rule = "x_" + eq.leftVariable.id.name + parentify(left_side) +\
+            " " + unichr(8658) + "  " +  "x_" + eq.rightVariable.id.name + parentify(right_side)
             
         if eq.type == 2:
-            consulting_values_str = ', '.join([stringify(x) for x in eq.consultingArgs])
-            consulting_variables = [x.value for x in eq.consultingArgs if (isinstance(x, Argument) and x.type == 'variable')]
+            consulting_values_str = ', '.join([stringify(x) for x in eq.consultingArguments])
+            consulting_variables = [x.value for x in eq.consultingArguments if (isinstance(x, Argument) and x.type == 'variable')]
             consulting_variables_str = ', '.join(consulting_variables)
             
             if consulting_variables:
@@ -375,10 +375,10 @@ def check_consulting_values(consulting_values):
 # integers (shared variables) and constant arguments at the beginning of the 
 # new ordering. It also keeps tracking of the changes made on the combination. 
 # This set of changes will be the identifier for the view. The function returns
-# the new ordering which is the list of consultingArgs reordered and the
+# the new ordering which is the list of consultingArguments reordered and the
 # combination which is the list.
-def constructOrderingForView(consultingArgs):
-    new_order = consultingArgs[:]
+def constructOrderingForView(consultingArguments):
+    new_order = consultingArguments[:]
     combination = list(xrange(1, len(new_order)+1))
     count = 0
     
@@ -432,12 +432,12 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
             for pos, rewriting_rule in enumerate([generateRuleType_2a(logic_rule, rule_number),
                                              generateRuleType_2b(logic_rule, rule_number)]):
                 
-                if (not check_consulting_values(rewriting_rule.consultingArgs)):
+                if (not check_consulting_values(rewriting_rule.consultingArguments)):
                     print "Warning with rule: " + logic_rule.rule + " Consulting predicate " +\
-                        rewriting_rule.consultingPred + " has to create another view " +\
+                        rewriting_rule.consultingPredicate + " has to create another view " +\
                         rewriting_rule.aliasName
                 
-                consultingPred_id = rewriting_rule.consultingPred.id
+                consultingPred_id = rewriting_rule.consultingPredicate.id
                 combinationView = rewriting_rule.combinationView
                 aliasName = rewriting_rule.aliasName  
                 
