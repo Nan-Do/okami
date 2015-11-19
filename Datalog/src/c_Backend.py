@@ -387,7 +387,7 @@ def fillSolverCompute(outfile):
     # Also is used to emit the tabs for the source code properly.
     # Parameters:
     #  tabs -> A string. Representing the number of tabs that we have to print when emitting code.
-    #  rule -> A RewritingRule1 or RewritingRule2. Represents the rewriting equation.
+    #  equation -> A RewritingRule1 or RewritingRule2. Represents the rewriting equation.
     # level -> An integer. Represents the stratum we are in.
     # num_of_stratums -> An integer. Represents the total number of stratums required by the 
     #                    Datalog program.
@@ -542,9 +542,8 @@ def fillSolverCompute(outfile):
         block3 = stratum.ordering.block3
     
         for variable_id in chain(block1, block2, block3):
-            # Get the rule of the predicate raise an exception if not found
-            rules = (x for x in getEquationsFromAllStratums()
-                           if x.leftVar.id == variable_id)
+            # Get the equation of the predicate raise an exception if not found
+            equations = (x for x in getEquationsFromAllStratums() if x.leftVar.id == variable_id)
     
             outfile.write('\t\tif (current->b.PREDICATE == {})'.format(variable_id.uniqueId))
             outfile.write('{\n')
@@ -577,7 +576,7 @@ def fillSolverCompute(outfile):
             outfile.write(output_string)
             #outfile.write('#endif\n')
             
-            # Here we emit code to add data to the data structure if we are in a type 2 rule.
+            # Here we emit code to add data to the data structure if we are in a type 2 equation.
             # Again we only store the variable to the database if we are in the first level (stratum)
             # the variable appears in.
             # We emit debugging code via a c macro to check what is going to be added
@@ -605,7 +604,7 @@ def fillSolverCompute(outfile):
               
             # This marks the end of the debug information macro this line has to be always emitted as 
             # the portion of the handling the rewriting variable is always emitted and only the
-            # adding solution is optional if the predicate is part of a type 2 rule that is there is     
+            # adding solution is optional if the predicate is part of a type 2 equation that is there is     
             # a view associated with it
             outfile.write('#endif\n')
             
@@ -646,16 +645,16 @@ def fillSolverCompute(outfile):
             
                     
             tabs = '\t\t\t'
-            for rule in rules:
-                argument_constants_left_side = [ x for x in rule.leftArgs if x[0].type == 'constant']
+            for equation in equations:
+                argument_constants_left_side = [ x for x in equation.leftArgs if x[0].type == 'constant']
                 
-                if rule.type == 1:
+                if equation.type == 1:
                     # Do we have equal cards? If so we need to be sure they match before process the variable 
-                    have_equal_cards = (len(set(rule.leftArgs)) != len(rule.leftArgs))
+                    have_equal_cards = (len(set(equation.leftArgs)) != len(equation.leftArgs))
                     # Check if we have constant arguments (constants propagated trough the datalog source code)
                     if have_equal_cards:
                         temp_dict = defaultdict(list)
-                        for rule_pos, (var_name, _) in enumerate(rule.leftArgs, 1):
+                        for rule_pos, (var_name, _) in enumerate(equation.leftArgs, 1):
                             temp_dict[var_name].append(rule_pos)
                             
                         lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
@@ -682,8 +681,8 @@ def fillSolverCompute(outfile):
                         outfile.write('){\n')
                         tabs += '\t'
                             
-                    outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, rule.rightVar.id.uniqueId))
-                    for pos, answer_pos in enumerate(rule.rightArgs, 1):
+                    outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, equation.rightVar.id.uniqueId))
+                    for pos, answer_pos in enumerate(equation.rightArgs, 1):
                         # Check if we are dealing with a constant propagated trough the datalog source code.
                         # If we have an integer here it means it is a rewriting constant propagated value
                         # otherwise it is a constant specified on the datalog source code.
@@ -696,18 +695,17 @@ def fillSolverCompute(outfile):
                                                                         str(pos),
                                                                         str(answer_pos.value)))
                         
-                    common_block_for_any_type_of_rule(tabs, rule, level, len(GenerationData.stratums),
+                    common_block_for_any_type_of_rule(tabs, equation, level, len(GenerationData.stratums),
                                                       idToStratumLevels)
                     
                     if have_equal_cards or argument_constants_left_side:
                         tabs = tabs[:-1]
                         outfile.write('{}}}\n'.format(tabs, tabs))
                         
-                if rule.type == 2:
-                    #print rule
-                    commonVars_len = len(rule.commonVars)
+                if equation.type == 2:
+                    commonVars_len = len(equation.commonVars)
                     
-                    argument_constants_consulting_values = [ x for x in rule.consultingArgs if
+                    argument_constants_consulting_values = [ x for x in equation.consultingArgs if
                                                                isinstance(x, Argument) and x.type == 'constant' ]
                     
                     # Manage the equal cards we have three cases. The equal cards can be in:
@@ -726,18 +724,18 @@ def fillSolverCompute(outfile):
                     # Variables to control the different cases every name is self describing
                     # We transform a list into a set and check the lengths, if the lengths doesn't match
                     # we know that we have equal cards
-                    equal_cards_rewriting_variable = (len(set(rule.leftArgs)) != len(rule.leftArgs))
+                    equal_cards_rewriting_variable = (len(set(equation.leftArgs)) != len(equation.leftArgs))
                     # For the case of the set of common variables is a little bit more complex
                     equal_cards_query_common_vars = False
                     equal_cards_query_not_common_vars = False
                     # We proceed in the same way as before but now we use the consulting Values list
-                    if (len(set(rule.consultingArgs)) != len(rule.consultingArgs)):
+                    if (len(set(equation.consultingArgs)) != len(equation.consultingArgs)):
                         # We start extracting a list with the positions of the variables in the set of 
                         # common variables
-                        common_var_positions = set(x[1] for x in rule.commonVars)
+                        common_var_positions = set(x[1] for x in equation.commonVars)
                         # Next we obtain how many variables in the consulting values come with the rewriting 
                         # variable that is how many of the we now the position represented as an integer
-                        number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
+                        number_of_common_vars = sum(1 for x in equation.consultingArgs if isinstance(x, int))
                         # Knowing the number of common variables we can split the list of consulting values
                         # and check for equal values in every part of the list. The first part is used to 
                         # check for if there are equal values in the set of common variables. The last part
@@ -745,13 +743,13 @@ def fillSolverCompute(outfile):
                         # iterate to obtain new solutions. In this case we also have to check that there are
                         # more than one element otherwise the check for equal values using a set would give
                         # a false positive generating incorrect code
-                        for x in rule.consultingArgs[:number_of_common_vars]:
+                        for x in equation.consultingArgs[:number_of_common_vars]:
                             if x in common_var_positions:
                                 equal_cards_query_common_vars = True
                                 break
-                        if (len(rule.consultingArgs[number_of_common_vars:]) > 1) and \
-                           (len(rule.consultingArgs[number_of_common_vars:]) != \
-                                len(set(rule.consultingArgs[number_of_common_vars:]))):
+                        if (len(equation.consultingArgs[number_of_common_vars:]) > 1) and \
+                           (len(equation.consultingArgs[number_of_common_vars:]) != \
+                                len(set(equation.consultingArgs[number_of_common_vars:]))):
                             equal_cards_query_not_common_vars = True
     
                     # If we have equal cards in the rewriting variable we are analyzing to emit code
@@ -759,11 +757,11 @@ def fillSolverCompute(outfile):
                     if equal_cards_rewriting_variable:
                         # Here we create a dictionary in which every key is a variable name and its
                         # value is its relative position on the list. We have to do it in this way as the
-                        # leftArgs represents a variable with a string and its position in the rule
+                        # leftArgs represents a variable with a string and its position in the equation
                         # but if the variable is an equal card the position will be always the same, the 
                         # position of the first occurrence
                         temp_dict = defaultdict(list)
-                        for rule_pos, (var_name, _) in enumerate(rule.leftArgs, 1):
+                        for rule_pos, (var_name, _) in enumerate(equation.leftArgs, 1):
                             temp_dict[var_name].append(rule_pos)
                                 
                         # Once we have built the dictionary we create a list of lists removing the lists
@@ -795,10 +793,10 @@ def fillSolverCompute(outfile):
                         # Here we have to add the solution to the data structure if the predicate has all variables
                         # the same equal card. We check that if turning the list of leftArgs into a set the
                         # length is 1.
-                        if len(set(rule.leftArgs)) == 1:
+                        if len(set(equation.leftArgs)) == 1:
                             args = ['current->b.VAR_{}'.format(x) for x in l]
                             outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                           rule.leftVar.id.name,
+                                                                                           equation.leftVar.id.name,
                                                                                            ", ".join(args)))
                             tabs += '\t'
                             outfile.write("#ifdef NDEBUG\n")
@@ -807,7 +805,7 @@ def fillSolverCompute(outfile):
                             outfile.write("{}fprintf(stderr, \"\\n\");\n".format(tabs))
                             outfile.write("#endif\n")
                             outfile.write("{}Ds_append_solution_{}({});\n".format(tabs,
-                                                                                  rule.leftVar.id.name,
+                                                                                  equation.leftVar.id.name,
                                                                                   ", ".join(args)))
                             tabs = tabs[:-1]
                             outfile.write("{}}}\n".format(tabs))
@@ -844,16 +842,16 @@ def fillSolverCompute(outfile):
                         tabs += '\t'
                         # If the length of the predicate is one we also have to make sure that the value we obtain
                         # is valid as we won't iterate to obtain more values
-                        if len(rule.consultingArgs) == 1:
+                        if len(equation.consultingArgs) == 1:
                             outfile.write('{}if (Ds_contains_solution_{}(t0))'.format(tabs,
-                                                                                      rule.consultingPred.id.name))
+                                                                                      equation.consultingPred.id.name))
                             outfile.write('{\n')
                     
                     else:
                         # We don't have equal cards in the set of common variables, we just iterate over the set
                         # emitting code appropriately. 
                         if not equal_cards_query_common_vars:
-                            args_common = ', '.join(['current->b.VAR_{}'.format(str(x[1])) for x in rule.commonVars])
+                            args_common = ', '.join(['current->b.VAR_{}'.format(str(x[1])) for x in equation.commonVars])
                             #int_length = commonVars_len + len(argument_constants_consulting_values)
                             int_length = commonVars_len + len(argument_constants_consulting_values)
                         # Here we have equal cards in the set of common variables there fore we need to check which is 
@@ -861,10 +859,10 @@ def fillSolverCompute(outfile):
                         else:
                             # The number of common variables is just the number of integer values of the consulting values
                             # list
-                            number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
+                            number_of_common_vars = sum(1 for x in equation.consultingArgs if isinstance(x, int))
                                                      
                             args_common = ', '.join(['current->b.VAR_{}'.format(str(x))
-                                                     for x in rule.consultingArgs[:number_of_common_vars]])
+                                                     for x in equation.consultingArgs[:number_of_common_vars]])
                                 
                             #int_length = number_of_common_vars + len(argument_constants_consulting_values)
                             #commonVars_len = number_of_common_vars + len(argument_constants_consulting_values)
@@ -880,22 +878,22 @@ def fillSolverCompute(outfile):
                         # that contributes only with one solution or with none.
                         # If we turn the list of consulting values into a set and the length is 1 that means that the predicate
                         # has all its variables the same equal card
-                        #if (len(set(rule.consultingArgs)) != 1 and\
-                        #    getPredicateLength(rule.consultingPred.uniqueId) != len(rule.commonVars)):
-                        if (len(set([x for x in rule.consultingArgs if not (isinstance(x, Argument) and x.type=='constant')])) != 1 and\
-                            getPredicateLength(rule.consultingPred.id) != len(rule.commonVars) and 
-                            sum([1 for x in rule.consultingArgs if isinstance(x, int) or (isinstance(x, Argument) and x.type=='constant')]) != len(rule.consultingArgs)):
+                        #if (len(set(equation.consultingArgs)) != 1 and\
+                        #    getPredicateLength(equation.consultingPred.uniqueId) != len(equation.commonVars)):
+                        if (len(set([x for x in equation.consultingArgs if not (isinstance(x, Argument) and x.type=='constant')])) != 1 and\
+                            getPredicateLength(equation.consultingPred.id) != len(equation.commonVars) and 
+                            sum([1 for x in equation.consultingArgs if isinstance(x, int) or (isinstance(x, Argument) and x.type=='constant')]) != len(equation.consultingArgs)):
                             # Here we just emit code for t1 using the computed values
                             outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
                                           .format(tabs,
                                                   int_length,
-                                                  aliasToViewNames[rule.aliasName],
+                                                  aliasToViewNames[equation.aliasName],
                                                   args_common))
                             
                             outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
                         else:
                             outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                          rule.consultingPred.id.name,
+                                                                                          equation.consultingPred.id.name,
                                                                                           args_common))
     
                     # Here we emit code for the rest of the required t levels that value is the number
@@ -905,7 +903,7 @@ def fillSolverCompute(outfile):
                     if commonVars_len == 0:
                         start = 1
                     for (x, y) in enumerate(xrange(commonVars_len + 1, 
-                                                   len(rule.consultingArgs) - len(argument_constants_consulting_values)),
+                                                   len(equation.consultingArgs) - len(argument_constants_consulting_values)),
                                             start=start):
                         query_value = y + len(argument_constants_consulting_values)
                         if commonVars_len == 0:
@@ -922,12 +920,12 @@ def fillSolverCompute(outfile):
                             
                             outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
                                           .format(tabs, x, query_value,
-                                                  aliasToViewNames[rule.aliasName],
+                                                  aliasToViewNames[equation.aliasName],
                                                   args))
                             #number_of_args = y + len(argument_constants_consulting_values)
                             #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
                             #              .format(tabs, x, number_of_args,
-                            #                      aliasToViewNames[rule.aliasName],
+                            #                      aliasToViewNames[equation.aliasName],
                             #                      args))
                             outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
                                                                                       str(x)))
@@ -938,12 +936,12 @@ def fillSolverCompute(outfile):
     
                             outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
                                           .format(tabs, (y-commonVars_len)+1, query_value,
-                                                  aliasToViewNames[rule.aliasName],
+                                                  aliasToViewNames[equation.aliasName],
                                                   args))
                             #number_of_args = y + len(argument_constants_consulting_values)
                             #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
                             #              .format(tabs, (y-commonVars_len)+1, number_of_args,
-                            #                      aliasToViewNames[rule.aliasName],
+                            #                      aliasToViewNames[equation.aliasName],
                             #                      args))
                             outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
                                                                                       str((y-commonVars_len) + 1)))
@@ -956,33 +954,33 @@ def fillSolverCompute(outfile):
                     else:
                         tabs = '\t\t\t'
                     
-                    if commonVars_len == 0 and len(rule.consultingArgs) == 1:
+                    if commonVars_len == 0 and len(equation.consultingArgs) == 1:
                         tabs += '\t'    
                     
                     tabs += '\t' * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x) 
-                                            for x in rule.consultingArgs))
+                                            for x in equation.consultingArgs))
                     
                     outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
-                                                                   rule.rightVar.id.uniqueId))
+                                                                   equation.rightVar.id.uniqueId))
                     # Here we handle if we have equal cards in the query variables that are
                     # not in the set of common variables. As we retrieve them from the iterating
                     # lists we have to check that are equal otherwise we would count
                     # invalid answers not honoring the equal cards. To do so we have to check
                     # which of the variables not in the set of the common variables are repeated
                     if equal_cards_query_not_common_vars:
-                        if len(set(rule.consultingArgs)) != 1:
+                        if len(set(equation.consultingArgs)) != 1:
                             # The key of the dict will be the name of the variable.
                             # The value of the dict will be a list containing the positions in which
                             # the variable appears repeated
                             temp_dict = defaultdict(list)
                             # Here we compute the first occurrence of the variables.
                             # We compute where the first string appears in the list.
-                            number_of_common_vars = sum(1 for x in rule.consultingArgs if isinstance(x, int))
+                            number_of_common_vars = sum(1 for x in equation.consultingArgs if isinstance(x, int))
                             # Here we iterate over the list of variables that are not in the set of common variables. The
                             # variables start after the variables that belong to the set of common variables and are represented 
                             # by its string name. We have to subtract the number of common variables as the first iterating variable
                             # is always t1 and not t? being ? the position its the list of consultingArgs
-                            for rule_pos, var_name in enumerate(rule.consultingArgs[number_of_common_vars:], number_of_common_vars+1):
+                            for rule_pos, var_name in enumerate(equation.consultingArgs[number_of_common_vars:], number_of_common_vars+1):
                                 temp_dict[var_name].append(rule_pos - number_of_common_vars - len(argument_constants_consulting_values))
                                   
                             # Here we create a lists of lists removing the lists of only one member as that implies 
@@ -990,7 +988,7 @@ def fillSolverCompute(outfile):
                             # variables
                             lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
                         else:
-                            lists_of_duplicated_vars = [list(xrange(len(rule.consultingArgs)))]
+                            lists_of_duplicated_vars = [list(xrange(len(equation.consultingArgs)))]
                             
                         # We only have to iterate over each list emitting code appropriately 
                         outfile.write('{}if('.format(tabs))
@@ -1012,12 +1010,12 @@ def fillSolverCompute(outfile):
                     # to handle the case in which there are no common variables for that case
                     # we start at t0 as we have to iterate over all the variables of the other
                     # predicate.
-                    for pos, var in enumerate(rule.rightArgs, start=1):
+                    for pos, var in enumerate(equation.rightArgs, start=1):
                         outfile.write('{}VAR.VAR_{} = '.format(tabs, pos))
                         if isinstance(var, Argument) and var.type == 'variable':
                             t_index = get_t_index(var,
-                                                  rule.consultingArgs,
-                                                  rule.commonVars)
+                                                  equation.consultingArgs,
+                                                  equation.commonVars)
                             if commonVars_len == 0:
                                 if t_index == 1:
                                     outfile.write('t0;\n')
@@ -1034,10 +1032,10 @@ def fillSolverCompute(outfile):
                     # TODO: The indentation is a little bit broken right now and should be checked
                     #       but is not mandatory for the well functioning of the compiler
                     if equal_cards_query_not_common_vars:
-                        common_block_for_any_type_of_rule(tabs[:-1], rule, level, len(GenerationData.stratums),
+                        common_block_for_any_type_of_rule(tabs[:-1], equation, level, len(GenerationData.stratums),
                                                           idToStratumLevels)
                     else:
-                        common_block_for_any_type_of_rule(tabs, rule, level, len(GenerationData.stratums),
+                        common_block_for_any_type_of_rule(tabs, equation, level, len(GenerationData.stratums),
                                                           idToStratumLevels)
     
                     if equal_cards_rewriting_variable or argument_constants_left_side:
@@ -1048,11 +1046,11 @@ def fillSolverCompute(outfile):
                         tabs = tabs[:-1]
                         outfile.write('{}}}\n'.format(tabs))
                         
-                    if commonVars_len == 0 and len(rule.consultingArgs) == 1:
+                    if commonVars_len == 0 and len(equation.consultingArgs) == 1:
                         tabs = tabs[:-1]
                         outfile.write('{}}}\n'.format(tabs))
                     
-                    for x in xrange(commonVars_len+1, len(rule.consultingArgs) - len(argument_constants_consulting_values)):
+                    for x in xrange(commonVars_len+1, len(equation.consultingArgs) - len(argument_constants_consulting_values)):
                         tabs = tabs[:-1]
                         outfile.write('{}'.format(tabs))
                         outfile.write('}\n')
