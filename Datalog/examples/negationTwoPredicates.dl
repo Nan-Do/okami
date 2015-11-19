@@ -1,0 +1,1 @@
+path(X, Y) :- edge(X, Z), edge2(Z, Y), ~not_edge(X).
