@@ -263,11 +263,11 @@ def buildRulesTable(filename, test=False):
         body_preds_ids.update(body_predicates_ids)
             
         negated_predicate_ids = [neg_pred.id for neg_pred in negated_preds_of_the_body]
-        has_negated_predicate_ids = len(negated_predicate_ids) != 0
+        rule_has_negated_predicate_ids = (len(negated_predicate_ids) != 0)
         negated_preds.update(negated_predicate_ids)
         
         addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids + negated_predicate_ids)
-        rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), has_negated_predicate_ids, line_no+1, line))
+        rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), rule_has_negated_predicate_ids, line_no+1, line))
             
     f.close()
     return (rulesTable, PredicateTypes(head_preds_ids, body_preds_ids.difference(head_preds_ids)), dependency_graph, negated_preds)

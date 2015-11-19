@@ -376,6 +376,12 @@ def fillStratumQueueInitializers(outfile):
         outfile.write('}\n\n')
     
 def fillSolverCompute(outfile):
+    # This function is used to obtain the index position of the querying argument.
+    # This is the position of the argument has on the elements we query to the database.
+    def get_t_index(argument, consulting_arguments, common_variables):
+        return consulting_arguments.index(argument) + 1\
+            - len(common_variables) - len([ x for x in consulting_arguments if
+                                           isinstance(x, Argument) and x.type == 'constant' ])
     # This function emits code regardless we are dealing with a type 1 or type2 rewriting equation.
     # This function has been extracted as a closure so we don't have to write the piece of twice. 
     # Also is used to emit the tabs for the source code properly.
@@ -392,10 +398,6 @@ def fillSolverCompute(outfile):
         if equation.rightVar.id in answersToStore:
             variable_id = equation.rightVar.id
 
-            #if equation.type == 2:
-            #    tabs = '\t' * sum(((lambda x: 1 if isinstance(x, str) else 0)(x)\
-            #                            for x in equation.consultingArgs))
-                                
             args = ', '.join('VAR.VAR_{}'.format(x) for 
                             x in xrange(1, len(equation.rightArgs)+1))
             
@@ -417,10 +419,9 @@ def fillSolverCompute(outfile):
                             if b_arg.type == "constant":
                                 side = str(b_arg.value)
                             else:
-                                t_index = equation.consultingArgs.index(b_arg) + 1\
-                                            - len(equation.commonVars) - len([ x for x in equation.consultingArgs if
-                                                                       isinstance(x, Argument) and x.type == 'constant' ])
-                                side = "t{}->value".format(str(t_index))
+                                side = "t{}->value".format(get_t_index(b_arg,
+                                                                       equation.consultingArgs,
+                                                                       equation.commonVars))
                         else:
                             a_args, a_op = b_arg
                             if isinstance(a_args[0], int):
@@ -429,10 +430,9 @@ def fillSolverCompute(outfile):
                                 if a_args[0].type == "constant":
                                     side = str(a_args[0].value)
                                 else:
-                                    t_index = equation.consultingArgs.index(a_args[0]) + 1\
-                                            - len(equation.commonVars) - len([ x for x in equation.consultingArgs if
-                                                                       isinstance(x, Argument) and x.type == 'constant' ])
-                                    side = "t{}->value".format(str(t_index))
+                                    side = "t{}->value".format(get_t_index(a_args[0],
+                                                                           equation.consultingArgs,
+                                                                           equation.commonVars))
                             side += " " + a_op + " "
                             
                             if isinstance(a_args[1], int):
@@ -441,10 +441,9 @@ def fillSolverCompute(outfile):
                                 if a_args[1].type == "constant":
                                     side += str(a_args[1].value)
                                 else:
-                                    t_index = equation.consultingArgs.index(a_args[1]) + 1\
-                                            - len(equation.commonVars) - len([ x for x in equation.consultingArgs if
-                                                                       isinstance(x, Argument) and x.type == 'constant' ])
-                                    side += "t{}->value".format(str(t_index))
+                                    side = "t{}->value".format(get_t_index(a_args[1],
+                                                                           equation.consultingArgs,
+                                                                           equation.commonVars))
                             side = "(" + side +")"
                             
                         boolean_expression_str += side
@@ -464,17 +463,25 @@ def fillSolverCompute(outfile):
             for (pos, negated_element) in enumerate(equation.negatedElements):
                 negated_arguments_str = []
 
-                if equation.type == 1:
-                    for negated_arg in negated_element.arguments:
-                        if negated_arg.type == 'constant':
-                            negated_arguments_str.append(str(negated_arg.value))
-                        else:
-                            for argument, position in equation.leftArgs:
-                                if negated_arg == argument:
-                                    negated_arguments_str.append('current->b.VAR_{}'.format(position))
-                else:
-                    print "TODO: HANDLE FOR EQUATIONS OF TYPE 2 THAT HAVE NEGATED ELEMENTS"
-                    sys.exit(0)
+                for negated_arg in negated_element.arguments:
+                    if negated_arg.type == 'constant':
+                        negated_arguments_str.append(str(negated_arg.value))
+                    else:
+                        found = False
+                        for argument, position in equation.leftArgs:
+                            if negated_arg == argument:
+                                negated_arguments_str.append('current->b.VAR_{}'.format(position))
+                                found = True
+                                break
+                        if not found and equation.type == 2:
+                            # HERE WE HAVE TWO OPTIONS WE CAN USE THE VAR FROM THE REWRITING
+                            # VARIABLE (the commented piece of code) or THE T INDEX.
+                            #for position, element in enumerate(equation.rightArgs, start=1):
+                            #    if negated_arg == element:
+                            #        negated_arguments_str.append('VAR.VAR_{}'.format(position))
+                            negated_arguments_str.append("t{}->value".format(get_t_index(negated_arg,
+                                                                                         equation.consultingArgs,
+                                                                                         equation.commonVars)))
                 
                 negated_arguments = ', '.join(negated_arguments_str)
                 outfile.write('\n{}{}!Ds_contains_solution_{}({})'.format(tabs,
@@ -619,8 +626,9 @@ def fillSolverCompute(outfile):
                                          x in viewNamesToCombinations[view])
                         
                         # If the identifier pertains to the solutions we have to append it as a solution
-                        # to the database. Check the getAllSolutions function to know what it is considered
-                        # to be a solution.
+                        # to the database. Checking the getAllSolutions function to know what it is considered
+                        # to be a solution will raise an error on the evaluation of some programs due to equal
+                        # cards.
                         if variable_id in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
                                           getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()|\
                                           getNegatedPredicates():
@@ -790,8 +798,8 @@ def fillSolverCompute(outfile):
                         if len(set(rule.leftArgs)) == 1:
                             args = ['current->b.VAR_{}'.format(x) for x in l]
                             outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
-                                                                                         rule.leftVar.id.name,
-                                                                                         ", ".join(args)))
+                                                                                           rule.leftVar.id.name,
+                                                                                           ", ".join(args)))
                             tabs += '\t'
                             outfile.write("#ifdef NDEBUG\n")
                             outfile.write("{}fprintf(stderr, \"\\tAdding solution -> \");\n".format(tabs))
@@ -799,8 +807,8 @@ def fillSolverCompute(outfile):
                             outfile.write("{}fprintf(stderr, \"\\n\");\n".format(tabs))
                             outfile.write("#endif\n")
                             outfile.write("{}Ds_append_solution_{}({});\n".format(tabs,
-                                                                                 rule.leftVar.id.name,
-                                                                                 ", ".join(args)))
+                                                                                  rule.leftVar.id.name,
+                                                                                  ", ".join(args)))
                             tabs = tabs[:-1]
                             outfile.write("{}}}\n".format(tabs))
                     
@@ -1007,8 +1015,9 @@ def fillSolverCompute(outfile):
                     for pos, var in enumerate(rule.rightArgs, start=1):
                         outfile.write('{}VAR.VAR_{} = '.format(tabs, pos))
                         if isinstance(var, Argument) and var.type == 'variable':
-                            t_index = rule.consultingArgs.index(var) + 1\
-                                       - commonVars_len - len(argument_constants_consulting_values)
+                            t_index = get_t_index(var,
+                                                  rule.consultingArgs,
+                                                  rule.commonVars)
                             if commonVars_len == 0:
                                 if t_index == 1:
                                     outfile.write('t0;\n')
