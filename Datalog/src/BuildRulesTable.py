@@ -157,6 +157,9 @@ def buildRulesTable(filename, test=False):
         boolean_exp_of_the_body = [x for x in body if isinstance(x, 
                                                                  BooleanExpression)]
         
+        body_predicates_ids = [predicate.id for predicate in predicates_of_the_body]
+        negated_predicate_ids = [neg_pred.id for neg_pred in negated_preds_of_the_body]
+        
         assignation = None
         if assignation_exp_of_the_body:
             assignation = assignation_exp_of_the_body[0]
@@ -253,18 +256,37 @@ def buildRulesTable(filename, test=False):
                      None,
                      'Simultaneous assignation and a boolean expressions on rules is not supported')
             sys.exit(0)
+
+        # Check for errors regarding negated predicates
+        body_variables = set([y.value for x in predicates_of_the_body
+                                      for y in x.arguments
+                                      if y.type == 'variable'])            
+        for negated_predicate in negated_preds_of_the_body:
+            if negated_predicate.id in body_predicates_ids:
+                logError(filename,
+                     line_no,
+                     None,
+                     'Predicate "' + negated_predicate.id.name + '" appears both negated and non-negated')
+                sys.exit(0)
+                
+            for argument in negated_predicate.arguments:
+                if argument.type == 'variable' and argument.value not in body_variables:
+                    logError(filename,
+                             line_no,
+                             None,
+                             'Negated predicate "' + negated_predicate.id.name + '" contains the unmatched variable "' +
+                             argument.value + '"')
+                    sys.exit(0)
+
             
         # Build the dependency graph that is the graph that for nodes contains predicates
         # and the edges joins body nodes to head nodes. Negated predicates also count to 
         # build the dependency graph
         head_preds_ids.add(head.id)
             
-        body_predicates_ids = [predicate.id for predicate in predicates_of_the_body]
         body_preds_ids.update(body_predicates_ids)
-            
-        negated_predicate_ids = [neg_pred.id for neg_pred in negated_preds_of_the_body]
-        rule_has_negated_predicate_ids = (len(negated_predicate_ids) != 0)
         negated_preds.update(negated_predicate_ids)
+        rule_has_negated_predicate_ids = (len(negated_predicate_ids) != 0)
         
         addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids + negated_predicate_ids)
         rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), rule_has_negated_predicate_ids, line_no+1, line))
