@@ -153,7 +153,7 @@ ViewsData = namedtuple('ViewsData',['viewNamesToCombinations', 'aliasToViewNames
 #              representing constants, positions or arithmetic expressions whose
 #              argument variables have also been transformed to positions.
 #  operator -> a string representing the arithmetic operator "+-*/"
-ArithmeticExpression = namedtuple('ArithmeticExpression', ['args', 'operator'])
+ArithmeticExpression = namedtuple('ArithmeticExpression', ['arguments', 'operator'])
 
 # AssignationExpression IS DEPRECATED!!!
 # AssignationExpression is a named tuple that represents the information we need
@@ -192,5 +192,5 @@ AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArgume
 #              argument variables have also been transformed to positions.
 #  operator -> A string containing the character representing the operator
 #              used at the expression.
-BooleanExpression = namedtuple('BooleanExpression', ['type', 'args', 'operator'],
+BooleanExpression = namedtuple('BooleanExpression', ['type', 'arguments', 'operator'],
                                verbose=False)
