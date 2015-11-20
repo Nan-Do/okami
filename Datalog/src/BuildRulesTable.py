@@ -202,13 +202,6 @@ def buildRulesTable(filename, test=False):
                      'Only one has_assignation_expressions expression per rule is supported')
             sys.exit(0)
             
-#         if len(boolean_expressions) > 1:
-#                 logError(filename,
-#                          line_no,
-#                          None,
-#                          'Only one boolean expression per rule is supported')
-#                 sys.exit(0)
-        
         if isAnUnsafeRule(head, predicates, has_assignation_expressions):
             logError(filename,
                      line_no,
