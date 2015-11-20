@@ -148,36 +148,28 @@ def buildRulesTable(filename, test=False):
             sys.exit(0)
         
         # Obtain the different elements that compose the body of the rule.
-        predicates_of_the_body = [x for x in body if isinstance(x, Predicate) 
-                                                            and not x.negated]
-        negated_preds_of_the_body = [x for x in body if isinstance(x, Predicate) 
-                                                                and x.negated]
-        assignation_exp_of_the_body = [x for x in body if isinstance(x, 
-                                                                     AssignationExpression)]
-        boolean_exp_of_the_body = [x for x in body if isinstance(x, 
-                                                                 BooleanExpression)]
+        predicates = [x for x in body if isinstance(x, Predicate) and not x.negated]
+        negated_predicates = [x for x in body if isinstance(x, Predicate) and x.negated]
+        assignation_expressions = [x for x in body if isinstance(x, AssignationExpression)]
+        boolean_expressions = [x for x in body if isinstance(x, BooleanExpression)]
         
-        body_predicates_ids = [predicate.id for predicate in predicates_of_the_body]
-        negated_predicate_ids = [neg_pred.id for neg_pred in negated_preds_of_the_body]
+        body_predicates_ids = [predicate.id for predicate in predicates]
+        negated_predicate_ids = [neg_pred.id for neg_pred in negated_predicates]
         
-        assignation = None
-        if assignation_exp_of_the_body:
-            assignation = assignation_exp_of_the_body[0]
-        
-        boolean = None
-        if boolean_exp_of_the_body:
-            boolean = boolean_exp_of_the_body[0]
+        has_assignation_expressions = (len(assignation_expressions) != 0)
+        has_boolean_expressions = (len(boolean_expressions) != 0)
+        has_negated_predicates = (len(negated_predicate_ids) != 0)
         
         # Start for semantic error on the logical rules:
         # These errors can be found on the predicates or the expressions
-        if len(predicates_of_the_body) == 0:
+        if len(predicates) == 0:
             logError(filename,
                      line_no,
                      'Parsing',
                      'Rules are required to have at least one predicate')
             sys.exit(0)
             
-        if len(predicates_of_the_body) > 2:
+        if len(predicates) > 2:
             logError(filename,
                      line_no,
                      'Parsing',
@@ -203,65 +195,65 @@ def buildRulesTable(filename, test=False):
                      'Body of the rule redefines a predicate:' + body_predicate.id.name )
                 sys.exit(0)
         
-        if len(assignation_exp_of_the_body) > 1:
+        if len(assignation_expressions) > 1:
             logError(filename,
                      line_no,
                      None,
-                     'Only one assignation expression per rule is supported')
+                     'Only one has_assignation_expressions expression per rule is supported')
             sys.exit(0)
             
-#         if len(boolean_exp_of_the_body) > 1:
+#         if len(boolean_expressions) > 1:
 #                 logError(filename,
 #                          line_no,
 #                          None,
 #                          'Only one boolean expression per rule is supported')
 #                 sys.exit(0)
         
-        if isAnUnsafeRule(head, predicates_of_the_body, assignation):
+        if isAnUnsafeRule(head, predicates, has_assignation_expressions):
             logError(filename,
                      line_no,
                      None,
                      'Unsafe rule')
             sys.exit(0)
             
-        if assignation:
-            if not checkLeftSideVariableOnAssignationAppearsOnTheHead(head, assignation):
+        if has_assignation_expressions:
+            if not checkLeftSideVariableOnAssignationAppearsOnTheHead(head, has_assignation_expressions):
                 logError(filename,
                          line_no,
                          None,
-                         'The variable on the left side of the assignation expression must ' +
+                         'The variable on the left side of the has_assignation_expressions expression must ' +
                          'appear on the predicate of head of the rule')
                 sys.exit(0)
                 
-            if not checkRightSideVariablesOnAssignationAppearOnTheBody(predicates_of_the_body, assignation):
+            if not checkRightSideVariablesOnAssignationAppearOnTheBody(predicates, has_assignation_expressions):
                 logError(filename,
                          line_no,
                          None,
-                         'The variables on the right side of the assignation expression must ' +
+                         'The variables on the right side of the has_assignation_expressions expression must ' +
                          'appear on the predicates of the body of the rule')
                 sys.exit(0)
                 
-        if boolean:
-            if not checkBooleanExpressionVariablesAppearOnTheBody(predicates_of_the_body, boolean):
+        for boolean_expression in boolean_expressions:
+            if not checkBooleanExpressionVariablesAppearOnTheBody(predicates, boolean_expression):
                 logError(filename,
                          line_no,
                          None,
-                         'The variables of the boolean expression must ' +
-                         'appear on the predicates of the body of the rule')
+                         'All the variables of the boolean expressions ' +\
+                         'must appear on one the predicates of the body')
                 sys.exit(0)
                 
-        if assignation and boolean:
+        if has_assignation_expressions and has_boolean_expressions:
             logError(filename,
                      line_no,
                      None,
-                     'Simultaneous assignation and a boolean expressions on rules is not supported')
+                     'Simultaneous assignation expressions and a boolean expressions on rules are not supported')
             sys.exit(0)
 
         # Check for errors regarding negated predicates
-        body_variables = set([y.value for x in predicates_of_the_body
+        body_variables = set([y.value for x in predicates
                                       for y in x.arguments
                                       if y.type == 'variable'])            
-        for negated_predicate in negated_preds_of_the_body:
+        for negated_predicate in negated_predicates:
             if negated_predicate.id in body_predicates_ids:
                 logError(filename,
                      line_no,
@@ -279,17 +271,18 @@ def buildRulesTable(filename, test=False):
                     sys.exit(0)
 
             
-        # Build the dependency graph that is the graph that for nodes contains predicates
-        # and the edges joins body nodes to head nodes. Negated predicates also count to 
-        # build the dependency graph
+        # Required to build the dependency graph. It is a directed graph that has a node
+        # for every predicate (we store the predicate identifiers) and an edge connecting
+        # two nodes if one predicate appears on the body and another one in the head.
+        # Negated predicates also count as a body predicate.
         head_preds_ids.add(head.id)
             
         body_preds_ids.update(body_predicates_ids)
         negated_preds.update(negated_predicate_ids)
-        rule_has_negated_predicate_ids = (len(negated_predicate_ids) != 0)
         
         addRuleDependencyToGraph(dependency_graph, head.id, body_predicates_ids + negated_predicate_ids)
-        rulesTable.append(LogicRule(head, body, len(predicates_of_the_body), rule_has_negated_predicate_ids, line_no+1, line))
+        
+        rulesTable.append(LogicRule(head, body, len(predicates), has_negated_predicates, line_no+1, line))
             
     f.close()
     return (rulesTable, PredicateTypes(head_preds_ids, body_preds_ids.difference(head_preds_ids)), dependency_graph, negated_preds)
