@@ -4,7 +4,7 @@ Created on Feb 3, 2014
 @author: nando
 '''
 
-from Types import LogicRule
+from Types import LogicRule, Identifier, Predicate
 from itertools import combinations
 
 import re
@@ -18,9 +18,11 @@ decomposed_rules = 0
 def generate_new_head(first, second):
     global decomposed_rules
     decomposed_rules += 1
-    new_head_name = "Temp_{}".format(str(decomposed_rules))
-    new_head_preds = list(set(first[1]).symmetric_difference(second[1]))
-    return (new_head_name, new_head_preds)
+    name = "Temp_{}".format(str(decomposed_rules))
+    identifier = Identifier(name, name)
+    arguments = list(set(first.arguments).symmetric_difference(second.arguments))
+    
+    return Predicate(identifier, False, arguments)
    
 def leftMostDecomposingMethod(logic_rule):
     global last_decomposed_rule
@@ -40,7 +42,7 @@ def leftMostDecomposingMethod(logic_rule):
         
         # Create the new rule
         new_body = (first, second)
-        answers.append(LogicRule(new_head, new_body, None, None, logic_rule.rule))
+        answers.append(LogicRule(new_head, new_body, None, None, None, logic_rule.rule))
         
     answers.insert(0, logic_rule)
     return answers
@@ -63,7 +65,7 @@ def rightMostDecomposingMethod(logic_rule):
         
         # Create the new rule
         new_body = (first, second)
-        answers.append(LogicRule(new_head, new_body, None, None, logic_rule.rule))
+        answers.append(LogicRule(new_head, new_body, None, None, None, logic_rule.rule))
         
     answers.insert(0, logic_rule)
     return answers
@@ -87,7 +89,7 @@ def randomDecomposingMethod(logic_rule):
         
         # Create the new rule
         new_body = (first, second)
-        answers.append(LogicRule(new_head, new_body, None, None, logic_rule.rule))
+        answers.append(LogicRule(new_head, new_body, None, None, None, logic_rule.rule))
     
     answers.insert(0, logic_rule)
     return answers

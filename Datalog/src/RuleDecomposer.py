@@ -8,7 +8,7 @@ import sys
 import logging
 
 from Parser import parseRule
-from Types import LogicRule
+from Types import LogicRule, BooleanExpression
 from DecomposingMethods import rightMostDecomposingMethod, leftMostDecomposingMethod,\
     commonVariablesDecomposingMethod, randomDecomposingMethod
 
@@ -48,7 +48,14 @@ def decomposeRulesFromFile(filename, method='random'):
             logging.error('Parsing:%s', v.message)
             sys.exit(0)
             
-        logic_rule = LogicRule(rule[0], rule[1], None, None, line)
+        # Check if we have negated predicates or boolean expressions on the rule. 
+        # We haven't studied if that can be done automatically yet.
+        if [predicate for predicate in rule[1] if predicate.negated or isinstance(predicate, BooleanExpression)]:
+            logging.error('Analyzing:%s:Line:%i', filename, line_no)
+            logging.error('Decomposing rules with negated rules or boolean expressions in not supported yet')
+            sys.exit(0)
+            
+        logic_rule = LogicRule(rule[0], rule[1], 0, False, 0, line)
         if (len(logic_rule.body) > 2):
             newRules.extend( decomposeRule(logic_rule) )
         else:
@@ -61,8 +68,13 @@ def saveDecomposedRules(logicRules, filename):
     f = open(filename, 'w')
     
     for rule in logicRules:
-        head_str = "{}({})".format(rule.head[0], ", ".join(rule.head[1]))
-        body_str = ", ".join(["{}({})".format(atom[0], ", ".join(atom[1])) for atom in rule.body])
+        head = rule.head
+        body = rule.body
+
+        head_str = "{}({})".format(head.id.name,
+                                   ", ".join([argument.value for argument in head.arguments]))
+        body_str = ", ".join(["{}({})".format(atom.id.name, ", ".join([argument.value for argument in atom.arguments])) 
+                              for atom in body])
         f.write(head_str + " :- " + body_str + ".\n")
         
     f.close()
