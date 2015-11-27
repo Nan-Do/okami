@@ -18,7 +18,7 @@ decomposed_rules = 0
 def generate_new_head(first, second):
     global decomposed_rules
     decomposed_rules += 1
-    name = "Temp_{}".format(str(decomposed_rules))
+    name = "temp_{}".format(str(decomposed_rules))
     identifier = Identifier(name, name)
     arguments = list(set(first.arguments).symmetric_difference(second.arguments))
     
