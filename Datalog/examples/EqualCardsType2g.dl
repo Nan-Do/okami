@@ -1,0 +1,2 @@
+A(X,Y) :- B(X,Z,L), C(L,Y).
+D(X,Y) :- A(X,Y), B(Y,X,Y).
