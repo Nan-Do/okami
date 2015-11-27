@@ -108,7 +108,7 @@ def getPredicatesWithAllVariablesBeingInTheSharedSet():
     for eq in getEquationsFromAllStratums():
         if (eq.leftVariable not in GenerationData.answersToStore and \
                 eq.type == 2 and
-                getPredicateLength(eq.consultingPredicate.id) == len(eq.commonVariables)):
+                len(set(eq.consultingArguments)) == len(eq.commonVariables)):
             answers.add(eq.consultingPredicate.id)
     return answers
 
