@@ -747,10 +747,14 @@ def fillSolverCompute(outfile):
                             if x in common_var_positions:
                                 equal_cards_query_common_vars = True
                                 break
+                        # We are cheking for equal cards outside the set of common variables. We are only interested
+                        # on the Arguments that are variables if it is a constant we have to discard it!!!!.
                         if (len(equation.consultingArguments[number_of_common_vars:]) > 1) and \
-                           (len(equation.consultingArguments[number_of_common_vars:]) != \
-                                len(set(equation.consultingArguments[number_of_common_vars:]))):
-                            equal_cards_query_not_common_vars = True
+                           (len([x for x in equation.consultingArguments[number_of_common_vars:]
+                                 if isinstance(x, Argument) and x.type == 'variable']) != \
+                            len(set([x for x in equation.consultingArguments[number_of_common_vars:]
+                                     if isinstance(x, Argument) and x.type == 'variable']))):
+                                        equal_cards_query_not_common_vars = True
     
                     # If we have equal cards in the rewriting variable we are analyzing to emit code
                     # We have to check that the values represented by the equal cards are the same
