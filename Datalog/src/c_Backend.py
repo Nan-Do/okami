@@ -516,7 +516,7 @@ def fillSolverCompute(outfile):
             outfile.write('{}'.format(tabs))
             outfile.write('}\n')
         else:
-            outfile.write('{}SolverQueue_append(&solver, &VAR);\n'.format(tabs))
+            outfile.write('{}SolverQueue_append(&solver_queue1, &VAR);\n'.format(tabs))
             
     #equationsTable = GenerationData.equationsTable
     #predsToViewNames = GenerationData.viewsData.predsToViewNames
