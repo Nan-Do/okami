@@ -180,8 +180,8 @@ def fillHypothesis(outfile):
                             for eq in getEquationsFromAllStratums()
                             for negated_element in eq.negatedElements)
     outfile.write('/* Hipothesys */\n')
-    for hypothesis, pos in zip(hypothesis, count()):
-        line = '#define {}\t{}\n'.format(hypothesis, str(pos))
+    for position, hypothesis in enumerate(hypothesis):
+        line = '#define {}\t{}\n'.format(hypothesis, str(position))
         outfile.write(line)
     
 def fillAccessViews(outfile):
