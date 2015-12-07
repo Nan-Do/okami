@@ -179,7 +179,7 @@ def fillHypothesis(outfile):
     hypothesis |= set(negated_element.id.uniqueId 
                             for eq in getEquationsFromAllStratums()
                             for negated_element in eq.negatedElements)
-    outfile.write('/* Hipothesys */\n')
+    outfile.write('/* Hypotheses */\n')
     for position, hypothesis in enumerate(hypothesis):
         line = '#define {}\t{}\n'.format(hypothesis, str(position))
         outfile.write(line)
