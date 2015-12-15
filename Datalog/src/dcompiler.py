@@ -34,7 +34,9 @@ from RewritingEquationsGenerator import rewritingEquationGenerator, rewritingEqu
 from PredicateOrder import predicateOrder
 from RuleStratifier import stratifyRules
 from Types import Stratum, Ordering
-from c_Backend import generate_code_from_template
+
+# Import the backends to generate the code
+import c_Backend, py_Backend
 
 __all__ = []
 __version__ = 0.1
@@ -88,6 +90,7 @@ USAGE
         parser.add_argument('source_file', metavar='file.datalog', type=str, nargs=1,
                        help='The datalog program to compile')
         
+        parser.add_argument('-b', '--backend', help='Choose the back end to emit the code (c is the default', type=str, choices=['c', 'python'])
         parser.add_argument('-d', '--dest-dir', help='destination directory for the generated code by default current directory is used.')
         parser.add_argument('-q', '--show-rewriting-equations', help='Show the rewriting equations for the given datalog program.',
                             action="store_true")
@@ -121,6 +124,10 @@ USAGE
         logging.basicConfig(level=logging_level,
                             format="%(asctime)s %(levelname)s %(message)s",
                             datefmt="%Y-%m-%d %H:%M:%S")
+        
+        backend = 'c'
+        if args.backend == 'python':
+            backend = 'python'
         
         # Options for the pretty printer to work nicely
         # with the compiler defined types
@@ -365,9 +372,14 @@ USAGE
             # This function is in charge to generate the source code for a given
             # back-end. Currently only the C one is implemented. More planned
             # for the future.
-            generate_code_from_template(dest_dir, stratums,
-                                        predicateTypes, predicateTypes.intensional,
-                                        printVariables, idToStratumLevels)
+            if backend == 'c':
+                c_Backend.generate_code_from_template(dest_dir, stratums,
+                                                  predicateTypes, predicateTypes.intensional,
+                                                  printVariables, idToStratumLevels)
+            else:
+                py_Backend.generate_code_from_template(dest_dir, stratums,
+                                                       predicateTypes, predicateTypes.intensional,
+                                                       printVariables, idToStratumLevels)
             logging.info("Source code generated")
         
         
