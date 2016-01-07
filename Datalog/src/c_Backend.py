@@ -426,9 +426,9 @@ def fillSolverCompute(outfile):
                                            isinstance(x, Argument) and x.type == 'constant' ])
     # This function emits code regardless we are dealing with a type 1 or type2 rewriting equation.
     # This function has been extracted as a closure so we don't have to write the piece of twice. 
-    # Also is used to emit the tabs for the source code properly.
+    # Also is used to emit the spaces for the source code properly.
     # Parameters:
-    #  tabs -> A string. Representing the number of tabs that we have to print when emitting code.
+    #  spaces -> A string. Represents the number of spaces that we have to print when emitting code.
     #  equation -> A RewritingRule1 or RewritingRule2. Represents the rewriting equation.
     # level -> An integer. Represents the stratum we are in.
     # num_of_stratums -> An integer. Represents the total number of stratums required by the 
@@ -532,7 +532,6 @@ def fillSolverCompute(outfile):
                                                                           negated_arguments))
                 if (pos != len(equation.negatedElements) - 1):
                     outfile.write(' &&')
-            #tabs += '\t'
             spaces += SPACES
             outfile.write('){\n')
             outfile.write('#ifdef NDEBUG\n')
@@ -555,7 +554,6 @@ def fillSolverCompute(outfile):
             outfile.write('{}Ds_append_solution_{}({});\n'.format(spaces,
                                                                   variable_id.name,
                                                                   args))
-            #tabs = tabs[:-1]
             spaces = spaces[:-len(SPACES)]
             outfile.write('{}'.format(spaces))
             outfile.write('}\n')
@@ -704,7 +702,6 @@ def fillSolverCompute(outfile):
                         outfile.write('\n')
             
                     
-            #tabs = '\t\t\t'
             spaces = spaces_level_3
             for equation_number, equation in enumerate(equations, start=1):
                 argument_constants_left_side = [ x for x in equation.leftArguments if x[0].type == 'constant']
@@ -763,7 +760,6 @@ def fillSolverCompute(outfile):
                                                       idToStratumLevels)
                     
                     if have_equal_cards or argument_constants_left_side:
-                        #tabs = tabs[:-1]
                         spaces = spaces[:-len(SPACES)]
                         outfile.write('{}}}\n'.format(spaces))
                         
@@ -858,7 +854,6 @@ def fillSolverCompute(outfile):
                                     outfile.write(' &&\n{}   '.format(spaces))
                                     
                         outfile.write('){\n')
-                        #tabs += '\t'
                         spaces += SPACES
 
                         # Here we have to add the solution to the data structure if the predicate has all variables
@@ -869,7 +864,6 @@ def fillSolverCompute(outfile):
                             outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(spaces,
                                                                                            equation.leftVariable.id.name,
                                                                                            ", ".join(args)))
-                            #tabs += '\t'
                             spaces += SPACES
                             outfile.write("#ifdef NDEBUG\n")
                             outfile.write("{}fprintf(stderr, \"\\tAdding solution -> \");\n".format(spaces))
@@ -879,7 +873,6 @@ def fillSolverCompute(outfile):
                             outfile.write("{}Ds_append_solution_{}({});\n".format(spaces,
                                                                                   equation.leftVariable.id.name,
                                                                                   ", ".join(args)))
-                            #tabs = tabs[:-1]
                             spaces = spaces[:-len(SPACES)]
                             outfile.write("{}}}\n".format(spaces))
                     
@@ -893,7 +886,6 @@ def fillSolverCompute(outfile):
                                 outfile.write(' &&\n{}   '.format(spaces))
                                 
                         outfile.write('){\n')
-                        #tabs += '\t'
                         spaces += SPACES
 
                     # Here we emit code to iterate over the necessary variables in order to get the desired 
@@ -912,7 +904,6 @@ def fillSolverCompute(outfile):
                         outfile.write('{}Ds_get_intValues_Level0_init();\n'.format(spaces))
                         outfile.write('{}while(Ds_get_intValues_Level0(&t0))'.format(spaces))
                         outfile.write('{\n')
-                        #tabs += '\t'
                         spaces += SPACES
                         # If the length of the predicate is one we also have to make sure that the value we obtain
                         # is valid as we won't iterate to obtain more values
@@ -988,10 +979,8 @@ def fillSolverCompute(outfile):
                         if commonVars_len == 0:
                             args = 't0'
                             if x > 1: args += ', '
-                            #tabs = tabs + '\t' * x
                         else:
                             args = args_common + ', '
-                            #tabs = tabs + '\t' * (x - 1)
                            
                         if not equal_cards_query_common_vars:
                             args += ', '.join(['t{}->value'.format(str(i))
@@ -1003,7 +992,7 @@ def fillSolverCompute(outfile):
                                                   args))
                             #number_of_args = y + len(argument_constants_consulting_values)
                             #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                            #              .format(tabs, x, number_of_args,
+                            #              .format(spaces, x, number_of_args,
                             #                      aliasToViewNames[equation.aliasName],
                             #                      args))
                             outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(spaces,
@@ -1020,7 +1009,7 @@ def fillSolverCompute(outfile):
                                                                                         args))
                             #number_of_args = y + len(argument_constants_consulting_values)
                             #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                            #              .format(tabs, (y-commonVars_len)+1, number_of_args,
+                            #              .format(spaces, (y-commonVars_len)+1, number_of_args,
                             #                      aliasToViewNames[equation.aliasName],
                             #                      args))
                             outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(spaces,
@@ -1072,7 +1061,6 @@ def fillSolverCompute(outfile):
                             if pos != len(lists_of_duplicated_vars)-1:
                                 outfile.write(' &&\n{}   '.format(spaces))
                         outfile.write('){\n')
-                        #tabs += '\t'
                         spaces += SPACES
                     
                     # Here we emit code to create the new variable. We start iterating
@@ -1108,22 +1096,18 @@ def fillSolverCompute(outfile):
                                                       idToStratumLevels)
     
                     if equal_cards_rewriting_variable or argument_constants_left_side:
-                        #tabs = tabs[:-1]
                         spaces = spaces[:-len(SPACES)]
                         outfile.write('{}}}\n'.format(spaces))
                         
                     if equal_cards_query_not_common_vars:
-                        #tabs = tabs[:-1]
                         spaces = spaces[:-len(SPACES)]
                         outfile.write('{}}}\n'.format(spaces))
                         
                     if commonVars_len == 0 and len(equation.consultingArguments) == 1:
-                        #tabs = tabs[:-1]
                         spaces = spaces[:-len(SPACES)]
                         outfile.write('{}}}\n'.format(spaces))
                     
                     for x in xrange(commonVars_len+1, len(equation.consultingArguments) - len(argument_constants_consulting_values)):
-                        #tabs = tabs[:-1]
                         spaces = spaces[:-len(SPACES)]
                         outfile.write('{}'.format(spaces))
                         outfile.write('}\n')
@@ -1225,7 +1209,7 @@ def fillDataStructureLevelNodes(outfile):
         outfile.write('/* Level {} */\n'.format(length))
         outfile.write('struct DsData_Level_{}'.format(length))
         outfile.write('{\n')
-        #tabs = '\t'
+
         # If the number of views for this level is 0 we don't have to emit code
         # to store the intList for the current level, also it would output m[0]
         # forbidden by ISO C and with no sense.
@@ -1272,7 +1256,6 @@ def fillDataStructureLevelNodes(outfile):
 @check_for_predicates_of_type2    
 def fillDataStructureInsertFunctions(outfile):
     def print_code_for_Ds_insert_1():
-        #tabs = '\t'
         spaces_level_1 = SPACES
         spaces_level_2 = SPACES * 2
         spaces_level_3 = SPACES * 3
@@ -1280,18 +1263,18 @@ def fillDataStructureInsertFunctions(outfile):
         outfile.write('void Ds_insert_1(int x_1){\n')
         outfile.write('{}Word_t * PValue1;\n\n'.format(spaces_level_1))
         outfile.write('{}if (!(JLG(PValue1, root, x_1))){{\n'.format(spaces_level_1))
-        #tabs += '\t'
+
         outfile.write('{}JLI(PValue1, root, x_1);\n'.format(spaces_level_2))
         outfile.write('{}if (PValue1 == PJERR){{\n'.format(spaces_level_2))
-        #tabs += '\t'
+
         outfile.write('{}fprintf(stderr, "Solver: Error allocating '.format(spaces_level_3))
         outfile.write('memory %s:%i\\n", __FILE__, __LINE__);\n')
         outfile.write('{}abort();\n'.format(spaces_level_3))
-        #tabs = tabs[:-1]
+
         outfile.write('{}}}\n'.format(spaces_level_2))
         if getDataStructureNodesMaximumLength() > 1:
             outfile.write('{}(*PValue1) = ((Word_t) DsData_Level_2_new_node());\n'.format(spaces_level_2))
-        #tabs = tabs[:-1]
+
         outfile.write('{}}}\n'.format(spaces_level_1))
         outfile.write('}\n')
 
@@ -1322,7 +1305,7 @@ def fillDataStructureInsertFunctions(outfile):
         outfile.write('void Ds_insert_{}(int pos, {})'.format(length,
                                                               ", ".join(args_to_function)))
         outfile.write('{\n')
-        #tabs = '\t'
+
         values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
         outfile.write('{}Word_t {};\n\n'.format(spaces_level_1,
                                               ', '.join(values)))
@@ -1336,22 +1319,22 @@ def fillDataStructureInsertFunctions(outfile):
             outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces_level_1, x,
                                                                          node))
             outfile.write('{\n')
-            #tabs += '\t'
+
             outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(spaces_level_2, x,
                                                                     node))
             outfile.write('{0}if (PValue{1} == PJERR)'.format(spaces_level_2, x))
             outfile.write('{\n')
-            #tabs += '\t'
+
             outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces_level_3))
             outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
             
             outfile.write('{}abort();\n'.format(spaces_level_3))
-            #tabs = tabs[:-1]
+
             outfile.write('{}'.format(spaces_level_2))
             outfile.write('}\n')
             outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces_level_2,
                                                                                              x, x+1))
-            #tabs = tabs[:-1]
+
             outfile.write('{}'.format(spaces_level_1))
             outfile.write('}\n\n')
             
@@ -1391,7 +1374,6 @@ def fillDataStructureGetIntListFunctions(outfile):
         outfile.write('intList * Ds_get_intList_{}(int pos, {})'.format(length,
                                                               ", ".join(args_to_function)))
         outfile.write('{\n')
-        #tabs = '\t'
         spaces = SPACES
         values = ('* PValue{}'.format(str(v+1)) for v in xrange(length))
         outfile.write('{}Word_t {};\n\n'.format(spaces,
@@ -1408,7 +1390,6 @@ def fillDataStructureGetIntListFunctions(outfile):
                                                                     node,
                                                                     str(x)))
             outfile.write('{\n')
-            #tabs += '\t'
             spaces += SPACES
             
         outfile.write('{}return ((DsData_{} *) '.format(spaces,
@@ -1417,7 +1398,6 @@ def fillDataStructureGetIntListFunctions(outfile):
         outfile.write('*PValue{})->m[pos];\n'.format(str(length)))
         
         for x in xrange(1, length+1):
-            #tabs = tabs[:-1]
             spaces = spaces[:-len(SPACES)]
             outfile.write('{}'.format(spaces))
             outfile.write('}\n')
@@ -1434,7 +1414,6 @@ def fillDataStructureContainSolutionFunctions(outfile):
         outfile.write('int Ds_contains_solution_{}({})'.format(variable_id.name,
                                                                ', '.join(args)))
         outfile.write('{\n')
-        #tabs = '\t'
         spaces = SPACES
         if length > 1:
             values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
@@ -1450,10 +1429,8 @@ def fillDataStructureContainSolutionFunctions(outfile):
             outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))\n'.format(spaces,
                                                                            x,
                                                                            node))
-            #tabs += '\t'
             spaces += SPACES
             outfile.write('{}return FALSE;\n'.format(spaces))
-            #tabs = tabs[:-1]
             spaces = spaces[:-len(SPACES)]
             
         if length > 1:
@@ -1477,7 +1454,6 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         outfile.write('void Ds_append_solution_{}({})'.format(variable_id.name,
                                                                ', '.join(args)))
         outfile.write('{\n')
-        #tabs = '\t'
         spaces = SPACES
         if length > 1:
             values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
@@ -1493,7 +1469,6 @@ def fillDataStructureAppendSolutionFunctions(outfile):
                                                                          x,
                                                                          node))
             outfile.write('{\n')
-            #tabs += '\t'
             spaces += SPACES
             outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(spaces,
                                                                     x,
@@ -1501,20 +1476,17 @@ def fillDataStructureAppendSolutionFunctions(outfile):
             outfile.write('{0}if (PValue{1} == PJERR)'.format(spaces,
                                                               x))
             outfile.write('{\n')
-            #tabs += '\t'
             spaces += SPACES
             outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces))
             outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
             
             outfile.write('{}abort();\n'.format(spaces))
-            #tabs = tabs[:-1]
             spaces = spaces[:-len(SPACES)]
             outfile.write('{}'.format(spaces))
             outfile.write('}\n')
             outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces,
                                                                                             x,
                                                                                             x+1))
-            #tabs = tabs[:-1]
             spaces = spaces[:-len(SPACES)]
             outfile.write('{}'.format(spaces))
             outfile.write('}\n\n')
@@ -1530,12 +1502,10 @@ def fillDataStructureAppendSolutionFunctions(outfile):
                                                                         node,
                                                                         str(length)))
         outfile.write('{\n')
-        #tabs += '\t'
         spaces += SPACES
         outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces))
         outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
         outfile.write('{}abort();\n'.format(spaces))
-        #tabs = tabs[:-1]
         spaces = spaces[:-len(SPACES)]
         outfile.write('{}'.format(spaces))
         outfile.write('}\n')
@@ -1569,7 +1539,6 @@ def fillDataStructureInitLevelFunctions(outfile):
         
         outfile.write('void DsData_Level_{0}_init(DsData_{0} *d)'.format(length))
         outfile.write('{\n')
-        #tabs = '\t'
         spaces_level_1 = SPACES
         
         outfile.write('{}'.format(spaces_level_1))
@@ -1611,7 +1580,6 @@ def fillDataStructureLevelNewNodeFunctions(outfile):
         node = 'DsData_{}'.format(length)
         outfile.write('{} * DsData_Level_{}_new_node()'.format(node,
                                                                length))
-        #tabs = '\t'
         outfile.write('{\n')
         outfile.write('{}{} * temp;\n\n'.format(spaces_level_1,
                                                 node))
@@ -1637,7 +1605,6 @@ def fillDataStructureLevelFreeFunctions(outfile):
         
     for pos, length in enumerate(lengths):
         outfile.write('void DsData_Level_{0}_free(DsData_{0} *d)'.format(length))
-        #tabs = '\t'
         spaces = SPACES
         outfile.write('{\n')
         if pos != len(lengths) - 1:
@@ -1646,7 +1613,6 @@ def fillDataStructureLevelFreeFunctions(outfile):
                                                                        length+1))
             outfile.write('{}while (PValue != NULL)'.format(spaces))
             outfile.write('{\n')
-            #tabs += '\t'
             spaces += SPACES
             outfile.write('{0}DsData_Level_{1}_free((DsData_{1} *) *PValue);\n'.format(spaces,
                                                                                        length+1))
@@ -1654,7 +1620,6 @@ def fillDataStructureLevelFreeFunctions(outfile):
                                                                            length+1))
             outfile.write('{}JLN(PValue, d->level{}, index);\n'.format(spaces,
                                                                        length+1))
-            #tabs = tabs[:-1]
             spaces = spaces[:-len(SPACES)]
             outfile.write('{}'.format(spaces))
             outfile.write('}\n')
