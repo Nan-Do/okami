@@ -9,7 +9,7 @@ typedef struct T *T;
 extern T    Arena_new    (void);
 extern void Arena_dispose(T *ap);
 extern void *Arena_alloc (T arena, long nbytes,
-	const char *file, int line);
+                          const char *file, int line);
 extern void  Arena_free  (T arena);
 #undef T
 #endif

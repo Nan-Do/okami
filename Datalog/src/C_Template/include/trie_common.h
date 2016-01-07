@@ -4,8 +4,8 @@
 #define TRIE_COMMON_H_
 
 struct intList{
-	unsigned int value;
-	struct intList *next;
+    unsigned int value;
+    struct intList *next;
 };
 typedef struct intList intList;
 

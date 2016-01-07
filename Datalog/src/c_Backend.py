@@ -28,6 +28,9 @@ SOURCE_FILES = ['makefile', 'main.c', 'parser.c',
                 'mem.c', 'data_structure_common.c', 'arena.c',
                 'solver.c', 'data_structure.c']
 
+EMPTY_LINE = '\n'
+SPACES = ' ' * 4
+
 # Global data for the module
 GenerationData = None
 
@@ -237,26 +240,32 @@ def fillDataStructureSolutionHeaderFunctions(outfile):
 
 # solver.c
 def fillInputTuplesFiles(outfile):
+    spaces_level_1 = SPACES
     extensional = list(getExtensionalPredicates())
-    outfile.write('static char *tuples_input_files[] = {\n')
     
+    outfile.write('static char *tuples_input_files[] = {\n')
     for pos, (pred_name, _) in enumerate(extensional):
         if pos != len(extensional)-1:
-            outfile.write('\t"{}.tuples",\n'.format(pred_name))
+            outfile.write('{}"{}.tuples",\n'.format(spaces_level_1,
+                                                    pred_name))
         else:
-            outfile.write('\t"{}.tuples"\n'.format(pred_name))
+            outfile.write('{}"{}.tuples"\n'.format(spaces_level_1,
+                                                   pred_name))
     outfile.write('};\n')
     outfile.write('#define INPUT_TUPLES_FILES {}\n'.format(len(extensional)))
     
 def fillOutputTuplesFiles(outfile):
+    spaces_level_1 = SPACES
     outputTuples = GenerationData.answersToStore
     
     outfile.write('static char *tuples_output_files[] = {\n')
     for pos, (pred_name, _) in enumerate(outputTuples):
         if pos != len(outputTuples)-1:
-            outfile.write('\t"{}.tuples",\n'.format(pred_name))
+            outfile.write('{}"{}.tuples",\n'.format(spaces_level_1,
+                                                    pred_name))
         else:
-            outfile.write('\t"{}.tuples"\n'.format(pred_name))
+            outfile.write('{}"{}.tuples"\n'.format(spaces_level_1,
+                                                   pred_name))
     outfile.write('};\n')
     outfile.write('#define OUTPUT_TUPLES_FILES {}\n'.format(len(outputTuples)))
     
@@ -268,6 +277,9 @@ def fillOutputTuplesFiles(outfile):
     outfile.write(';\n')
     
 def fillPrintRewritingVariable(outfile):
+    spaces_level_1 = SPACES
+    spaces_level_2 = SPACES * 2
+
     for position, ((pred_name, pred_uniqueId), length) in enumerate(getAllPredicatesLengths()):
         if position == 0:
             conditional = 'if'
@@ -277,10 +289,18 @@ def fillPrintRewritingVariable(outfile):
         formatting = ', '.join(['%i' for x in xrange(length)])
         variables = ', '.join(['b->VAR_' + str(x) for x in xrange(1, length+1)])
         
-        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_uniqueId))
-        outfile.write('\t\tfprintf(file, "X_{}({}).", {});\n'.format(pred_name, formatting, variables))
+        outfile.write('{}{} (b->PREDICATE == {})\n'.format(spaces_level_1,
+                                                           conditional,
+                                                           pred_uniqueId))
+        outfile.write('{}fprintf(file, "X_{}({}).", {});\n'.format(spaces_level_2,
+                                                                   pred_name,
+                                                                   formatting,
+                                                                   variables))
         
 def fillPrintAnswer(outfile):
+    spaces_level_1 = SPACES
+    spaces_level_2 = SPACES * 2
+
     for position, ((pred_name, pred_uniqueId), length) in enumerate(getAllPredicatesLengths()):
         if position == 0:
             conditional = 'if'
@@ -290,22 +310,32 @@ def fillPrintAnswer(outfile):
         formatting = ', '.join(['%i' for x in xrange(length)])
         variables = ', '.join(['b->VAR_' + str(x) for x in xrange(1, length+1)])
         
-        outfile.write('\t{} (b->PREDICATE == {})\n'.format(conditional, pred_uniqueId))
-        outfile.write('\t\tfprintf(file, "{}({}).\\n", {});\n'.format(pred_name, formatting, variables))
+        outfile.write('{}{} (b->PREDICATE == {})\n'.format(spaces_level_1,
+                                                           conditional,
+                                                           pred_uniqueId))
+        outfile.write('{}fprintf(file, "{}({}).\\n", {});\n'.format(spaces_level_2,
+                                                                    pred_name,
+                                                                    formatting,
+                                                                    variables))
 
 
 def fillSolverInit(outfile):
+    spaces_level_1 = SPACES
+
     # First init the queues
     number_of_stratums = len(GenerationData.stratums)
     outputTuples = GenerationData.answersToStore
     
     for queue_number in xrange(1, number_of_stratums + 1):
-        outfile.write('\tSolverQueue_init(&solver_queue{});\n'.format(queue_number))
+        outfile.write('{}SolverQueue_init(&solver_queue{});\n'.format(spaces_level_1,
+                                                                      queue_number))
         
     outfile.write('\n')
         
     for pos, predicate in enumerate(outputTuples):
-        outfile.write('\tfp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(predicate[0], str(pos)))
+        outfile.write('{}fp_{} = fopen(tuples_output_files[{}], "w+");\n'.format(spaces_level_1,
+                                                                                 predicate[0],
+                                                                                 str(pos)))
         
 def fillStratumQueueInitializers(outfile):
     extensional = list(getExtensionalPredicates())
@@ -313,18 +343,23 @@ def fillStratumQueueInitializers(outfile):
     idToStratumLevels = GenerationData.idToStratumLevels
     number_of_stratums = len(GenerationData.stratums)
     
+    spaces_level_1 = SPACES
+    spaces_level_2 = SPACES * 2
+    spaces_level_4 = SPACES * 4
+
     # Create a new dictionary from idToStratumLevels only containing
     # extensional predicates
     extensionalToStratumLevels = {k: v for (k,v) in idToStratumLevels.iteritems() if k in extensional_as_set}
     
     for stratum_level in xrange(1, number_of_stratums + 1):
         outfile.write('int solver_init_stratum_level{}(){{\n'.format(str(stratum_level)))
-        outfile.write('\tFILE *fp;\n')
-        outfile.write('\tFact fact;\n')
-        outfile.write('\tTYPE_REWRITING_VARIABLE VAR;\n\n')
+        outfile.write('{}FILE *fp;\n'.format(spaces_level_1))
+        outfile.write('{}Fact fact;\n'.format(spaces_level_1))
+        outfile.write('{}TYPE_REWRITING_VARIABLE VAR;\n\n'.format(spaces_level_1))
         
         outfile.write('#ifdef NDEBUG\n')
-        outfile.write('\t\tfprintf(stderr, "STRATUM LEVEL: {}\\n");\n'.format(str(stratum_level)))
+        outfile.write('{}fprintf(stderr, "STRATUM LEVEL: {}\\n");\n'.format(spaces_level_1,
+                                                                            str(stratum_level)))
         outfile.write('#endif\n\n')
         
         # Get the predicates that belong to the current stratum level
@@ -342,37 +377,44 @@ def fillStratumQueueInitializers(outfile):
             
             length = getPredicateLength(idVar)
         
-            outfile.write('\tfp = fopen(tuples_input_files[{}], "r");\n'.format(pos))
-            outfile.write('\tif (!fp){\n')
-            outfile.write('\t\tfprintf(stderr, "Error: Can\'t open file %s\\n",')
+            outfile.write('{}fp = fopen(tuples_input_files[{}], "r");\n'.format(spaces_level_1,
+                                                                                pos))
+            outfile.write('{}if (!fp){{\n'.format(spaces_level_1))
+            outfile.write('{}fprintf(stderr, "Error: Can\'t open file %s\\n",'.format(spaces_level_2))
             outfile.write(' tuples_input_files[{}]);\n'.format(pos))
-            outfile.write('\t\treturn FALSE;\n')
-            outfile.write('\t}\n')
-            outfile.write('\twhile (parser_get_fact(fp, NULL, &fact) == 1){\n')
-            outfile.write('\t\tVAR.PREDICATE = {};\n'.format(idVar.uniqueId))
+            outfile.write('{}return FALSE;\n'.format(spaces_level_2))
+            outfile.write('{}}}\n'.format(spaces_level_1))
+            outfile.write('{}while (parser_get_fact(fp, NULL, &fact) == 1){{\n'.format(spaces_level_1))
+            outfile.write('{}VAR.PREDICATE = {};\n'.format(spaces_level_2,
+                                                           idVar.uniqueId))
             
             for x in xrange(length):
-                outfile.write('\t\tVAR.VAR_{} = fact.values[{}];\n'.format(str(x+1), x))
+                outfile.write('{}VAR.VAR_{} = fact.values[{}];\n'.format(spaces_level_2,
+                                                                         str(x+1), x))
     
             outfile.write('\n')
             
             formatting = ','.join(['%i' for x in xrange(length)])
             outfile.write('#ifdef NDEBUG\n')
-            outfile.write('\t\tfprintf(stderr, "Adding rewriting variable: X_{}'.format(idVar.name))
+            outfile.write('{}fprintf(stderr, "Adding rewriting variable: X_{}'.format(spaces_level_2,
+                                                                                      idVar.name))
             outfile.write('({})\\n",\n'.format(formatting))
             
             for x in xrange(length):
                 if x != (length - 1):
-                    outfile.write('\t\t\t\tVAR.VAR_{},\n'.format(str(x+1)))
+                    outfile.write('{}VAR.VAR_{},\n'.format(spaces_level_4,
+                                                           str(x+1)))
                 else:
-                    outfile.write('\t\t\t\tVAR.VAR_{});\n'.format(str(x+1)))
+                    outfile.write('{}VAR.VAR_{});\n'.format(spaces_level_4,
+                                                            str(x+1)))
             outfile.write('#endif\n\n')
             
-            outfile.write('\t\tSolverQueue_append(&solver_queue{}, &VAR);\n'.format(str(stratum_level)))
-            outfile.write('\t}\n')
-            outfile.write('\tfclose(fp);\n\n')
+            outfile.write('{}SolverQueue_append(&solver_queue{}, &VAR);\n'.format(spaces_level_2,
+                                                                                  str(stratum_level)))
+            outfile.write('{}}}\n'.format(spaces_level_1))
+            outfile.write('{}fclose(fp);\n\n'.format(spaces_level_1))
         
-        outfile.write('\treturn TRUE;\n')
+        outfile.write('{}return TRUE;\n'.format(spaces_level_1))
         outfile.write('}\n\n')
     
 def fillSolverCompute(outfile):
@@ -393,7 +435,7 @@ def fillSolverCompute(outfile):
     #                    Datalog program.
     # idToStratumLevels -> A dictionary. The dictionary is a mapping between the identifiers and
     #                      the stratum level they belong.
-    def common_block_for_any_type_of_rule(tabs, equation, level, num_of_stratums, idToStratumLevels):
+    def common_block_for_any_type_of_rule(spaces, equation, level, num_of_stratums, idToStratumLevels):
         # Do we have to store the answer??
         if equation.rightVariable.id in answersToStore:
             variable_id = equation.rightVariable.id
@@ -401,12 +443,12 @@ def fillSolverCompute(outfile):
             args = ', '.join('VAR.VAR_{}'.format(x) for 
                             x in xrange(1, len(equation.rightArguments)+1))
             
-            outfile.write('\n{}if (!Ds_contains_solution_{}({})'.format(tabs,
-                                                                         variable_id.name,
-                                                                         args))
+            outfile.write('\n{}if (!Ds_contains_solution_{}({})'.format(spaces,
+                                                                        variable_id.name,
+                                                                        args))
             
             if equation.booleanExpressions:
-                outfile.write( ' &&\n{0}{1}/* Boolean expression conditions */\n{0}{1}'.format(tabs, 
+                outfile.write( ' &&\n{0}{1}/* Boolean expression conditions */\n{0}{1}'.format(spaces,
                                                                                                '    '))
                 boolean_expressions_str = ''
                 for p1, (_, b_args, b_op) in enumerate(equation.booleanExpressions):
@@ -451,14 +493,14 @@ def fillSolverCompute(outfile):
                             boolean_expression_str += " " + b_op + " "
                     boolean_expressions_str += "(" + boolean_expression_str + ")"
                     if p1 != len(equation.booleanExpressions) - 1:
-                        boolean_expressions_str += " &&\n{}{}".format(tabs,
+                        boolean_expressions_str += " &&\n{}{}".format(spaces,
                                                                       '    ')
                         
                 outfile.write(boolean_expressions_str)
             
             if equation.negatedElements:
-                outfile.write( ' && \n{0}{1}/* Negated predicates */'.format(tabs,
-                                                                                    '    '))
+                outfile.write( ' && \n{0}{1}/* Negated predicates */'.format(spaces,
+                                                                             '    '))
             
             for (pos, negated_element) in enumerate(equation.negatedElements):
                 negated_arguments_str = []
@@ -484,23 +526,24 @@ def fillSolverCompute(outfile):
                                                                                          equation.commonVariables)))
                 
                 negated_arguments = ', '.join(negated_arguments_str)
-                outfile.write('\n{}{}!Ds_contains_solution_{}({})'.format(tabs,
+                outfile.write('\n{}{}!Ds_contains_solution_{}({})'.format(spaces,
                                                                           '    ',
                                                                           negated_element.id.name,
                                                                           negated_arguments))
                 if (pos != len(equation.negatedElements) - 1):
                     outfile.write(' &&')
-            tabs += '\t'
+            #tabs += '\t'
+            spaces += SPACES
             outfile.write('){\n')
             outfile.write('#ifdef NDEBUG\n')
             # Print the variable information
-            outfile.write('{}fprintf(stderr, "\\tAdding variable -> ");\n'.format(tabs))
-            outfile.write('{}print_rewriting_variable(stderr, &VAR);\n'.format(tabs))
-            outfile.write('{}fprintf(stderr, "\\n");\n'.format(tabs))
+            outfile.write('{}fprintf(stderr, "\\tAdding variable -> ");\n'.format(spaces))
+            outfile.write('{}print_rewriting_variable(stderr, &VAR);\n'.format(spaces))
+            outfile.write('{}fprintf(stderr, "\\n");\n'.format(spaces))
             # Print the levels in which the variable is going to be added. Here is printed for
             # debugging purposes.
             for level in idToStratumLevels[variable_id]:
-                outfile.write('{}fprintf(stderr, "\\t  Queue {}\\n");\n'.format(tabs, str(level)))
+                outfile.write('{}fprintf(stderr, "\\t  Queue {}\\n");\n'.format(spaces, str(level)))
             outfile.write('#endif\n\n')
             
             # To compute a program a variable can be required to be evaluated in different queues, here we
@@ -508,15 +551,16 @@ def fillSolverCompute(outfile):
             # contains the required information to emit the code. It takes as a key a variable_id and returns
             # the queue levels in which is required.
             for queue_level in idToStratumLevels[variable_id]:
-                outfile.write('{}SolverQueue_append(&solver_queue{}, &VAR);\n'.format(tabs, str(queue_level)))
-            outfile.write('{}Ds_append_solution_{}({});\n'.format(tabs,
+                outfile.write('{}SolverQueue_append(&solver_queue{}, &VAR);\n'.format(spaces, str(queue_level)))
+            outfile.write('{}Ds_append_solution_{}({});\n'.format(spaces,
                                                                   variable_id.name,
                                                                   args))
-            tabs = tabs[:-1]
-            outfile.write('{}'.format(tabs))
+            #tabs = tabs[:-1]
+            spaces = spaces[:-len(SPACES)]
+            outfile.write('{}'.format(spaces))
             outfile.write('}\n')
         else:
-            outfile.write('{}SolverQueue_append(&solver_queue1, &VAR);\n'.format(tabs))
+            outfile.write('{}SolverQueue_append(&solver_queue1, &VAR);\n'.format(spaces))
             
     #equationsTable = GenerationData.equationsTable
     #predsToViewNames = GenerationData.viewsData.predsToViewNames
@@ -530,12 +574,21 @@ def fillSolverCompute(outfile):
     outputTuples = GenerationData.answersToStore
     idToStratumLevels = GenerationData.idToStratumLevels
     
+    spaces_level_1 = SPACES
+    spaces_level_2 = SPACES * 2
+    spaces_level_3 = SPACES * 3
+    spaces_level_5 = SPACES * 5
+
     # Here we emit code to handle the different stratums in the solver_compute function
     for level, stratum in enumerate(GenerationData.stratums, start=1):
-        outfile.write('\t/*Stratum {}*/\n'.format(level))
-        outfile.write('\tsolver_init_stratum_level{}();\n'.format(str(level)))
-        outfile.write('\twhile (solver_queue{}.head){{\n'.format(str(level)))
-        outfile.write('\t\tcurrent = solver_queue{}.head;\n\n'.format(str(level)))
+        outfile.write('{}/*Stratum {}*/\n'.format(spaces_level_1,
+                                                  level))
+        outfile.write('{}solver_init_stratum_level{}();\n'.format(spaces_level_1,
+                                                                  str(level)))
+        outfile.write('{}while (solver_queue{}.head){{\n'.format(spaces_level_1,
+                                                                 str(level)))
+        outfile.write('{}current = solver_queue{}.head;\n\n'.format(spaces_level_2,
+                                                                    str(level)))
         
         block1 = stratum.ordering.block1
         block2 = stratum.ordering.block2
@@ -545,7 +598,8 @@ def fillSolverCompute(outfile):
             # Get the equation of the predicate raise an exception if not found
             equations = (x for x in getEquationsFromAllStratums() if x.leftVariable.id == variable_id)
     
-            outfile.write('\t\tif (current->b.PREDICATE == {})'.format(variable_id.uniqueId))
+            outfile.write('{}if (current->b.PREDICATE == {})'.format(spaces_level_2,
+                                                                     variable_id.uniqueId))
             outfile.write('{\n')
 
             # The answer can be represented in more than one level (stratum). We need to 
@@ -558,21 +612,24 @@ def fillSolverCompute(outfile):
             level_to_store_answer = sorted(idToStratumLevels[variable_id])[0]
             # Do we have to print the variable to stdout?.
             if level == level_to_store_answer and variable_id in printVariables:
-                outfile.write("\t\t\tprint_answer(stdout, &current->b);\n")
+                outfile.write("{}print_answer(stdout, &current->b);\n".format(spaces_level_3))
                 
             # Is it a solution? Then print it to a file.
             if level == level_to_store_answer and variable_id in outputTuples:
-                outfile.write("\t\t\tprint_answer(fp_{}, &current->b);\n".format(variable_id.name))
+                outfile.write("{}print_answer(fp_{}, &current->b);\n".format(spaces_level_3,
+                                                                             variable_id.name))
             
             # Debug information
             pred_length = getPredicateLength(variable_id)
             outfile.write('#ifdef NDEBUG\n')
             formatting = ', '.join(['%i' for _ in xrange(pred_length)])
-            args = ',\n\t\t\t\t\t'.join(('current->b.VAR_{}'.format(str(x+1)) for x in xrange(pred_length)))
-            output_string = '\t\t\tfprintf(stderr, "Handling rewriting ' +\
+            separator = ',\n{}'.format(spaces_level_5)
+            args = separator.join(('current->b.VAR_{}'.format(str(x+1)) for x in xrange(pred_length)))
+            output_string = '{}fprintf(stderr, "Handling rewriting '.format(spaces_level_3) +\
                             'variable: X_{}'.format(variable_id.name) +\
-                            '({})\\n",\n\t\t\t\t\t{});\n'.format(formatting,
-                                                                 args)
+                            '({})\\n",\n{}{});\n'.format(formatting,
+                                                         spaces_level_5,
+                                                         args)
             outfile.write(output_string)
             #outfile.write('#endif\n')
             
@@ -589,7 +646,7 @@ def fillSolverCompute(outfile):
                 # Debug information: If the predicate has length 1 the it becomes a solution and has to be
                 # treated as such. Otherwise we insert a value into the list as normal
                 if (level == level_to_store_answer) and (pred_length == 1):
-                    outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
+                    outfile.write('{}fprintf(stderr, "\\tData structure: '.format(spaces_level_3))
                     outfile.write('Adding solution {}(%i)\\n", current->b.VAR_1);\n'.format(variable_id.name))
                 elif (level == level_to_store_answer):
                     for view in predsToViewNames[variable_id]:
@@ -597,7 +654,7 @@ def fillSolverCompute(outfile):
                                          x in viewNamesToCombinations[view])
                         formatting = ', '.join(('%i' for _ in viewNamesToCombinations[view]))
       
-                        outfile.write('\t\t\tfprintf(stderr, "\\tData structure: ')
+                        outfile.write('{}fprintf(stderr, "\\tData structure: '.format(spaces_level_3))
                         outfile.write('Adding {}({})\\n", {});\n'.format(view,
                                                                         formatting,
                                                                         args))
@@ -615,10 +672,11 @@ def fillSolverCompute(outfile):
                 # 1 we have to add directly the solution, as by convention there is no level node of length 0
                 # and the predicates of length 1 are turned into solutions
                 if (level == level_to_store_answer) and (pred_length == 1):
-                    outfile.write('\t\t\tDs_append_solution_{}(current->b.VAR_1);\n'.format(variable_id.name))
+                    outfile.write('{}Ds_append_solution_{}(current->b.VAR_1);\n'.format(spaces_level_3,
+                                                                                        variable_id.name))
                     # If the variable only appears as a negated predicate we don't have to insert it to the database
                     if variable_id in getAllConsultingPredicates():
-                        outfile.write('\t\t\tDs_insert_1(current->b.VAR_1);\n\n')
+                        outfile.write('{}Ds_insert_1(current->b.VAR_1);\n\n'.format(spaces_level_3))
                 elif (level == level_to_store_answer):
                     for view in predsToViewNames[variable_id]:
                         args = ', '.join('current->b.VAR_{}'.format(x) for
@@ -631,21 +689,24 @@ def fillSolverCompute(outfile):
                         if variable_id in getPredicatesWithAllVariablesBeingInTheSharedSet() |\
                                           getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()|\
                                           getNegatedPredicates():
-                            outfile.write('\t\t\tDs_append_solution_{}({});\n'.format(variable_id.name,
-                                                                                      args))
+                            outfile.write('{}Ds_append_solution_{}({});\n'.format(spaces_level_3,
+                                                                                  variable_id.name,
+                                                                                  args))
                         
                         # We have to update the database if the identifier pertains to a variable
                         # that is going to be consulted in the database. That means it pertains to
                         # an equation  
                         if variable_id in getAllConsultingPredicates():
-                            outfile.write('\t\t\tDs_insert_{}({}, {});\n'.format(pred_length,
-                                                                                 view,
-                                                                                 args))
+                            outfile.write('{}Ds_insert_{}({}, {});\n'.format(spaces_level_3,
+                                                                             pred_length,
+                                                                             view,
+                                                                             args))
                         outfile.write('\n')
             
                     
-            tabs = '\t\t\t'
-            for equation in equations:
+            #tabs = '\t\t\t'
+            spaces = spaces_level_3
+            for equation_number, equation in enumerate(equations, start=1):
                 argument_constants_left_side = [ x for x in equation.leftArguments if x[0].type == 'constant']
                 
                 if equation.type == 1:
@@ -659,52 +720,56 @@ def fillSolverCompute(outfile):
                             
                         lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
                         
-                        outfile.write('{}if('.format(tabs))
+                        outfile.write('{}if('.format(spaces))
                         for pos, l in enumerate(lists_of_duplicated_vars):
                             t = ['current->b.VAR_{}'.format(x) for x in l]
                             outfile.write('{}'.format(' == '.join(t)))
                             if pos != len(lists_of_duplicated_vars)-1:
-                                outfile.write(' &&\n{}   '.format(tabs))
+                                outfile.write(' &&\n{}   '.format(spaces))
                     if argument_constants_left_side:
                         if have_equal_cards:
-                            outfile.write(' &&\n{}   '.format(tabs))
+                            outfile.write(' &&\n{}   '.format(spaces))
                         else:
-                            outfile.write('{}if('.format(tabs))
+                            outfile.write('{}if('.format(spaces))
                             
                         for pos, elem in enumerate(argument_constants_left_side):
                             outfile.write('current->b.VAR_{} == {}'.format(elem[1], 
                                                                            str(elem[0].value)))
                             if pos != len(argument_constants_left_side)-1:
-                                outfile.write(' &&\n{}   '.format(tabs))
+                                outfile.write(' &&\n{}   '.format(spaces))
                             
                     if have_equal_cards or argument_constants_left_side:
                         outfile.write('){\n')
-                        tabs += '\t'
+                        spaces += SPACES
                             
-                    outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs, equation.rightVariable.id.uniqueId))
+                    outfile.write('{}VAR.PREDICATE = {};\n'.format(spaces, equation.rightVariable.id.uniqueId))
                     for pos, answer_pos in enumerate(equation.rightArguments, 1):
                         # Check if we are dealing with a constant propagated trough the datalog source code.
                         # If we have an integer here it means it is a rewriting constant propagated value
                         # otherwise it is a constant specified on the datalog source code.
                         if isinstance(answer_pos, int):
-                            outfile.write('{}VAR.VAR_{} = current->b.VAR_{};\n'.format(tabs,
+                            outfile.write('{}VAR.VAR_{} = current->b.VAR_{};\n'.format(spaces,
                                                                                        str(pos),
                                                                                        str(answer_pos)))
                         else:
-                            outfile.write('{}VAR.VAR_{} = {};\n'.format(tabs,
+                            outfile.write('{}VAR.VAR_{} = {};\n'.format(spaces,
                                                                         str(pos),
                                                                         str(answer_pos.value)))
                         
-                    common_block_for_any_type_of_rule(tabs, equation, level, len(GenerationData.stratums),
+                    common_block_for_any_type_of_rule(spaces,
+                                                      equation,
+                                                      level,
+                                                      len(GenerationData.stratums),
                                                       idToStratumLevels)
                     
                     if have_equal_cards or argument_constants_left_side:
-                        tabs = tabs[:-1]
-                        outfile.write('{}}}\n'.format(tabs, tabs))
+                        #tabs = tabs[:-1]
+                        spaces = spaces[:-len(SPACES)]
+                        outfile.write('{}}}\n'.format(spaces))
                         
                 if equation.type == 2:
                     commonVars_len = len(equation.commonVariables)
-                    
+
                     argument_constants_consulting_values = [ x for x in equation.consultingArguments if
                                                                isinstance(x, Argument) and x.type == 'constant' ]
                     
@@ -755,7 +820,7 @@ def fillSolverCompute(outfile):
                             len(set([x for x in equation.consultingArguments[number_of_common_vars:]
                                      if isinstance(x, Argument) and x.type == 'variable']))):
                                         equal_cards_query_not_common_vars = True
-    
+
                     # If we have equal cards in the rewriting variable we are analyzing to emit code
                     # We have to check that the values represented by the equal cards are the same
                     if equal_cards_rewriting_variable:
@@ -767,66 +832,70 @@ def fillSolverCompute(outfile):
                         temp_dict = defaultdict(list)
                         for rule_pos, (var_name, _) in enumerate(equation.leftArguments, 1):
                             temp_dict[var_name].append(rule_pos)
-                                
+
                         # Once we have built the dictionary we create a list of lists removing the lists
                         # of length 1 as the represent the variables that are not equal cards
                         lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
-                            
+
                         # Once we have that lists of lists we only have to iterate through to emit the code
                         # Every list will contain the positions that should be equal. We emit an if in which
                         # every line are the positions of the list compared for equality and joined by logical 
                         # ands
-                        outfile.write('{}if('.format(tabs))
+                        outfile.write('{}if('.format(spaces))
+
                         for pos, l in enumerate(lists_of_duplicated_vars):
                             t = ['current->b.VAR_{}'.format(x) for x in l]
                             outfile.write('{}'.format(' == '.join(t)))
                             if pos != len(lists_of_duplicated_vars)-1:
-                                outfile.write(' &&\n{}   '.format(tabs))
+                                outfile.write(' &&\n{}   '.format(spaces))
                         if argument_constants_left_side:
-                            outfile.write(' &&\n{}   '.format(tabs))
+                            outfile.write(' &&\n{}   '.format(spaces))
                                                 
                             for pos, elem in enumerate(argument_constants_left_side):
                                 outfile.write('current->b.VAR_{} == {}'.format(elem[1], 
                                                                                str(elem[0].value)))
                                 if pos != len(argument_constants_left_side)-1:
-                                    outfile.write(' &&\n{}   '.format(tabs))
+                                    outfile.write(' &&\n{}   '.format(spaces))
                                     
                         outfile.write('){\n')
-                        tabs += '\t'
-                        
+                        #tabs += '\t'
+                        spaces += SPACES
+
                         # Here we have to add the solution to the data structure if the predicate has all variables
                         # the same equal card. We check that if turning the list of leftArguments into a set the
                         # length is 1.
                         if len(set(equation.leftArguments)) == 1:
                             args = ['current->b.VAR_{}'.format(x) for x in l]
-                            outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(tabs,
+                            outfile.write("{}if (!Ds_contains_solution_{}({})){{\n".format(spaces,
                                                                                            equation.leftVariable.id.name,
                                                                                            ", ".join(args)))
-                            tabs += '\t'
+                            #tabs += '\t'
+                            spaces += SPACES
                             outfile.write("#ifdef NDEBUG\n")
-                            outfile.write("{}fprintf(stderr, \"\\tAdding solution -> \");\n".format(tabs))
-                            outfile.write("{}print_rewriting_variable(stderr, &current->b);\n".format(tabs))
-                            outfile.write("{}fprintf(stderr, \"\\n\");\n".format(tabs))
+                            outfile.write("{}fprintf(stderr, \"\\tAdding solution -> \");\n".format(spaces))
+                            outfile.write("{}print_rewriting_variable(stderr, &current->b);\n".format(spaces))
+                            outfile.write("{}fprintf(stderr, \"\\n\");\n".format(spaces))
                             outfile.write("#endif\n")
-                            outfile.write("{}Ds_append_solution_{}({});\n".format(tabs,
+                            outfile.write("{}Ds_append_solution_{}({});\n".format(spaces,
                                                                                   equation.leftVariable.id.name,
                                                                                   ", ".join(args)))
-                            tabs = tabs[:-1]
-                            outfile.write("{}}}\n".format(tabs))
+                            #tabs = tabs[:-1]
+                            spaces = spaces[:-len(SPACES)]
+                            outfile.write("{}}}\n".format(spaces))
                     
                     elif argument_constants_left_side:
-                        outfile.write('{}if('.format(tabs))
+                        outfile.write('{}if('.format(spaces))
                         
                         for pos, elem in enumerate(argument_constants_left_side):
                             outfile.write('current->b.VAR_{} == {}'.format(elem[1],
                                                                            str(elem[0].value)))
                             if pos != len(argument_constants_left_side)-1:
-                                outfile.write(' &&\n{}   '.format(tabs))
+                                outfile.write(' &&\n{}   '.format(spaces))
                                 
                         outfile.write('){\n')
-                        tabs += '\t'
-                        
-                    
+                        #tabs += '\t'
+                        spaces += SPACES
+
                     # Here we emit code to iterate over the necessary variables in order to get the desired 
                     # solutions, first we have to check if we are dealing with the case in which the set of
                     # common variables is empty. In that case we have to iterate over the level 0 of the
@@ -840,14 +909,15 @@ def fillSolverCompute(outfile):
                     # If we don't have equal cards in the set of common variables we just iterate over the
                     # list of common variables taking the position.
                     if commonVars_len == 0:
-                        outfile.write('{}Ds_get_intValues_Level0_init();\n'.format(tabs))
-                        outfile.write('{}while(Ds_get_intValues_Level0(&t0))'.format(tabs))
+                        outfile.write('{}Ds_get_intValues_Level0_init();\n'.format(spaces))
+                        outfile.write('{}while(Ds_get_intValues_Level0(&t0))'.format(spaces))
                         outfile.write('{\n')
-                        tabs += '\t'
+                        #tabs += '\t'
+                        spaces += SPACES
                         # If the length of the predicate is one we also have to make sure that the value we obtain
                         # is valid as we won't iterate to obtain more values
                         if len(equation.consultingArguments) == 1:
-                            outfile.write('{}if (Ds_contains_solution_{}(t0))'.format(tabs,
+                            outfile.write('{}if (Ds_contains_solution_{}(t0))'.format(spaces,
                                                                                       equation.consultingPredicate.id.name))
                             outfile.write('{\n')
                     
@@ -887,19 +957,23 @@ def fillSolverCompute(outfile):
                         if (len(set([x for x in equation.consultingArguments if not (isinstance(x, Argument) and x.type=='constant')])) != 1 and\
                             getPredicateLength(equation.consultingPredicate.id) != len(equation.commonVariables) and 
                             sum([1 for x in equation.consultingArguments if isinstance(x, int) or (isinstance(x, Argument) and x.type=='constant')]) != len(equation.consultingArguments)):
+                            if equation_number > 1:
+                                outfile.write(EMPTY_LINE)
+
                             # Here we just emit code for t1 using the computed values
                             outfile.write('{}t1 = Ds_get_intList_{}({}, {});\n'
-                                          .format(tabs,
+                                          .format(spaces,
                                                   int_length,
                                                   aliasToViewNames[equation.aliasName],
                                                   args_common))
                             
-                            outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(tabs))
+                            outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(spaces))
                         else:
-                            outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(tabs,
+                            outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(spaces,
                                                                                           equation.consultingPredicate.id.name,
                                                                                           args_common))
-    
+                            spaces += SPACES
+
                     # Here we emit code for the rest of the required t levels that value is the number
                     # of consulting values minus the number of common variables which has already been
                     # used in the t1 level
@@ -909,21 +983,22 @@ def fillSolverCompute(outfile):
                     for (x, y) in enumerate(xrange(commonVars_len + 1, 
                                                    len(equation.consultingArguments) - len(argument_constants_consulting_values)),
                                             start=start):
+                        if x > 1: spaces += SPACES
                         query_value = y + len(argument_constants_consulting_values)
                         if commonVars_len == 0:
                             args = 't0'
                             if x > 1: args += ', '
-                            tabs = tabs + '\t' * x
+                            #tabs = tabs + '\t' * x
                         else:
                             args = args_common + ', '
-                            tabs = tabs + '\t' * (x - 1)
+                            #tabs = tabs + '\t' * (x - 1)
                            
                         if not equal_cards_query_common_vars:
                             args += ', '.join(['t{}->value'.format(str(i))
                                                for i in xrange(1, x)])
                             
                             outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                                          .format(tabs, x, query_value,
+                                          .format(spaces, x, query_value,
                                                   aliasToViewNames[equation.aliasName],
                                                   args))
                             #number_of_args = y + len(argument_constants_consulting_values)
@@ -931,40 +1006,50 @@ def fillSolverCompute(outfile):
                             #              .format(tabs, x, number_of_args,
                             #                      aliasToViewNames[equation.aliasName],
                             #                      args))
-                            outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
+                            outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(spaces,
                                                                                       str(x)))
                         else:
                             #outfile.write("X: {}\t\tARGS:{}\t\tNUMBER_OF_ARGS: {}\t\tY: {}\t\tCOMMON_VARS: {}\n".format(x, args, number_of_args, y, commonVars_len))
                             args += ', '.join(['t{}->value'.format(str(i))
                                                for i in xrange(1, (y-commonVars_len)+1)])
     
-                            outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
-                                          .format(tabs, (y-commonVars_len)+1, query_value,
-                                                  aliasToViewNames[equation.aliasName],
-                                                  args))
+                            outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'.format(spaces,
+                                                                                        (y-commonVars_len)+1,
+                                                                                        query_value,
+                                                                                        aliasToViewNames[equation.aliasName],
+                                                                                        args))
                             #number_of_args = y + len(argument_constants_consulting_values)
                             #outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
                             #              .format(tabs, (y-commonVars_len)+1, number_of_args,
                             #                      aliasToViewNames[equation.aliasName],
                             #                      args))
-                            outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(tabs,
+                            outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(spaces,
                                                                                       str((y-commonVars_len) + 1)))
                                           
                         outfile.write('{\n')
                     
-                    if equal_cards_rewriting_variable or argument_constants_left_side\
-                     or argument_constants_consulting_values:
-                        tabs = '\t\t\t\t'
-                    else:
-                        tabs = '\t\t\t'
+                    # if equal_cards_rewriting_variable or argument_constants_left_side\
+                     #----------------- or argument_constants_consulting_values:
+                        #------------------------------------- tabs = '\t\t\t\t'
+                    #----------------------------------------------------- else:
+                        #--------------------------------------- tabs = '\t\t\t'
+                    # if equal_cards_rewriting_variable or argument_constants_left_side\
+                        #-------------- or argument_constants_consulting_values:
+                        #----------------------------------- spaces = SPACES * 4
                     
-                    if commonVars_len == 0 and len(equation.consultingArguments) == 1:
-                        tabs += '\t'    
+                    # if commonVars_len == 0 and len(equation.consultingArguments) == 1:
+                        #----------------------------------------- #tabs += '\t'
+                        #-------------------------------------- spaces += SPACES
                     
-                    tabs += '\t' * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x) 
-                                            for x in equation.consultingArguments))
+                    # tabs += '\t' * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x)
                     
-                    outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
+                    #outfile.write("LALALALALA {}\n".format(len(spaces)))
+                    #spaces += SPACES * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x)
+                    #                         for x in equation.consultingArguments))
+                    #outfile.write("LALALALALA {}\n".format(len(spaces)))
+                    spaces += SPACES
+
+                    outfile.write('{}VAR.PREDICATE = {};\n'.format(spaces,
                                                                    equation.rightVariable.id.uniqueId))
                     # Here we handle if we have equal cards in the query variables that are
                     # not in the set of common variables. As we retrieve them from the iterating
@@ -995,15 +1080,16 @@ def fillSolverCompute(outfile):
                             lists_of_duplicated_vars = [list(xrange(len(equation.consultingArguments)))]
                             
                         # We only have to iterate over each list emitting code appropriately 
-                        outfile.write('{}if('.format(tabs))
+                        outfile.write('{}if('.format(spaces))
                         for pos, l in enumerate(lists_of_duplicated_vars):
                             t = ['t{}'.format(x) for x in l]
                             t = map(lambda x: x if (x == "t0") else x + "->value", t)
                             outfile.write('{}'.format(' == '.join(t)))
                             if pos != len(lists_of_duplicated_vars)-1:
-                                outfile.write(' &&\n{}   '.format(tabs))
+                                outfile.write(' &&\n{}   '.format(spaces))
                         outfile.write('){\n')
-                        tabs += '\t'
+                        #tabs += '\t'
+                        spaces += SPACES
                     
                     # Here we emit code to create the new variable. We start iterating
                     # from the rightArguments and check for every variable position of the
@@ -1015,7 +1101,7 @@ def fillSolverCompute(outfile):
                     # we start at t0 as we have to iterate over all the variables of the other
                     # predicate.
                     for pos, var in enumerate(equation.rightArguments, start=1):
-                        outfile.write('{}VAR.VAR_{} = '.format(tabs, pos))
+                        outfile.write('{}VAR.VAR_{} = '.format(spaces, pos))
                         if isinstance(var, Argument) and var.type == 'variable':
                             t_index = get_t_index(var,
                                                   equation.consultingArguments,
@@ -1035,35 +1121,44 @@ def fillSolverCompute(outfile):
                     # Here we just emit source code to handle the indentation and the closing }
                     # TODO: The indentation is a little bit broken right now and should be checked
                     #       but is not mandatory for the well functioning of the compiler
-                    if equal_cards_query_not_common_vars:
-                        common_block_for_any_type_of_rule(tabs[:-1], equation, level, len(GenerationData.stratums),
-                                                          idToStratumLevels)
-                    else:
-                        common_block_for_any_type_of_rule(tabs, equation, level, len(GenerationData.stratums),
-                                                          idToStratumLevels)
+                    #--------------------- if equal_cards_query_not_common_vars:
+                        # common_block_for_any_type_of_rule(tabs[:-1], equation, level, len(GenerationData.stratums),
+                                                          #-- idToStratumLevels)
+                    #----------------------------------------------------- else:
+                        # common_block_for_any_type_of_rule(tabs, equation, level, len(GenerationData.stratums),
+                                                          #-- idToStratumLevels)
+                    common_block_for_any_type_of_rule(spaces, equation, level, len(GenerationData.stratums),
+                                                      idToStratumLevels)
     
                     if equal_cards_rewriting_variable or argument_constants_left_side:
-                        tabs = tabs[:-1]
-                        outfile.write('{}}}\n'.format(tabs))
+                        #tabs = tabs[:-1]
+                        spaces = spaces[:-len(SPACES)]
+                        outfile.write('{}}}\n'.format(spaces))
                         
                     if equal_cards_query_not_common_vars:
-                        tabs = tabs[:-1]
-                        outfile.write('{}}}\n'.format(tabs))
+                        #tabs = tabs[:-1]
+                        spaces = spaces[:-len(SPACES)]
+                        outfile.write('{}}}\n'.format(spaces))
                         
                     if commonVars_len == 0 and len(equation.consultingArguments) == 1:
-                        tabs = tabs[:-1]
-                        outfile.write('{}}}\n'.format(tabs))
+                        #tabs = tabs[:-1]
+                        spaces = spaces[:-len(SPACES)]
+                        outfile.write('{}}}\n'.format(spaces))
                     
                     for x in xrange(commonVars_len+1, len(equation.consultingArguments) - len(argument_constants_consulting_values)):
-                        tabs = tabs[:-1]
-                        outfile.write('{}'.format(tabs))
+                        #tabs = tabs[:-1]
+                        spaces = spaces[:-len(SPACES)]
+                        outfile.write('{}'.format(spaces))
                         outfile.write('}\n')
-                        
-                    outfile.write('\t\t\t}\n')
-            outfile.write('\t\t}\n\n')
-        outfile.write('\tsolver_queue{0}.head = solver_queue{0}.head->next;\n'.format(str(level)))
-        outfile.write('\tfree(current);\n')
-        outfile.write('\t}\n\n')
+
+                    spaces = spaces_level_3
+                    outfile.write('{}}}\n'.format(spaces))
+
+            outfile.write('{}}}\n\n'.format(spaces_level_2))
+        outfile.write('{0}solver_queue{1}.head = solver_queue{1}.head->next;\n'.format(spaces_level_2,
+                                                                                       str(level)))
+        outfile.write('{}free(current);\n'.format(spaces_level_2))
+        outfile.write('{}}}\n'.format(spaces_level_1))
         
 # In this function we emit code to close the file descriptors opened before
 # to store the answers in files. The file descriptor is called fp_{} plus the
@@ -1072,17 +1167,22 @@ def fillSolverFree(outfile):
     outputTuples = GenerationData.answersToStore
     number_of_stratums = len(GenerationData.stratums)
     
+    spaces_level_1 = SPACES
+
     for predicate in outputTuples:
-        outfile.write('\tfclose(fp_{});\n'.format(predicate[0]))
+        outfile.write('{}fclose(fp_{});\n'.format(spaces_level_1,
+                                                  predicate[0]))
         
-    outfile.write('\n\tDs_free();\n')
+    outfile.write('\n{}Ds_free();\n'.format(spaces_level_1))
     for queue_number in xrange(1, number_of_stratums+1):
-        outfile.write('\tSolverQueue_free(&solver_queue{});\n'.format(queue_number))
-    outfile.write('\tMem_free();\n')
+        outfile.write('{}SolverQueue_free(&solver_queue{});\n'.format(spaces_level_1,
+                                                                      queue_number))
+    outfile.write('{}Mem_free();\n'.format(spaces_level_1))
 
 @check_for_predicates_of_type2
 def fillIntList(outfile):
     #equationsTable = GenerationData.equationsTable
+    spaces_level_1 = SPACES
     
     # Check if there is a rule without common variables if that is the case we
     # need to iterate over the first level of the data structure at some point
@@ -1096,7 +1196,7 @@ def fillIntList(outfile):
     
     # In case there is a rule with no common variables
     if requires_t0:
-        outfile.write('\tunsigned int t0;\n')
+        outfile.write('{}unsigned int t0;\n'.format(spaces_level_1))
         
         # Check if the longest length comes from a rule with no common variables
         # if that is the case then we have to subtract 1 to the value as we are already 
@@ -1113,7 +1213,8 @@ def fillIntList(outfile):
     # case doesn't make too much sense to emit code for it as it would only trigger a
     # warning from the c compiler
     if length > 0:
-        outfile.write('\tintList {};\n'.format(args))
+        outfile.write('{}intList {};\n'.format(spaces_level_1,
+                                               args))
 
 def fillDataStructureLevelNodes(outfile):
     #equationsTable = GenerationData.equationsTable
@@ -1121,6 +1222,8 @@ def fillDataStructureLevelNodes(outfile):
     #viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
     viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
     
+    spaces_level_1 = SPACES
+
     # Store the answers by length. This will be used to know in which level node store the
     # answers
     lengthToPreds = defaultdict(set)
@@ -1142,20 +1245,22 @@ def fillDataStructureLevelNodes(outfile):
         number_of_views_for_this_level = sum((x[1]) for x in viewsData 
                                              if x[0] >= length)
 
+        outfile.write('/* Level {} */\n'.format(length))
         outfile.write('struct DsData_Level_{}'.format(length))
         outfile.write('{\n')
-        tabs = '\t'
+        #tabs = '\t'
         # If the number of views for this level is 0 we don't have to emit code
         # to store the intList for the current level, also it would output m[0]
         # forbidden by ISO C and with no sense.
         if number_of_views_for_this_level:
-            outfile.write('{}intList *m[{}];\n'.format(tabs,
+            outfile.write('{}intList *m[{}];\n'.format(spaces_level_1,
                                                        number_of_views_for_this_level))
         
         # Emit code to store the answers required by the level node
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
-                outfile.write('{}Pvoid_t R{};\n'.format(tabs, variable_id.name))
+                outfile.write('{}Pvoid_t R{};\n'.format(spaces_level_1,
+                                                        variable_id.name))
                 
         # Check if we have to add a new solution because there is a predicate having
         # all the variables the same Equal card or there is a predicate having all
@@ -1165,7 +1270,8 @@ def fillDataStructureLevelNodes(outfile):
         #                  getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()):
         for variable_id in getAllSolutions():
             if variable_id not in answersToStore and getPredicateLength(variable_id) == length:
-                outfile.write('{}Pvoid_t R{};\n'.format(tabs, variable_id.name))
+                outfile.write('{}Pvoid_t R{};\n'.format(spaces_level_1,
+                                                        variable_id.name))
                
         if pos != len(lengths) - 1:
             # This is purely esthetic if we have some views in the level we 
@@ -1173,7 +1279,8 @@ def fillDataStructureLevelNodes(outfile):
             # level declaration clearly
             if number_of_views_for_this_level:
                 outfile.write('\n')
-            outfile.write('{}Pvoid_t level{};\n'.format(tabs, length+1))
+            outfile.write('{}Pvoid_t level{};\n'.format(spaces_level_1,
+                                                        length+1))
             
         outfile.write('};\n')
         outfile.write('typedef struct DsData_Level_{0} DsData_{0};\n\n'.format(length))
@@ -1181,30 +1288,34 @@ def fillDataStructureLevelNodes(outfile):
         outfile.write('DsData_{0} * DsData_Level_{0}_new_node();\n'.format(length))
         outfile.write('void DsData_Level_{0}_init(DsData_{0} *);\n'.format(length))
         outfile.write('void DsData_Level_{0}_free(DsData_{0} *);\n'.format(length))
-        outfile.write('\n\n')
+        outfile.write('\n')
         
-    outfile.write('\n')
+    #outfile.write('\n')
 
 @check_for_predicates_of_type2    
 def fillDataStructureInsertFunctions(outfile):
     def print_code_for_Ds_insert_1():
-        tabs = '\t'
+        #tabs = '\t'
+        spaces_level_1 = SPACES
+        spaces_level_2 = SPACES * 2
+        spaces_level_3 = SPACES * 3
+
         outfile.write('void Ds_insert_1(int x_1){\n')
-        outfile.write('{}Word_t * PValue1;\n\n'.format(tabs))
-        outfile.write('{}if (!(JLG(PValue1, root, x_1))){{\n'.format(tabs))
-        tabs += '\t'
-        outfile.write('{}JLI(PValue1, root, x_1);\n'.format(tabs))
-        outfile.write('{}if (PValue1 == PJERR){{\n'.format(tabs))
-        tabs += '\t'
-        outfile.write('{}fprintf(stderr, "Solver: Error allocating '.format(tabs))
+        outfile.write('{}Word_t * PValue1;\n\n'.format(spaces_level_1))
+        outfile.write('{}if (!(JLG(PValue1, root, x_1))){{\n'.format(spaces_level_1))
+        #tabs += '\t'
+        outfile.write('{}JLI(PValue1, root, x_1);\n'.format(spaces_level_2))
+        outfile.write('{}if (PValue1 == PJERR){{\n'.format(spaces_level_2))
+        #tabs += '\t'
+        outfile.write('{}fprintf(stderr, "Solver: Error allocating '.format(spaces_level_3))
         outfile.write('memory %s:%i\\n", __FILE__, __LINE__);\n')
-        outfile.write('{}abort();\n'.format(tabs))
-        tabs = tabs[:-1]
-        outfile.write('{}}}\n'.format(tabs))
+        outfile.write('{}abort();\n'.format(spaces_level_3))
+        #tabs = tabs[:-1]
+        outfile.write('{}}}\n'.format(spaces_level_2))
         if getDataStructureNodesMaximumLength() > 1:
-            outfile.write('{}(*PValue1) = ((Word_t) DsData_Level_2_new_node());\n'.format(tabs))
-        tabs = tabs[:-1]
-        outfile.write('{}}}\n'.format(tabs))
+            outfile.write('{}(*PValue1) = ((Word_t) DsData_Level_2_new_node());\n'.format(spaces_level_2))
+        #tabs = tabs[:-1]
+        outfile.write('{}}}\n'.format(spaces_level_1))
         outfile.write('}\n')
 
     # Here we emit code to deal with the views. The length of the views is the same of the
@@ -1216,6 +1327,10 @@ def fillDataStructureInsertFunctions(outfile):
     # is created and called if we detect a minimum length of 1
     lengths = xrange(getQueryMinimumLength(), getQueryMaximumLength()+1)
     
+    spaces_level_1 = SPACES
+    spaces_level_2 = SPACES * 2
+    spaces_level_3 = SPACES * 3
+
     for length in lengths:
         # We have to handle length 1 differently. If we detect that the current length is 1 as we don't
         # have a level 1 node for the data structure we have to emit code differently that is why the
@@ -1230,9 +1345,9 @@ def fillDataStructureInsertFunctions(outfile):
         outfile.write('void Ds_insert_{}(int pos, {})'.format(length,
                                                               ", ".join(args_to_function)))
         outfile.write('{\n')
-        tabs = '\t'
+        #tabs = '\t'
         values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
-        outfile.write('{}Word_t {};\n\n'.format(tabs,
+        outfile.write('{}Word_t {};\n\n'.format(spaces_level_1,
                                               ', '.join(values)))
         
         for x in xrange(1, length):
@@ -1241,30 +1356,30 @@ def fillDataStructureInsertFunctions(outfile):
             else:
                 node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
             
-            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(tabs, x, 
+            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces_level_1, x,
                                                                          node))
             outfile.write('{\n')
-            tabs += '\t'
-            outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(tabs, x, 
+            #tabs += '\t'
+            outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(spaces_level_2, x,
                                                                     node))
-            outfile.write('{0}if (PValue{1} == PJERR)'.format(tabs, x))
+            outfile.write('{0}if (PValue{1} == PJERR)'.format(spaces_level_2, x))
             outfile.write('{\n')
-            tabs += '\t'
-            outfile.write('{}fprintf(stderr, "Solver: Error '.format(tabs))
+            #tabs += '\t'
+            outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces_level_3))
             outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
             
-            outfile.write('{}abort();\n'.format(tabs))
-            tabs = tabs[:-1]
-            outfile.write('{}'.format(tabs))
+            outfile.write('{}abort();\n'.format(spaces_level_3))
+            #tabs = tabs[:-1]
+            outfile.write('{}'.format(spaces_level_2))
             outfile.write('}\n')
-            outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(tabs, 
+            outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces_level_2,
                                                                                              x, x+1))
-            tabs = tabs[:-1]
-            outfile.write('{}'.format(tabs))
+            #tabs = tabs[:-1]
+            outfile.write('{}'.format(spaces_level_1))
             outfile.write('}\n\n')
             
         for x in xrange(2, length+1):
-            outfile.write('{}intList_append(&((DsData_{} *)'.format(tabs, x))
+            outfile.write('{}intList_append(&((DsData_{} *)'.format(spaces_level_1, x))
             outfile.write(' *PValue{})->m[pos], x_{});\n'.format(x-1, x))
             
         outfile.write('}\n\n')
@@ -1299,10 +1414,11 @@ def fillDataStructureGetIntListFunctions(outfile):
         outfile.write('intList * Ds_get_intList_{}(int pos, {})'.format(length,
                                                               ", ".join(args_to_function)))
         outfile.write('{\n')
-        tabs = '\t'
+        #tabs = '\t'
+        spaces = SPACES
         values = ('* PValue{}'.format(str(v+1)) for v in xrange(length))
-        outfile.write('{}Word_t {};\n\n'.format(tabs,
-                                              ', '.join(values)))
+        outfile.write('{}Word_t {};\n\n'.format(spaces,
+                                                ', '.join(values)))
         
         for x in xrange(1, length+1):
             if x == 1:
@@ -1310,22 +1426,26 @@ def fillDataStructureGetIntListFunctions(outfile):
             else:
                 node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
 
-            outfile.write('{}if ((JLG(PValue{}, {}, x_{})))'.format(tabs, str(x),
-                                                                    node, str(x)))
+            outfile.write('{}if ((JLG(PValue{}, {}, x_{})))'.format(spaces,
+                                                                    str(x),
+                                                                    node,
+                                                                    str(x)))
             outfile.write('{\n')
-            tabs += '\t'
+            #tabs += '\t'
+            spaces += SPACES
             
-        outfile.write('{}return ((DsData_{} *) '.format(tabs,
+        outfile.write('{}return ((DsData_{} *) '.format(spaces,
                                                         str(length+1)))
         
         outfile.write('*PValue{})->m[pos];\n'.format(str(length)))
         
         for x in xrange(1, length+1):
-            tabs = tabs[:-1]
-            outfile.write('{}'.format(tabs))
+            #tabs = tabs[:-1]
+            spaces = spaces[:-len(SPACES)]
+            outfile.write('{}'.format(spaces))
             outfile.write('}\n')
         
-        outfile.write('\n{}return NULL;\n'.format(tabs))
+        outfile.write('\n{}return NULL;\n'.format(spaces))
         
         outfile.write('}\n\n')
         
@@ -1337,10 +1457,11 @@ def fillDataStructureContainSolutionFunctions(outfile):
         outfile.write('int Ds_contains_solution_{}({})'.format(variable_id.name,
                                                                ', '.join(args)))
         outfile.write('{\n')
-        tabs = '\t'
+        #tabs = '\t'
+        spaces = SPACES
         if length > 1:
             values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
-            outfile.write('{}Word_t {};\n\n'.format(tabs,
+            outfile.write('{}Word_t {};\n\n'.format(spaces,
                                                     ', '.join(values)))
         
         for x in xrange(1, length):
@@ -1349,11 +1470,14 @@ def fillDataStructureContainSolutionFunctions(outfile):
             else:
                 node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
                 
-            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))\n'.format(tabs, x,
+            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))\n'.format(spaces,
+                                                                           x,
                                                                            node))
-            tabs += '\t'
-            outfile.write('{}return FALSE;\n'.format(tabs))
-            tabs = tabs[:-1]
+            #tabs += '\t'
+            spaces += SPACES
+            outfile.write('{}return FALSE;\n'.format(spaces))
+            #tabs = tabs[:-1]
+            spaces = spaces[:-len(SPACES)]
             
         if length > 1:
             outfile.write('\n')
@@ -1362,9 +1486,10 @@ def fillDataStructureContainSolutionFunctions(outfile):
                                                            variable_id.name)
         else:
             node = 'R{}'.format(variable_id.name)
-        outfile.write('{}return Judy1Test({}, x_{}, PJE0);\n'.format(tabs, node,
-                                                                   length))
         
+        outfile.write('{}return Judy1Test({}, x_{}, PJE0);\n'.format(spaces,
+                                                                     node,
+                                                                     length))
         outfile.write('}\n\n')
         
 def fillDataStructureAppendSolutionFunctions(outfile):
@@ -1375,10 +1500,11 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         outfile.write('void Ds_append_solution_{}({})'.format(variable_id.name,
                                                                ', '.join(args)))
         outfile.write('{\n')
-        tabs = '\t'
+        #tabs = '\t'
+        spaces = SPACES
         if length > 1:
             values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
-            outfile.write('{}Word_t {};\n\n'.format(tabs,
+            outfile.write('{}Word_t {};\n\n'.format(spaces,
                                                     ', '.join(values)))
         for x in xrange(1, length):
             if x == 1:
@@ -1386,26 +1512,34 @@ def fillDataStructureAppendSolutionFunctions(outfile):
             else:
                 node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
             
-            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(tabs, x, 
+            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces,
+                                                                         x,
                                                                          node))
             outfile.write('{\n')
-            tabs += '\t'
-            outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(tabs, x, 
+            #tabs += '\t'
+            spaces += SPACES
+            outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(spaces,
+                                                                    x,
                                                                     node))
-            outfile.write('{0}if (PValue{1} == PJERR)'.format(tabs, x))
+            outfile.write('{0}if (PValue{1} == PJERR)'.format(spaces,
+                                                              x))
             outfile.write('{\n')
-            tabs += '\t'
-            outfile.write('{}fprintf(stderr, "Solver: Error '.format(tabs))
+            #tabs += '\t'
+            spaces += SPACES
+            outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces))
             outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
             
-            outfile.write('{}abort();\n'.format(tabs))
-            tabs = tabs[:-1]
-            outfile.write('{}'.format(tabs))
+            outfile.write('{}abort();\n'.format(spaces))
+            #tabs = tabs[:-1]
+            spaces = spaces[:-len(SPACES)]
+            outfile.write('{}'.format(spaces))
             outfile.write('}\n')
-            outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(tabs, 
-                                                                                             x, x+1))
-            tabs = tabs[:-1]
-            outfile.write('{}'.format(tabs))
+            outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces,
+                                                                                            x,
+                                                                                            x+1))
+            #tabs = tabs[:-1]
+            spaces = spaces[:-len(SPACES)]
+            outfile.write('{}'.format(spaces))
             outfile.write('}\n\n')
         
         if length > 1:
@@ -1415,16 +1549,18 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         else:
             node = 'R{}'.format(variable_id.name)
         
-        outfile.write('{}if (Judy1Set(&{}, x_{}, PJE0) == JERR)'.format(tabs,
+        outfile.write('{}if (Judy1Set(&{}, x_{}, PJE0) == JERR)'.format(spaces,
                                                                         node,
                                                                         str(length)))
         outfile.write('{\n')
-        tabs += '\t'
-        outfile.write('{}fprintf(stderr, "Solver: Error '.format(tabs))
+        #tabs += '\t'
+        spaces += SPACES
+        outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces))
         outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
-        outfile.write('{}abort();\n'.format(tabs))
-        tabs = tabs[:-1]
-        outfile.write('{}'.format(tabs))
+        outfile.write('{}abort();\n'.format(spaces))
+        #tabs = tabs[:-1]
+        spaces = spaces[:-len(SPACES)]
+        outfile.write('{}'.format(spaces))
         outfile.write('}\n')
         
         outfile.write('}\n\n')
@@ -1456,16 +1592,17 @@ def fillDataStructureInitLevelFunctions(outfile):
         
         outfile.write('void DsData_Level_{0}_init(DsData_{0} *d)'.format(length))
         outfile.write('{\n')
-        tabs = '\t'
+        #tabs = '\t'
+        spaces_level_1 = SPACES
         
-        outfile.write('{}'.format(tabs))
+        outfile.write('{}'.format(spaces_level_1))
         for i in xrange(number_of_views_for_this_level):
             outfile.write('d->m[{}] = '.format(i))
                 
             if ((i%4) == 0 and i > 0):
                 outfile.write('NULL;\n');
                 if i != (number_of_views_for_this_level-1):
-                    outfile.write('{}'.format(tabs));
+                    outfile.write('{}'.format(spaces_level_1));
                 
         if (((number_of_views_for_this_level-1) % 4) != 0 or
             (number_of_views_for_this_level == 1)):
@@ -1473,11 +1610,13 @@ def fillDataStructureInitLevelFunctions(outfile):
             
         outfile.write('\n')
         if pos != len(lengths)-1:
-            outfile.write('{}d->level{} = (Pvoid_t) NULL;\n'.format(tabs, length + 1))
+            outfile.write('{}d->level{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
+                                                                    length + 1))
             
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
-                outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(tabs, variable_id.name))
+                outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
+                                                                    variable_id.name))
             
         outfile.write('}\n')
    
@@ -1488,17 +1627,21 @@ def fillDataStructureLevelNewNodeFunctions(outfile):
     #if min_value == 1: min_value += 1
     #lengths = xrange(min_value, number_of_data_structure_nodes + 1)
     lengths = xrange(2, number_of_data_structure_nodes + 1)
-    
+
+    spaces_level_1 = SPACES
+
     for length in lengths:
         node = 'DsData_{}'.format(length)
         outfile.write('{} * DsData_Level_{}_new_node()'.format(node,
                                                                length))
-        tabs = '\t'
+        #tabs = '\t'
         outfile.write('{\n')
-        outfile.write('{}{} * temp;\n\n'.format(tabs, node))
-        outfile.write('{}ARENA_ALLOC(temp);\n'.format(tabs))
-        outfile.write('{}memset(temp, 0, sizeof({}));\n\n'.format(tabs, node))
-        outfile.write('{}return temp;\n'.format(tabs))
+        outfile.write('{}{} * temp;\n\n'.format(spaces_level_1,
+                                                node))
+        outfile.write('{}ARENA_ALLOC(temp);\n'.format(spaces_level_1))
+        outfile.write('{}memset(temp, 0, sizeof({}));\n\n'.format(spaces_level_1,
+                                                                  node))
+        outfile.write('{}return temp;\n'.format(spaces_level_1))
         outfile.write('}\n\n')
 
 def fillDataStructureLevelFreeFunctions(outfile):
@@ -1517,31 +1660,34 @@ def fillDataStructureLevelFreeFunctions(outfile):
         
     for pos, length in enumerate(lengths):
         outfile.write('void DsData_Level_{0}_free(DsData_{0} *d)'.format(length))
-        tabs = '\t'
+        #tabs = '\t'
+        spaces = SPACES
         outfile.write('{\n')
         if pos != len(lengths) - 1:
-            outfile.write('{}Word_t * PValue, index = 0;\n\n'.format(tabs))
-            outfile.write('{}JLF(PValue, d->level{}, index);\n'.format(tabs,
+            outfile.write('{}Word_t * PValue, index = 0;\n\n'.format(spaces))
+            outfile.write('{}JLF(PValue, d->level{}, index);\n'.format(spaces,
                                                                        length+1))
-            outfile.write('{}while (PValue != NULL)'.format(tabs))
+            outfile.write('{}while (PValue != NULL)'.format(spaces))
             outfile.write('{\n')
-            tabs += '\t'
-            outfile.write('{0}DsData_Level_{1}_free((DsData_{1} *) *PValue);\n'.format(tabs,
+            #tabs += '\t'
+            spaces += SPACES
+            outfile.write('{0}DsData_Level_{1}_free((DsData_{1} *) *PValue);\n'.format(spaces,
                                                                                        length+1))
-            outfile.write('{}JudyLDel(&d->level{}, index, PJE0);\n'.format(tabs,
-                                                                         length+1))
-            outfile.write('{}JLN(PValue, d->level{}, index);\n'.format(tabs,
-                                                                     length+1))
-            tabs = tabs[:-1]
-            outfile.write('{}'.format(tabs))
+            outfile.write('{}JudyLDel(&d->level{}, index, PJE0);\n'.format(spaces,
+                                                                           length+1))
+            outfile.write('{}JLN(PValue, d->level{}, index);\n'.format(spaces,
+                                                                       length+1))
+            #tabs = tabs[:-1]
+            spaces = spaces[:-len(SPACES)]
+            outfile.write('{}'.format(spaces))
             outfile.write('}\n')
         
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
-                outfile.write('{}Judy1FreeArray(&d->R{}, PJE0);\n'.format(tabs,
+                outfile.write('{}Judy1FreeArray(&d->R{}, PJE0);\n'.format(spaces,
                                                                           variable_id.name))
                 
-        outfile.write('{}*&d = NULL;\n'.format(tabs))        
+        outfile.write('{}*&d = NULL;\n'.format(spaces))
         outfile.write('}\n\n')
 
 # The level 1 node is currently treated differently from the other type of nodes
@@ -1576,8 +1722,9 @@ def fillDataStructureRootSolutions(outfile):
 # rules of type 2 the maximum length is 1. 
 @check_for_predicates_of_type2
 def fillDataStructureLevel2Line(outfile):
+    spaces_level_2 = SPACES * 2
     if getDataStructureNodesMaximumLength() > 1:
-        outfile.write('\t\tDsData_Level_2_free((DsData_2 *) *PValue);\n')
+        outfile.write('{}DsData_Level_2_free((DsData_2 *) *PValue);\n'.format(spaces_level_2))
         
 def fillStratumSolverQueues(outfile):
     number_of_stratums = len(GenerationData.stratums)

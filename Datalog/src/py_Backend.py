@@ -739,7 +739,6 @@ def fillSolverCompute(outfile):
             outfile.write('{}data.append_solution_{}({})\n'.format(spaces,
                                                                     variable_id.name,
                                                                     args))
-            spaces = spaces[:-1]
         else:
             outfile.write('{}solver_queue1.append(var)\n'.format(spaces))
             
@@ -1156,18 +1155,23 @@ def fillSolverCompute(outfile):
                                           
                         outfile.write(':\n')
                     
-                    if not(equal_cards_rewriting_variable or argument_constants_left_side\
-                    or argument_constants_consulting_values):
-                        spaces = SPACES * 4
+                    # if not(equal_cards_rewriting_variable or argument_constants_left_side\
+                           #---------- or argument_constants_consulting_values):
+                        #----------------------------------- spaces = SPACES * 4
+                    #if equal_cards_rewriting_variable or argument_constants_left_side\
+                    #    or argument_constants_consulting_values:
+                    #     spaces = SPACES * 4
+
                     #----------------------------------------------------- else:
                         #----------------------------------- spaces = SPACES * 4
                     #spaces = SPACES * 4
                     
-                    if commonVars_len == 0 and len(equation.consultingArguments) == 1:
-                        spaces += SPACES
+                    #if commonVars_len == 0 and len(equation.consultingArguments) == 1:
+                    #    spaces += SPACES
                     
-                    spaces += SPACES * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x)
-                                             for x in equation.consultingArguments))
+                    # spaces += SPACES * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x)
+                                             # for x in equation.consultingArguments))
+                    spaces += SPACES
                     
                     #outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
                     #                                               equation.rightVariable.id.uniqueId))

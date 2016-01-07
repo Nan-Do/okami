@@ -40,30 +40,30 @@ void print_rewriting_variable(FILE *, TYPE_REWRITING_VARIABLE *);
 void print_answer(FILE *file, TYPE_REWRITING_VARIABLE *b);
 
 void SolverQueue_init(SolverQueue *s){
-	s->head = s->tail = NULL;
+    s->head = s->tail = NULL;
 }
 
 void SolverQueue_free(SolverQueue *s){
-	SolverNode t1, t2;
-	for (t1 = s->head, t2 = s->head; t1; t2 = t2->next, t1 = t2 )
-		FREE(t1);
+    SolverNode t1, t2;
+    for (t1 = s->head, t2 = s->head; t1; t2 = t2->next, t1 = t2 )
+        FREE(t1);
 }
 
 void SolverQueue_append(SolverQueue *s, TYPE_REWRITING_VARIABLE *b){
-	SolverNode t;
+    SolverNode t;
 
-	NEW(t);
-	memcpy((void *)&t->b, b, sizeof(TYPE_REWRITING_VARIABLE));
-	t->next = NULL;
+    NEW(t);
+    memcpy((void *)&t->b, b, sizeof(TYPE_REWRITING_VARIABLE));
+    t->next = NULL;
 
-	if (s->tail){
-		s->tail->next = t;
-		s->tail = t;
-	}
-	else{
-		s->head = s->tail = t;
-	}
-	count++;
+    if (s->tail){
+        s->tail->next = t;
+        s->tail = t;
+    }
+    else{
+        s->head = s->tail = t;
+    }
+    count++;
 }
 
 void print_rewriting_variable(FILE *file, TYPE_REWRITING_VARIABLE *b){
@@ -75,24 +75,24 @@ void print_answer(FILE *file, TYPE_REWRITING_VARIABLE *b){
 }
 
 int solver_init(){
-	Mem_init();
-	Ds_init();
+    Mem_init();
+    Ds_init();
 
 %% fill_SolverInit
 
-	return TRUE;
+    return TRUE;
 }
 
 %% fill_StratumQueueInitializers
 
 int solver_compute(){
 %% fill_IntList
-	SolverNode current;
-	TYPE_REWRITING_VARIABLE VAR;
+    SolverNode current;
+    TYPE_REWRITING_VARIABLE VAR;
 
 %% fill_SolverCompute
 
-	return TRUE;
+    return TRUE;
 }
 
 void solver_free(){
