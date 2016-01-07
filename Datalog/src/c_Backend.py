@@ -1028,25 +1028,9 @@ def fillSolverCompute(outfile):
                                           
                         outfile.write('{\n')
                     
-                    # if equal_cards_rewriting_variable or argument_constants_left_side\
-                     #----------------- or argument_constants_consulting_values:
-                        #------------------------------------- tabs = '\t\t\t\t'
-                    #----------------------------------------------------- else:
-                        #--------------------------------------- tabs = '\t\t\t'
-                    # if equal_cards_rewriting_variable or argument_constants_left_side\
-                        #-------------- or argument_constants_consulting_values:
-                        #----------------------------------- spaces = SPACES * 4
-                    
-                    # if commonVars_len == 0 and len(equation.consultingArguments) == 1:
-                        #----------------------------------------- #tabs += '\t'
-                        #-------------------------------------- spaces += SPACES
-                    
-                    # tabs += '\t' * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x)
-                    
-                    #outfile.write("LALALALALA {}\n".format(len(spaces)))
-                    #spaces += SPACES * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x)
-                    #                         for x in equation.consultingArguments))
-                    #outfile.write("LALALALALA {}\n".format(len(spaces)))
+                    # This space emits code to start the new level of the source code after all the if's
+                    # the code to indent the different ifs is emitted at previous enumerated for below
+                    # the commonVars_len == 0 line
                     spaces += SPACES
 
                     outfile.write('{}VAR.PREDICATE = {};\n'.format(spaces,
@@ -1118,15 +1102,8 @@ def fillSolverCompute(outfile):
                         else:
                             outfile.write('current->b.VAR_{};\n'.format(str(var)))
                     
-                    # Here we just emit source code to handle the indentation and the closing }
-                    # TODO: The indentation is a little bit broken right now and should be checked
-                    #       but is not mandatory for the well functioning of the compiler
-                    #--------------------- if equal_cards_query_not_common_vars:
-                        # common_block_for_any_type_of_rule(tabs[:-1], equation, level, len(GenerationData.stratums),
-                                                          #-- idToStratumLevels)
-                    #----------------------------------------------------- else:
-                        # common_block_for_any_type_of_rule(tabs, equation, level, len(GenerationData.stratums),
-                                                          #-- idToStratumLevels)
+                    # Here we just emit source code to handle the indentation and the close every 
+                    # required '}' character
                     common_block_for_any_type_of_rule(spaces, equation, level, len(GenerationData.stratums),
                                                       idToStratumLevels)
     
