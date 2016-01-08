@@ -29,37 +29,51 @@ def makeArgument(arg):
 
 # This function is used to parse assignation expressions of the kind A = B + C
 # The grammar is:
+#   EQUAL_OPERATOR ::= '=' | 'IS'
 #   VARIABLE_OR_NUMBER ::= VARIABLE | NUMBER
 #   ARITHMETIC_EXPRESSION ::= VARIABLE_OR_NUMBER ARITHMETIC_OPERATOR
 #                             VARIABLE_OR_NUMBER
+#   EXPRESSION ::= VARIABLE_OR_NUMBER | ARITHMETIC_EXPRESSION
 #   ASSIGNATION_EXPRESSION ::= VARIABLE_OR_NUMBER EQUAL_OPERATOR
-#                              ARITHMETIC_EXPRESSION
+#                              EXPRESSION
 # Clousure added to compute the compilation of the regexes only once.
-# THIS FUNCTION IS DEPRECATED BY NOW!!!. May be used again on future
-# extensions.
 def clousure_get_assignation_expression():
     VAR = '[A-Za-z]+'
     NUMBER = '[0-9]+'
     VAR_OR_NUMBER = "(" + VAR + "|" + NUMBER + ")"
-    EXPRESSION = "("+ VAR + ")" + "=" + VAR_OR_NUMBER + r"([\+\-\*/])" + VAR_OR_NUMBER
-    assignation = re.compile(EXPRESSION)
+    EXPRESSION = VAR_OR_NUMBER + r"([\+\-\*/\%])" +\
+                 VAR_OR_NUMBER
+    EXPRESSION_SIDE = "([A-Za-z0-9\+\*\-/\(\)\%]+)"
+    ASSIGNATION = "("+ VAR + ")" + "=|IS" +  EXPRESSION_SIDE
+    arg = re.compile(VAR_OR_NUMBER + "$")
+    expression = re.compile(EXPRESSION + "$")
+    assignation = re.compile(ASSIGNATION)
     def _(rule, start_position):
         match = assignation.match(rule[start_position:])
         if match == None:
             return None, start_position
 
-        left_side = match.groups()[0]
-        operator = match.groups()[2]
-        right_side_arguments = []
-        for arg in match.groups()[1::2]:
-            try:
-                right_side_arguments.append(Argument('constant', int(arg)))
-            except ValueError:
-                right_side_arguments.append(Argument('variable', arg))
+        m = match.groups()
+        left_side, right = makeArgument(m[0]), m[1]
 
-        return AssignationExpression('assignation', Argument('variable', left_side),
-                                     right_side_arguments, operator),\
-               start_position + match.end()
+        right_side = None
+        # Is the right side a variable or a constant?
+        if arg.match(right):
+            right_side = makeArgument(right)
+        # Is the right side an arithmetic expression?
+        elif expression.match(right):
+            arg1, op, arg2 = expression.match(right).groups()
+            right_side = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                              op)
+        # At this point we don't now what the right side is.q
+        else:
+            return None, start_position
+
+        assignation_expression = AssignationExpression('assignation', left_side, right_side)
+        new_position = start_position + match.end()
+
+        return assignation_expression, new_position
+
     return _
 get_assignation_expression = clousure_get_assignation_expression()
 
@@ -97,44 +111,48 @@ def clousure_get_boolean_expression():
             return None, start_position
 
         # Split the main expression
-        left_side, operator, right_side = match.groups()
+        left, operator, right = match.groups()
         
         # Check the left side it can be an expression with or without parentheses
         # or an argument (a variable or a constant). If nothing matches return
         # the error.
-        left_argument = None
-        if (arg.match(left_side)):
-            left_argument = makeArgument(left_side)
-        elif expression.match(left_side):
-            arg1, op, arg2 = expression.match(left_side).groups()
-            left_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
-                                                 op)
-        elif expression_with_parentheses.match(left_side):
-            arg1, op, arg2 = expression_with_parentheses.match(left_side).groups()
-            left_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
-                                                 op)
+        left_side = None
+        if (arg.match(left)):
+            left_side = makeArgument(left)
+        elif expression.match(left):
+            arg1, op, arg2 = expression.match(left).groups()
+            left_side = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                             op)
+        elif expression_with_parentheses.match(left):
+            arg1, op, arg2 = expression_with_parentheses.match(left).groups()
+            left_side = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                             op)
         else:
             return None, start_position
         
         # Check the left side it can be an expression with or without parentheses
         # or an argument (a variable or a constant). If nothing matches return
         # the error.
-        right_argument = None
-        if (arg.match(right_side)):
-            right_argument = makeArgument(right_side)
-        elif expression.match(right_side):
-            arg1, op, arg2 = expression.match(right_side).groups()
-            right_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
-                                                   op)
-        elif expression_with_parentheses.match(right_side):
-            arg1, op, arg2 = expression_with_parentheses.match(right_side).groups()
-            right_argument = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
-                                                 op)
+        right_side = None
+        if (arg.match(right)):
+            right_side = makeArgument(right)
+        elif expression.match(right):
+            arg1, op, arg2 = expression.match(right).groups()
+            right_side = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                              op)
+        elif expression_with_parentheses.match(right):
+            arg1, op, arg2 = expression_with_parentheses.match(right).groups()
+            right_side = ArithmeticExpression((makeArgument(arg1), makeArgument(arg2)),
+                                              op)
         else:
             return None, start_position
         
-        return BooleanExpression('boolean', (left_argument, right_argument), operator),\
-               start_position + match.end()
+        boolean_expression = BooleanExpression('boolean',
+                                               (left_side, right_side),
+                                               operator)
+        new_position = start_position + match.end()
+        return boolean_expression, new_position
+
     return _
 get_boolean_expression = clousure_get_boolean_expression()
 
@@ -233,7 +251,7 @@ def parseRule(rule, check_restricted=False):
     if not v:
         raise ValueError('Head separator not found')
     
-    parser_body_elements = [get_predicate, get_boolean_expression]
+    parser_body_elements = [get_predicate, get_assignation_expression, get_boolean_expression]
 
     # Get the body.
     body = []
