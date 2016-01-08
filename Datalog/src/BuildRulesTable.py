@@ -30,59 +30,43 @@ def logError(filename, line_no, error_type, error_message):
 
 # This function checks if a rule is unsafe. If a rule is unsafe can't be 
 # evaluated.
-def isAnUnsafeRule(head, body, assignation):
-    vars_h = [x.value for x in head.arguments if x.type == 'variable' ]
+def isAnUnsafeRule(head, body, assignations):
+    vars_head = set(x.value for x in head.arguments if x.type == 'variable' )
+    vars_body = set()
     
     if len(body) == 1:
         # Check that all the variables of the body appear on the head
-        body_vars = [x.value for x in body[0].arguments if x.type == 'variable' ]
-        if assignation:
-            body_vars.append(assignation.leftArg.value)
+        vars_body |= set(x.value for x in body[0].arguments if x.type == 'variable')
         
-        if not set(vars_h).issubset(set(body_vars)):
-            return True
-        
-        # Rules of type one can't contain negated predicates this is unsafe
-        if body[0].negated:
-            return True
-    
     elif len(body) == 2:
-        vars_b1 = [x.value for x in body[0].arguments if x.type == 'variable' ]
-        vars_b2 = [x.value for x in body[1].arguments if x.type == 'variable' ]
+        vars_body |= set(x.value for x in body[0].arguments if x.type == 'variable')
+        vars_body |= set(x.value for x in body[1].arguments if x.type == 'variable')
         
-        # Both predicates can't be negated
-        if body[0].negated and body[1].negated:
-            return True
-        # All the variables in the negated predicate must appear in the other predicate of the rule
-        if body[0].negated and not set(vars_b1).issubset(set(vars_b2)):
-            return True
-
-        if body[1].negated and not set(vars_b2).issubset(set(vars_b1)):
-            return True
+    if assignations:
+        vars_body |= set(a.leftArgument.value for a in assignations)
             
-        # Check that all the variables of the head exist in the body
-        if not body[0].negated and not body[1].negated:
-            body_vars = set(vars_b1).union(set(vars_b2))
-            if assignation:
-                body_vars.add(assignation.leftArg.value)
-            if not set(vars_h).issubset(body_vars):
-                return True
+    if not vars_head.issubset(vars_body):
+            return True
 
     return False
 
 
-def checkLeftSideVariableOnAssignationAppearsOnTheHead(head, assignation):
-    assignation_var = assignation.leftArg.value
-    vars_head = [x.value for x in head.arguments if x.type == 'variable' ]
+def checkLeftSideVariableOnAssignationsAppearOnTheHead(head, assignation):
+    vars_head = set(x.value for x in head.arguments if x.type == 'variable')
     
-    if assignation_var in vars_head:
+    if assignation.leftArgument.value in vars_head:
         return True
     
     return False
 
 
-def checkRightSideVariablesOnAssignationAppearOnTheBody(predicates_of_the_body, assignation):
-    assignation_vars = set([x.value for x in assignation.rightArgs if x.type == 'variable'])
+def checkRightSideVariablesOnAssignationsAppearOnTheBody(predicates_of_the_body, assignation):
+    if isinstance(assignation.rightArgument, ArithmeticExpression):
+        assignation_vars = set(argument.value for argument in assignation.rightArgument.arguments
+                                                    if argument.type == 'variable')
+    else:
+        assignation_vars = set(assignation.rightArgument.value)
+                   
     predicate_vars = set([y.value for x in predicates_of_the_body
                                   for y in x.arguments if y.type == 'variable'])
     
@@ -156,8 +140,6 @@ def buildRulesTable(filename, test=False):
         body_predicates_ids = [predicate.id for predicate in predicates]
         negated_predicate_ids = [neg_pred.id for neg_pred in negated_predicates]
         
-        has_assignation_expressions = (len(assignation_expressions) != 0)
-        has_boolean_expressions = (len(boolean_expressions) != 0)
         has_negated_predicates = (len(negated_predicate_ids) != 0)
         
         # Start for semantic error on the logical rules:
@@ -195,37 +177,25 @@ def buildRulesTable(filename, test=False):
                      'Body of the rule redefines a predicate:' + body_predicate.id.name )
                 sys.exit(0)
         
-        if len(assignation_expressions) > 1:
-            logError(filename,
-                     line_no,
-                     None,
-                     'Only one has_assignation_expressions expression per rule is supported')
-            sys.exit(0)
-            
-        if isAnUnsafeRule(head, predicates, has_assignation_expressions):
-            logError(filename,
-                     line_no,
-                     None,
-                     'Unsafe rule')
-            sys.exit(0)
-            
-        if has_assignation_expressions:
-            if not checkLeftSideVariableOnAssignationAppearsOnTheHead(head, has_assignation_expressions):
+        # Check that the assignation expressions are properly defined
+        for assignation_expression in assignation_expressions:
+            if not checkLeftSideVariableOnAssignationsAppearOnTheHead(head, assignation_expression):
                 logError(filename,
                          line_no,
                          None,
-                         'The variable on the left side of the has_assignation_expressions expression must ' +
-                         'appear on the predicate of head of the rule')
+                         'The variable on the left side of the assignation doesn\'t ' +
+                         'appear on head of the rule')
                 sys.exit(0)
                 
-            if not checkRightSideVariablesOnAssignationAppearOnTheBody(predicates, has_assignation_expressions):
+            if not checkRightSideVariablesOnAssignationsAppearOnTheBody(predicates, assignation_expression):
                 logError(filename,
                          line_no,
                          None,
-                         'The variables on the right side of the has_assignation_expressions expression must ' +
-                         'appear on the predicates of the body of the rule')
+                         'A variable on the right side of the assignation doesn\'t ' +
+                         'appear on the body of the rule')
                 sys.exit(0)
-                
+        
+        # Check that the boolean expressions are properly defined        
         for boolean_expression in boolean_expressions:
             if not checkBooleanExpressionVariablesAppearOnTheBody(predicates, boolean_expression):
                 logError(filename,
@@ -235,12 +205,17 @@ def buildRulesTable(filename, test=False):
                          'must appear on one the predicates of the body')
                 sys.exit(0)
                 
-        if has_assignation_expressions and has_boolean_expressions:
+        # Is it an unsafe rule?
+        # Conditions to be an unsafe rule:
+        #    - A variable on the head doesn't appear on the body
+        if isAnUnsafeRule(head, predicates, assignation_expressions):
             logError(filename,
                      line_no,
                      None,
-                     'Simultaneous assignation expressions and a boolean expressions on rules are not supported')
+                     'All the variables of the head must appear on a body predicate ' + 
+                     'or the left side of an assignation')
             sys.exit(0)
+                
 
         # Check for errors regarding negated predicates
         body_variables = set([y.value for x in predicates
