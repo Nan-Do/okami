@@ -164,14 +164,13 @@ ArithmeticExpression = namedtuple('ArithmeticExpression', ['arguments', 'operato
 # the right side ordered by appearance in the example's case [B, C]
 #      type -> A string with the value 'assignation' it will identify the
 #              kind of expression.
-#   leftArgument -> An argument representing the variable of the left side of
+#   leftArgument -> The argument representing the variable of the left side of
 #              the expression it must be a predicate.
-# rightArguments -> A list of two elements of arguments containing the elements
-#              of the right side of the expression.
-#  operator -> A string containing the character representing the operator
-#              used at the expression.
+# rightArgument  -> The argument representing the right side of the assignation
+#                   expression. When it belongs to the logic rules table it will
+#                   contain arguments and/or arithmetic expressions.
 AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArgument',
-                                                             'rightArguments', 'operator'],
+                                                             'rightArgument'],
                                    verbose=False)
 
 # BooleanExpression is a named tuple that represents the information we need
