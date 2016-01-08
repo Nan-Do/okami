@@ -44,7 +44,7 @@ def clousure_get_assignation_expression():
     EXPRESSION = VAR_OR_NUMBER + r"([\+\-\*/\%])" +\
                  VAR_OR_NUMBER
     EXPRESSION_SIDE = "([A-Za-z0-9\+\*\-/\(\)\%]+)"
-    ASSIGNATION = "("+ VAR + ")" + "=|IS" +  EXPRESSION_SIDE
+    ASSIGNATION = "("+ VAR + ")" + "(?:=|IS)" +  EXPRESSION_SIDE
     arg = re.compile(VAR_OR_NUMBER + "$")
     expression = re.compile(EXPRESSION + "$")
     assignation = re.compile(ASSIGNATION)
