@@ -13,7 +13,7 @@ from operator import attrgetter
 from itertools import count, chain
 from datetime import datetime
 from functools import wraps
-from Types import Argument
+from Types import Argument, ArithmeticExpression
 
 # Settings for the parser
 DELIMITER = '%%'
@@ -424,6 +424,64 @@ def fillSolverCompute(outfile):
         return consulting_arguments.index(argument) + 1\
             - len(common_variables) - len([ x for x in consulting_arguments if
                                            isinstance(x, Argument) and x.type == 'constant' ])
+            
+    # This is an auxiliary function that returns the string to be emitted when we detect an
+    # variabe.
+    def compose_variable(variable, consulting_arguments, common_variables):
+        emitting_code = ''
+        t_index = get_t_index(variable,
+                              consulting_arguments,
+                              common_variables)
+        if len(common_variables) == 0:
+            if t_index == 1:
+                emitting_code += "t0"
+            else:
+                emitting_code += "t{}->value".format(t_index-1)
+        else:
+            emitting_code += "t{}->value".format(t_index)
+            
+        return emitting_code        
+
+    # This is an auxiliary function that returns the string to be emitted when we detect an
+    # arithmetic expression. 
+    def compose_expression(expression, consulting_arguments, common_variables):
+        if isinstance(expression, int):
+            return "current->b.VAR_{}".format(expression)
+        elif isinstance(expression, Argument) and expression.type == 'constant':
+            return str(expression.value)
+        elif isinstance(expression, Argument) and expression.type == 'variable':
+            return compose_variable(expression,
+                                    consulting_arguments,
+                                    common_variables)
+        elif isinstance(expression, ArithmeticExpression):
+            args, op = expression
+            emitting_code = ''
+                    
+            for x in xrange(2):
+                if isinstance(args[x], int):
+                    emitting_code += "current->b.VAR_{}".format(args[x])
+                elif isinstance(args[x], Argument):
+                    if args[x].type == "constant":
+                        emitting_code += str(args[x].value)
+                    elif args[x].type == 'variable':
+                        emitting_code += compose_variable(args[x], 
+                                                          consulting_arguments, 
+                                                          common_variables)
+                    else:
+                        error_msg = "Emmiting code for an assignation expresion (Unknown type): "
+                        raise ValueError(error_msg + str(args[x]))
+                else:
+                    error_msg = "Emmiting code for an assignation expresion (Unknown type): "
+                    raise ValueError(error_msg + str(args[x]))
+                            
+                if x == 0:
+                    emitting_code += " " + op + " "
+            
+            return "(" + emitting_code + ")"
+        else:
+            error_msg = "Emmiting code (Unknown type): "
+            raise ValueError(error_msg + str(expression))
+
     # This function emits code regardless we are dealing with a type 1 or type2 rewriting equation.
     # This function has been extracted as a closure so we don't have to write the piece of twice. 
     # Also is used to emit the spaces for the source code properly.
@@ -455,42 +513,18 @@ def fillSolverCompute(outfile):
                     boolean_expression_str = ''
                     for p2, b_arg in enumerate(b_args):
                         side = ''
-                        if isinstance(b_arg, int):
-                            side = "current->b.VAR_" + str(b_arg)
-                        elif isinstance(b_arg, Argument):
-                            if b_arg.type == "constant":
-                                side = str(b_arg.value)
-                            else:
-                                side = "t{}->value".format(get_t_index(b_arg,
-                                                                       equation.consultingArguments,
-                                                                       equation.commonVariables))
+
+                        if equation.type == 1:
+                            side = compose_expression(b_arg, None, None)
                         else:
-                            a_args, a_op = b_arg
-                            if isinstance(a_args[0], int):
-                                side = "current->b.VAR_" + str(a_args[0])
-                            elif isinstance(a_args[0], Argument):
-                                if a_args[0].type == "constant":
-                                    side = str(a_args[0].value)
-                                else:
-                                    side = "t{}->value".format(get_t_index(a_args[0],
-                                                                           equation.consultingArguments,
-                                                                           equation.commonVariables))
-                            side += " " + a_op + " "
-                            
-                            if isinstance(a_args[1], int):
-                                side += "current->b.VAR_" + str(a_args[1])
-                            elif isinstance(a_args[1], Argument):
-                                if a_args[1].type == "constant":
-                                    side += str(a_args[1].value)
-                                else:
-                                    side = "t{}->value".format(get_t_index(a_args[1],
-                                                                           equation.consultingArguments,
-                                                                           equation.commonVariables))
-                            side = "(" + side +")"
+                            side = compose_expression(b_arg,
+                                                      equation.consultingArguments,
+                                                      equation.commonVariables)
                             
                         boolean_expression_str += side
                         if p2 == 0:
                             boolean_expression_str += " " + b_op + " "
+                            
                     boolean_expressions_str += "(" + boolean_expression_str + ")"
                     if p1 != len(equation.booleanExpressions) - 1:
                         boolean_expressions_str += " &&\n{}{}".format(spaces,
@@ -521,9 +555,10 @@ def fillSolverCompute(outfile):
                             #for position, element in enumerate(equation.rightArguments, start=1):
                             #    if negated_arg == element:
                             #        negated_arguments_str.append('VAR.VAR_{}'.format(position))
-                            negated_arguments_str.append("t{}->value".format(get_t_index(negated_arg,
-                                                                                         equation.consultingArguments,
-                                                                                         equation.commonVariables)))
+                            negated_arguments_str.append(compose_variable(negated_arg, 
+                                                                          equation.consultingArguments,
+                                                                          equation.commonVariables))
+                                                             
                 
                 negated_arguments = ', '.join(negated_arguments_str)
                 outfile.write('\n{}{}!Ds_contains_solution_{}({})'.format(spaces,
@@ -740,18 +775,15 @@ def fillSolverCompute(outfile):
                         spaces += SPACES
                             
                     outfile.write('{}VAR.PREDICATE = {};\n'.format(spaces, equation.rightVariable.id.uniqueId))
-                    for pos, answer_pos in enumerate(equation.rightArguments, 1):
+                    for pos, answer in enumerate(equation.rightArguments, 1):
                         # Check if we are dealing with a constant propagated trough the datalog source code.
                         # If we have an integer here it means it is a rewriting constant propagated value
                         # otherwise it is a constant specified on the datalog source code.
-                        if isinstance(answer_pos, int):
-                            outfile.write('{}VAR.VAR_{} = current->b.VAR_{};\n'.format(spaces,
-                                                                                       str(pos),
-                                                                                       str(answer_pos)))
-                        else:
-                            outfile.write('{}VAR.VAR_{} = {};\n'.format(spaces,
-                                                                        str(pos),
-                                                                        str(answer_pos.value)))
+                        # In this case we have a propagated position
+                        code = compose_expression(answer, None, None)
+                        outfile.write('{}VAR.VAR_{} = {};\n'.format(spaces,
+                                                                    str(pos),
+                                                                    code))
                         
                     common_block_for_any_type_of_rule(spaces,
                                                       equation,
@@ -1073,23 +1105,13 @@ def fillSolverCompute(outfile):
                     # we start at t0 as we have to iterate over all the variables of the other
                     # predicate.
                     for pos, var in enumerate(equation.rightArguments, start=1):
-                        outfile.write('{}VAR.VAR_{} = '.format(spaces, pos))
-                        if isinstance(var, Argument) and var.type == 'variable':
-                            t_index = get_t_index(var,
+                        code = compose_expression(var,
                                                   equation.consultingArguments,
                                                   equation.commonVariables)
-                            if commonVars_len == 0:
-                                if t_index == 1:
-                                    outfile.write('t0;\n')
-                                else:
-                                    outfile.write('t{}->value;\n'.format(str(t_index-1)))
-                            else:
-                                outfile.write('t{}->value;\n'.format(str(t_index)))
-                        elif isinstance(var, Argument) and var.type == 'constant':
-                            outfile.write('{};\n'.format(str(var.value)))
-                        else:
-                            outfile.write('current->b.VAR_{};\n'.format(str(var)))
-                    
+                        outfile.write('{}VAR.VAR_{} = {};\n'.format(spaces,
+                                                                    str(pos),
+                                                                    code))
+                                            
                     # Here we just emit source code to handle the indentation and the close every 
                     # required '}' character
                     common_block_for_any_type_of_rule(spaces, equation, level, len(GenerationData.stratums),

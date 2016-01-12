@@ -56,11 +56,12 @@ LogicRule = namedtuple('LogicRule', ['head', 'body', 'type', 'negated', 'lineno'
 #     negatedElements -> List of NegatedElements. If the equation has to query a 
 #                        negated element it will be listed here.
 #     booleanExpressions -> List of booleanExpressions
+#     assignationExpressions' -> List of assignationExpressions
 RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type', 
                                                'leftVariable', 'leftArguments', 
                                                'rightVariable', 'rightArguments',
-                                               'negatedElements',
-                                               'booleanExpressions'],
+                                               'negatedElements', 'booleanExpressions',
+                                               'assignationExpressions'],
                             verbose=False)
 
 # May be add a field ViewName to store the viewName every rule is associated to.
@@ -82,14 +83,14 @@ RewritingRule1 = namedtuple('RewritingRule1', ['ruleNumber', 'type',
 #     negatedElements -> List of NegatedElements. If the equation has to query a 
 #                        negated element it will be listed here.
 #     booleanExpressions -> List of booleanExpressions
+#     assignationExpressions' -> List of assignationExpressions
 RewritingRule2 = namedtuple('RewritingRule2', ['ruleNumber', 'type',
                                                'leftVariable', 'leftArguments', 
                                                'rightVariable', 'rightArguments', 
                                                'commonVariables', 'consultingPredicate', 
                                                'consultingArguments', 'aliasName', 
-                                               'combinationView',
-                                               'negatedElements',
-                                               'booleanExpressions'],
+                                               'combinationView', 'negatedElements',
+                                               'booleanExpressions', 'assignationExpressions'],
                             verbose=False)
 
 # PredicateTypes is a named tuple that represents the different kind of 
@@ -164,13 +165,16 @@ ArithmeticExpression = namedtuple('ArithmeticExpression', ['arguments', 'operato
 # the right side ordered by appearance in the example's case [B, C]
 #      type -> A string with the value 'assignation' it will identify the
 #              kind of expression.
-#   leftArgument -> The argument representing the variable of the left side of
-#              the expression it must be a predicate.
-# rightArgument  -> The argument representing the right side of the assignation
-#                   expression. When it belongs to the logic rules table it will
-#                   contain arguments and/or arithmetic expressions.
-AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArgument',
-                                                             'rightArgument'],
+#      args -> A tuple of two elements containing the arguments of the expression.
+#              the left side will be the first element and right side will be the
+#              second element. When it belongs to the logic rules table it will 
+#              contain arguments and/or arithmetic expressions. When it belongs
+#              to the rewriting equations table it will contain arguments 
+#              (representing constants), positions or arithmetic expressions whose
+#              argument variables have also been transformed to positions.
+#  operator -> A string containing the character representing the operator
+#              used at the expression.
+AssignationExpression = namedtuple('AssignationExpression', ['type', 'arguments', 'operator'],
                                    verbose=False)
 
 # BooleanExpression is a named tuple that represents the information we need
@@ -186,8 +190,8 @@ AssignationExpression = namedtuple('AssignationExpression', ['type', 'leftArgume
 #              the left side will be the first element and right side will be the
 #              second element. When it belongs to the logic rules table it will 
 #              contain arguments and/or arithmetic expressions. When it belongs
-#              to the rewriting equations table it will contain predicates 
-#              representing constants, positions or arithmetic expressions whose
+#              to the rewriting equations table it will contain arguments 
+#              (representing constants), positions or arithmetic expressions whose
 #              argument variables have also been transformed to positions.
 #  operator -> A string containing the character representing the operator
 #              used at the expression.

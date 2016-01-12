@@ -14,7 +14,7 @@ from functools import wraps
 from itertools import count, chain, repeat
 from datetime import datetime
 
-from Types import Argument
+from Types import Argument, ArithmeticExpression
 
 
 # Settings for the parser
@@ -610,6 +610,64 @@ def fillSolverCompute(outfile):
         return consulting_arguments.index(argument) + 1\
             - len(common_variables) - len([ x for x in consulting_arguments if
                                            isinstance(x, Argument) and x.type == 'constant' ])
+    
+    # This is an auxiliary function that returns the string to be emitted when we detect an
+    # variabe.
+    def compose_variable(variable, consulting_arguments, common_variables):
+        emitting_code = ''
+        t_index = get_t_index(variable,
+                              consulting_arguments,
+                              common_variables)
+        if len(common_variables) == 0:
+            if t_index == 1:
+                emitting_code += "t0"
+            else:
+                emitting_code += "t{}".format(t_index-1)
+        else:
+            emitting_code += "t{}".format(t_index)
+            
+        return emitting_code        
+
+    # This is an auxiliary function that returns the string to be emitted when we detect an
+    # arithmetic expression. 
+    def compose_expression(expression, consulting_arguments, common_variables):
+        if isinstance(expression, int):
+            return "current[{}]".format(expression)
+        elif isinstance(expression, Argument) and expression.type == 'constant':
+            return str(expression.value)
+        elif isinstance(expression, Argument) and expression.type == 'variable':
+            return compose_variable(expression,
+                                    consulting_arguments,
+                                    common_variables)
+        elif isinstance(expression, ArithmeticExpression):
+            args, op = expression
+            emitting_code = ''
+                    
+            for x in xrange(2):
+                if isinstance(args[x], int):
+                    emitting_code += "current[{}]".format(args[x])
+                elif isinstance(args[x], Argument):
+                    if args[x].type == "constant":
+                        emitting_code += str(args[x].value)
+                    elif args[x].type == 'variable':
+                        emitting_code += compose_variable(args[x], 
+                                                          consulting_arguments, 
+                                                          common_variables)
+                    else:
+                        error_msg = "Emmiting code for an assignation expresion (Unknown type): "
+                        raise ValueError(error_msg + str(args[x]))
+                else:
+                    error_msg = "Emmiting code for an assignation expresion (Unknown type): "
+                    raise ValueError(error_msg + str(args[x]))
+                            
+                if x == 0:
+                    emitting_code += " " + op + " "
+            
+            return "(" + emitting_code + ")"
+        else:
+            error_msg = "Emmiting code (Unknown type): "
+            raise ValueError(error_msg + str(expression))
+
     # This function emits code regardless we are dealing with a type 1 or type2 rewriting equation.
     # This function has been extracted as a closure so we don't have to write the piece of twice. 
     # Also is used to emit the spaces for the source code properly.
@@ -641,42 +699,19 @@ def fillSolverCompute(outfile):
                     boolean_expression_str = ''
                     for p2, b_arg in enumerate(b_args):
                         side = ''
-                        if isinstance(b_arg, int):
-                            side = "current[{}]".format(b_arg)
-                        elif isinstance(b_arg, Argument):
-                            if b_arg.type == "constant":
-                                side = str(b_arg.value)
-                            else:
-                                side = "t{}".format(get_t_index(b_arg,
-                                                                equation.consultingArguments,
-                                                                equation.commonVariables))
+
+                        if equation.type == 1:
+                            side = compose_expression(b_arg, None, None)
                         else:
-                            a_args, a_op = b_arg
-                            if isinstance(a_args[0], int):
-                                side = "current[{}]".format(a_args[0])
-                            elif isinstance(a_args[0], Argument):
-                                if a_args[0].type == "constant":
-                                    side = str(a_args[0].value)
-                                else:
-                                    side = "t{}".format(get_t_index(a_args[0],
-                                                                    equation.consultingArguments,
-                                                                    equation.commonVariables))
-                            side += " " + a_op + " "
-                            
-                            if isinstance(a_args[1], int):
-                                side += "current[{}]".format(a_args[1])
-                            elif isinstance(a_args[1], Argument):
-                                if a_args[1].type == "constant":
-                                    side += str(a_args[1].value)
-                                else:
-                                    side = "t{}".format(get_t_index(a_args[1],
-                                                                    equation.consultingArguments,
-                                                                    equation.commonVariables))
-                            side = "(" + side +")"
+                            side = compose_expression(b_arg,
+                                                      equation.consultingArguments,
+                                                      equation.commonVariables)
                             
                         boolean_expression_str += side
+
                         if p2 == 0:
                             boolean_expression_str += " " + b_op + " "
+                            
                     boolean_expressions_str += "(" + boolean_expression_str + ")"
                     if p1 != len(equation.booleanExpressions) - 1:
                         boolean_expressions_str += " and\\\n{}{}".format(spaces,
@@ -706,9 +741,9 @@ def fillSolverCompute(outfile):
                             #for position, element in enumerate(equation.rightArguments, start=1):
                             #    if negated_arg == element:
                             #        negated_arguments_str.append('VAR.VAR_{}'.format(position))
-                            negated_arguments_str.append("t{}".format(get_t_index(negated_arg,
-                                                                                  equation.consultingArguments,
-                                                                                  equation.commonVariables)))
+                            negated_arguments_str.append(compose_variable(negated_arg, 
+                                                                          equation.consultingArguments,
+                                                                          equation.commonVariables))
                 
                 negated_arguments = ', '.join(negated_arguments_str)
                 outfile.write('{}{}not data.contains_solution_{}({})'.format(spaces,
@@ -906,25 +941,20 @@ def fillSolverCompute(outfile):
                         spaces += SPACES
                         
                     new_var = 'var = (hypotheses.{}, '.format(equation.rightVariable.id.name)                            
-                    for pos, answer_pos in enumerate(equation.rightArguments, 1):
+                    for pos, answer in enumerate(equation.rightArguments, 1):
                         # Check if we are dealing with a constant propagated trough the datalog source code.
                         # If we have an integer here it means it is a rewriting constant propagated value
                         # otherwise it is a constant specified on the datalog source code.
-                        if isinstance(answer_pos, int):
-                            new_var += 'current[{}]'.format(answer_pos)
-                        else:
-                            new_var += '{}'.format(answer_pos.value)
-                        
+                        new_var += compose_expression(answer, None, None)
+                            
                         if (pos != len(equation.rightArguments)): new_var += ", "
+                        
                     new_var += ')'
                     outfile.write('{}{}'.format(spaces, new_var))
                         
                     common_block_for_any_type_of_rule(spaces, equation, level, len(GenerationData.stratums),
                                                       idToStratumLevels)
                     
-                    #if have_equal_cards or argument_constants_left_side:
-                    #    tabs = tabs[:-1]
-                    #    outfile.write('{}}}\n'.format(tabs, tabs))
                         
                 if equation.type == 2:
                     commonVars_len = len(equation.commonVariables)
@@ -1144,7 +1174,6 @@ def fillSolverCompute(outfile):
                                                                                    aliasToViewNames[equation.aliasName],
                                                                                    args)) 
                         else:
-                            #outfile.write("X: {}\t\tARGS:{}\t\tNUMBER_OF_ARGS: {}\t\tY: {}\t\tCOMMON_VARS: {}\n".format(x, args, number_of_args, y, commonVars_len))
                             args += ', '.join(['t{}'.format(i) for i in xrange(1, (y-commonVars_len)+1)])
                             outfile.write('{}for t{} in data.get{}(views.{}, {})'.format(spaces,
                                                                                          (y-commonVars_len) + 1,
@@ -1155,28 +1184,7 @@ def fillSolverCompute(outfile):
                                           
                         outfile.write(':\n')
                     
-                    # if not(equal_cards_rewriting_variable or argument_constants_left_side\
-                           #---------- or argument_constants_consulting_values):
-                        #----------------------------------- spaces = SPACES * 4
-                    #if equal_cards_rewriting_variable or argument_constants_left_side\
-                    #    or argument_constants_consulting_values:
-                    #     spaces = SPACES * 4
-
-                    #----------------------------------------------------- else:
-                        #----------------------------------- spaces = SPACES * 4
-                    #spaces = SPACES * 4
-                    
-                    #if commonVars_len == 0 and len(equation.consultingArguments) == 1:
-                    #    spaces += SPACES
-                    
-                    # spaces += SPACES * sum(((lambda x: 1 if isinstance(x, Argument) and x.type == 'variable' else 0)(x)
-                                             # for x in equation.consultingArguments))
                     spaces += SPACES
-                    
-                    #outfile.write('{}VAR.PREDICATE = {};\n'.format(tabs,
-                    #                                               equation.rightVariable.id.uniqueId))
-                    #outfile.write('{}VAR.PREDICATE = hypotheses.{}\n'.format(spaces,
-                    #                                                          equation.rightVariable.id.name))
                     
                     # Here we handle if we have equal cards in the query variables that are
                     # not in the set of common variables. As we retrieve them from the iterating
@@ -1229,22 +1237,11 @@ def fillSolverCompute(outfile):
                     # we start at t0 as we have to iterate over all the variables of the other
                     # predicate.
                     for pos, var in enumerate(equation.rightArguments, start=1):
-                        #outfile.write('{}VAR.VAR_{} = '.format(spaces, pos))
-                        if isinstance(var, Argument) and var.type == 'variable':
-                            t_index = get_t_index(var,
+                        code = compose_expression(var,
                                                   equation.consultingArguments,
                                                   equation.commonVariables)
-                            if commonVars_len == 0:
-                                if t_index == 1:
-                                    outfile.write(', t0')
-                                else:
-                                    outfile.write(', t{}'.format(str(t_index-1)))
-                            else:
-                                outfile.write(', t{}'.format(str(t_index)))
-                        elif isinstance(var, Argument) and var.type == 'constant':
-                            outfile.write(', {}'.format(str(var.value)))
-                        else:
-                            outfile.write(', current[{}]'.format(var))
+                        outfile.write(", {}".format(code))
+
                     outfile.write(')\n')
                     
                     common_block_for_any_type_of_rule(spaces, equation, level, len(GenerationData.stratums),

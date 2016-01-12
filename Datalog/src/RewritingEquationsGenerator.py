@@ -6,7 +6,7 @@ Created on Jul 11, 2013
 
 from Types import RewritingRule1, RewritingRule2, ArithmeticExpression
 from Types import ViewsData, Argument, Variable, BooleanExpression, Predicate
-from Types import NegatedElement
+from Types import NegatedElement, AssignationExpression
 
 from Parser import random_generator
 
@@ -140,6 +140,30 @@ def recreateBooleanExpression(expression, d):
                              b_op)
 
 
+def recreateAssignationExpression(expression, d):
+    _, [left_side, right_side] , op = expression
+    
+    new_right_side = None
+    if isinstance(right_side , Argument):
+        if right_side.type == 'variable' and right_side in d:
+            new_right_side = d[right_side]
+        else:
+            new_right_side = right_side
+    else:
+        arithmetic_args = []
+        arith_args, a_op = right_side
+        for a_arg in arith_args:
+            if a_arg.type == 'variable' and a_arg in d:
+                arithmetic_args.append(d[a_arg])
+            else:
+                arithmetic_args.append(a_arg)
+        new_right_side = ArithmeticExpression(arithmetic_args, a_op)
+        
+    return AssignationExpression('assignation',
+                                 (left_side, new_right_side),
+                                 op)
+        
+
 # In this function we create a dictionary whose keys will be the arguments
 # which represents variables and the values are its positions inside the 
 # predicate. This function is used as a base for the reordering algorithms 
@@ -164,6 +188,11 @@ def generateRuleType_1(rule, rule_number):
     # that are variables if the argument is a constant it won't do anything
     d = constructVarsMappingFromArgs(body.arguments)
     
+    # We have to rebuild the assignationExpressions Type substituting the variables
+    # by its position on the rule
+    assignationExpressions = [recreateAssignationExpression(x, d) for x in rule.body
+                                    if isinstance(x, AssignationExpression)]
+    
     # Translate the variables of the head to the right side of the rewriting rule.
     # At the right side we store the argument and the first position of the 
     # argument in case we are dealing with a variable otherwise we store the
@@ -171,10 +200,20 @@ def generateRuleType_1(rule, rule_number):
     right_side_args = []
     for (_, arg) in enumerate(head.arguments, start=1):
         if arg.type == 'variable':
-            right_side_args.append(d[arg])
+            # We check if the variable comes from a body predicate (if branch)
+            # or an assignation expression (else branch)
+            if arg in d:
+                right_side_args.append(d[arg])
+            else:
+                # Get the assignation expression that represents this variable and
+                # append it to the args list
+                for expression in assignationExpressions:
+                    if expression.arguments[0] == arg:
+                        right_side_args.append(expression.arguments[1])
+                        break
         else:
             right_side_args.append(arg)
-    
+            
     # Same as the previous loop but in this case for the body of the logic rule
     # which will become the right side of the rewriting equation.
     left_side_args = []
@@ -200,8 +239,30 @@ def generateRuleType_1(rule, rule_number):
     return RewritingRule1(rule_number, 1,
                           left_side_var, left_side_args,
                           right_side_var, right_side_args,
-                          negatedElements,
-                          booleanExpressions)
+                          negatedElements, booleanExpressions,
+                          assignationExpressions)
+    
+def populate_right_side_arguments_for_a_type2_rule(head_arguments, vars_to_args, assignationExpressions):
+    right_side_args = []
+    for element in head_arguments:
+        if element.type == 'variable':
+            if element in vars_to_args:
+                right_side_args.append(vars_to_args[element])
+            else:
+                # We have to check of the variable comes from an assignation expression
+                # or is part from the other predicate
+                found = False
+                for expression in assignationExpressions:
+                    if expression.arguments[0] == element:
+                        right_side_args.append(expression.arguments[1])
+                        found = True
+                        break
+                if not found:
+                    right_side_args.append(element)
+        else:
+            right_side_args.append(element)
+            
+    return right_side_args
 
 # This function generates the rewriting rules for logic rules of type 2. It 
 # reorders the values to its right position both for the left side of the
@@ -213,14 +274,15 @@ def generateRuleType_2a(rule, rule_number):
     # Create the mapping with the positions of the hypothesis of the body
     d = constructVarsMappingFromArgs(hyp_1.arguments)
     
+    # We have to rebuild the assignationExpressions Type substituting the variables
+    # by its position on the rule
+    assignationExpressions = [recreateAssignationExpression(x, d) for x in rule.body
+                                    if isinstance(x, AssignationExpression)]
+    
     # Translate the variables of the head to the right side of the rewriting rule.
-    # Same as for type 1 rules
-    right_side_args = []
-    for (_, arg) in enumerate(head.arguments, start=1):
-        if arg.type == 'variable' and arg in d:
-            right_side_args.append(d[arg])
-        else:
-            right_side_args.append(arg)
+    right_side_args = populate_right_side_arguments_for_a_type2_rule(head.arguments,
+                                                                     d,
+                                                                     assignationExpressions)
 
     # This var will contain a list with the variables of the other hypothesis, 
     # the variables will be a Variable or an integer representing a position in the list
@@ -281,7 +343,8 @@ def generateRuleType_2a(rule, rule_number):
                           right_side_var, right_side_args, 
                           common_args, consulting_pred_var,
                           order, view_name, combination, 
-                          negatedElements, booleanExpressions)
+                          negatedElements, booleanExpressions,
+                          assignationExpressions)
 
 # This function is analogous to the previous one but it takes care of the
 # other hypothesis of the rules of type 2.  
@@ -289,12 +352,16 @@ def generateRuleType_2b(rule, rule_number):
     head, hyp_1, hyp_2 = rule.head, rule.body[0], rule.body[1] 
     d = constructVarsMappingFromArgs(hyp_2.arguments)
     
-    right_side_args = []
-    for (_, arg) in enumerate(head.arguments, start=1):
-        if arg.type == 'variable' and arg in d:
-            right_side_args.append(d[arg])
-        else:
-            right_side_args.append(arg)
+    # We have to rebuild the assignationExpressions Type substituting the variables
+    # by its position on the rule
+    assignationExpressions = [recreateAssignationExpression(x, d) for x in rule.body
+                                    if isinstance(x, AssignationExpression)]
+    
+    # Translate the variables of the head to the right side of the rewriting rule.
+    # Translate the variables of the head to the right side of the rewriting rule.
+    right_side_args = populate_right_side_arguments_for_a_type2_rule(head.arguments,
+                                                                     d,
+                                                                     assignationExpressions)
             
     other_hypothesis = []
     # As the list should not contain duplicates we use a set to avoid adding duplicates 
@@ -349,7 +416,8 @@ def generateRuleType_2b(rule, rule_number):
                           right_side_var, right_side_args, 
                           common_args, consulting_pred_var,
                           order, view_name, combination,
-                          negatedElements, booleanExpressions)
+                          negatedElements, booleanExpressions,
+                          assignationExpressions)
         
 def analyzeRule(rule):
     head, body = rule.head, rule.body
@@ -510,6 +578,7 @@ def rewritingEquationGenerator(rulesTable, printEquations=False):
     viewsData = ViewsData(viewNames_to_combinations, alias_to_ViewNames,
                           preds_to_viewNames, viewsOrdering)
     
+    #print equationsTable
     return equationsTable, viewsData 
 
 

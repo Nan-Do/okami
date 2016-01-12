@@ -43,7 +43,7 @@ def isAnUnsafeRule(head, body, assignations):
         vars_body |= set(x.value for x in body[1].arguments if x.type == 'variable')
         
     if assignations:
-        vars_body |= set(a.leftArgument.value for a in assignations)
+        vars_body |= set(a.arguments[0].value for a in assignations)
             
     if not vars_head.issubset(vars_body):
             return True
@@ -54,18 +54,20 @@ def isAnUnsafeRule(head, body, assignations):
 def checkLeftSideVariableOnAssignationsAppearOnTheHead(head, assignation):
     vars_head = set(x.value for x in head.arguments if x.type == 'variable')
     
-    if assignation.leftArgument.value in vars_head:
+    if assignation.arguments[0].value in vars_head:
         return True
     
     return False
 
 
 def checkRightSideVariablesOnAssignationsAppearOnTheBody(predicates_of_the_body, assignation):
-    if isinstance(assignation.rightArgument, ArithmeticExpression):
-        assignation_vars = set(argument.value for argument in assignation.rightArgument.arguments
+    assignation_vars = set()
+    if isinstance(assignation.arguments[1], ArithmeticExpression):
+        arithmetic_expression = assignation.arguments[1]
+        assignation_vars |= set(argument.value for argument in arithmetic_expression.arguments
                                                     if argument.type == 'variable')
-    else:
-        assignation_vars = set(assignation.rightArgument.value)
+    elif assignation.arguments[1].type == 'variable':
+        assignation_vars.add(assignation.arguments[1].value)
                    
     predicate_vars = set([y.value for x in predicates_of_the_body
                                   for y in x.arguments if y.type == 'variable'])

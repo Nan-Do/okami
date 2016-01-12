@@ -44,7 +44,7 @@ def clousure_get_assignation_expression():
     EXPRESSION = VAR_OR_NUMBER + r"([\+\-\*/\%])" +\
                  VAR_OR_NUMBER
     EXPRESSION_SIDE = "([A-Za-z0-9\+\*\-/\(\)\%]+)"
-    ASSIGNATION = "("+ VAR + ")" + "(?:=|IS)" +  EXPRESSION_SIDE
+    ASSIGNATION = "("+ VAR + ")" + "(=|IS)" +  EXPRESSION_SIDE
     arg = re.compile(VAR_OR_NUMBER + "$")
     expression = re.compile(EXPRESSION + "$")
     assignation = re.compile(ASSIGNATION)
@@ -53,8 +53,7 @@ def clousure_get_assignation_expression():
         if match == None:
             return None, start_position
 
-        m = match.groups()
-        left_side, right = makeArgument(m[0]), m[1]
+        left_side, operator, right = match.groups()
 
         right_side = None
         # Is the right side a variable or a constant?
@@ -69,7 +68,9 @@ def clousure_get_assignation_expression():
         else:
             return None, start_position
 
-        assignation_expression = AssignationExpression('assignation', left_side, right_side)
+        assignation_expression = AssignationExpression('assignation',
+                                                       (makeArgument(left_side), right_side),
+                                                       operator)
         new_position = start_position + match.end()
 
         return assignation_expression, new_position
