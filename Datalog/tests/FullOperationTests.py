@@ -84,12 +84,22 @@ Datalog_Examples = ['flights.datalog',
                     'booleanOneRuleExpression5.dl',
                     'booleanOneRuleExpression6.dl',
                     'odds-restricted.dl',
+                    # Programs including negation
                     'negation-boolean.dl',
                     'negationTwoPredicates.dl',
                     'negationTwoPredicates2.dl',
                     'negationTwoPredicates3.dl',
                     'negationTwoPredicates4.dl',
-                    'negationTwoPredicates5.dl'
+                    'negationTwoPredicates5.dl',
+                    # Programs with assignation expressions
+                    'assignation1.dl',
+                    'assignation2.dl',
+                    'assignation3.dl',
+                    'assignation4.dl',
+                    'assignation5.dl',
+                    'assignation6.dl',
+                    'assignation7.dl',
+                    'assignation8.dl'
                     ]
 
 logging.basicConfig(level=logging.INFO,
