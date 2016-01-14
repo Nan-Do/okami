@@ -419,17 +419,22 @@ def fillStratumQueueInitializers(outfile):
     
 def fillSolverCompute(outfile):
     # This function is used to obtain the index position of the querying argument.
-    # This is the position of the argument has on the elements we query to the database.
+    # The position of the argument has on the query to the database.
     def get_t_index(argument, consulting_arguments, common_variables):
         return consulting_arguments.index(argument) + 1\
             - len(common_variables) - len([ x for x in consulting_arguments if
                                            isinstance(x, Argument) and x.type == 'constant' ])
             
-    # This is an auxiliary function that returns the string to be emitted when we detect an
-    # variabe.
-    def compose_variable(variable, consulting_arguments, common_variables):
+    # Auxiliary function that returns the string to be emitted when we detect an
+    # argument that is a variable. It returns the code required to query the 
+    # database using the given variable.
+    # Parameters:
+    #    argument -> The argument we want to emit code for. Its type must be 'variable'.
+    # consulting_arguments -> A list with the consulting arguments of the equation.
+    #     common_variables -> A list with the common_variables of the equation.
+    def compose_argument_variable(argument, consulting_arguments, common_variables):
         emitting_code = ''
-        t_index = get_t_index(variable,
+        t_index = get_t_index(argument,
                               consulting_arguments,
                               common_variables)
         if len(common_variables) == 0:
@@ -442,15 +447,20 @@ def fillSolverCompute(outfile):
             
         return emitting_code        
 
-    # This is an auxiliary function that returns the string to be emitted when we detect an
-    # arithmetic expression. 
+    # Auxiliary function that returns the string to be emitted when we detect an
+    # expression.
+    # Parameters:
+    #    expression -> The expression from which we desire to emmit the code. 
+    #                  (Can have different types check the source code).
+    # consulting_arguments -> A list with the consulting arguments of the equation.
+    #     common_variables -> A list with the common_variables of the equation.
     def compose_expression(expression, consulting_arguments, common_variables):
         if isinstance(expression, int):
             return "current->b.VAR_{}".format(expression)
         elif isinstance(expression, Argument) and expression.type == 'constant':
             return str(expression.value)
         elif isinstance(expression, Argument) and expression.type == 'variable':
-            return compose_variable(expression,
+            return compose_argument_variable(expression,
                                     consulting_arguments,
                                     common_variables)
         elif isinstance(expression, ArithmeticExpression):
@@ -464,7 +474,7 @@ def fillSolverCompute(outfile):
                     if args[x].type == "constant":
                         emitting_code += str(args[x].value)
                     elif args[x].type == 'variable':
-                        emitting_code += compose_variable(args[x], 
+                        emitting_code += compose_argument_variable(args[x], 
                                                           consulting_arguments, 
                                                           common_variables)
                     else:
@@ -481,10 +491,8 @@ def fillSolverCompute(outfile):
         else:
             error_msg = "Emmiting code (Unknown type): "
             raise ValueError(error_msg + str(expression))
-
-    # This function emits code regardless we are dealing with a type 1 or type2 rewriting equation.
-    # This function has been extracted as a closure so we don't have to write the piece of twice. 
-    # Also is used to emit the spaces for the source code properly.
+  
+    # This function emits code regardless we are dealing with a type 1 or type 2 rewriting equation.
     # Parameters:
     #  spaces -> A string. Represents the number of spaces that we have to print when emitting code.
     #  equation -> A RewritingRule1 or RewritingRule2. Represents the rewriting equation.
@@ -493,7 +501,7 @@ def fillSolverCompute(outfile):
     #                    Datalog program.
     # idToStratumLevels -> A dictionary. The dictionary is a mapping between the identifiers and
     #                      the stratum level they belong.
-    def common_block_for_any_type_of_rule(spaces, equation, level, num_of_stratums, idToStratumLevels):
+    def common_block(spaces, equation, level, num_of_stratums, idToStratumLevels):
         # Do we have to store the answer??
         if equation.rightVariable.id in answersToStore:
             variable_id = equation.rightVariable.id
@@ -555,7 +563,7 @@ def fillSolverCompute(outfile):
                             #for position, element in enumerate(equation.rightArguments, start=1):
                             #    if negated_arg == element:
                             #        negated_arguments_str.append('VAR.VAR_{}'.format(position))
-                            negated_arguments_str.append(compose_variable(negated_arg, 
+                            negated_arguments_str.append(compose_argument_variable(negated_arg, 
                                                                           equation.consultingArguments,
                                                                           equation.commonVariables))
                                                              
@@ -785,11 +793,9 @@ def fillSolverCompute(outfile):
                                                                     str(pos),
                                                                     code))
                         
-                    common_block_for_any_type_of_rule(spaces,
-                                                      equation,
-                                                      level,
-                                                      len(GenerationData.stratums),
-                                                      idToStratumLevels)
+                    common_block(spaces, equation, level, 
+                                 len(GenerationData.stratums),
+                                 idToStratumLevels)
                     
                     if have_equal_cards or argument_constants_left_side:
                         spaces = spaces[:-len(SPACES)]
@@ -1112,11 +1118,12 @@ def fillSolverCompute(outfile):
                                                                     str(pos),
                                                                     code))
                                             
+                    common_block(spaces, equation, level,
+                                 len(GenerationData.stratums),
+                                 idToStratumLevels)
+                    
                     # Here we just emit source code to handle the indentation and the close every 
-                    # required '}' character
-                    common_block_for_any_type_of_rule(spaces, equation, level, len(GenerationData.stratums),
-                                                      idToStratumLevels)
-    
+                    # required '}' character    
                     if equal_cards_rewriting_variable or argument_constants_left_side:
                         spaces = spaces[:-len(SPACES)]
                         outfile.write('{}}}\n'.format(spaces))
