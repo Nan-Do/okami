@@ -1,0 +1,7 @@
+# The rule to generate the ok predicate has to be computed elsewhere
+# as the prototype still is not able to evaluate this kind of rules
+# ok(X1, N, X2) :- (X1 != X2) & (X1 != X2+N) & (X1 != X2-N)
+queen_2(X0, X1) :- queen_1(X0), next_queen_2(X0, X1).
+queen_3(X0, X1, X2) :- queen_2(X1, X2), next_queen_3(X0, X1, X2).
+next_queen_2(X0, X1) :- queen_1(X1), ok(X0, 1, X1).
+next_queen_3(X0, X1, X2) :- next_queen_2(X1, X2), ok(X0, 2, X2).
