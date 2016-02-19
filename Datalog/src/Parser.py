@@ -239,7 +239,7 @@ def parseRule(rule, check_restricted=False):
     head as first element and a list of tuples representing the body as 
     second element. Both the head and body elements are tuples containing a 
     string representing the predicate name as a first element, and a list of 
-    strings representing the variables as a second element""" 
+    strings representing the variables as a second element"""
     rule = removeRuleSpaces(rule)
 
     # Get the predicate head    

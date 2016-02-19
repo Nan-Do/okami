@@ -121,7 +121,9 @@ def buildRulesTable(filename, test=False):
     negated_preds = set()
     rulesTable = []
     for line_no, line in enumerate(f, start=1):
-        if line[0] == '\n': continue
+        # Discard empty lines and comments
+        # Comments are lines that start with '#'
+        if line[0] == '\n' or line[0] == '#': continue
         
         try:
             (head, body) = parseRule(line, check_restricted=True)
