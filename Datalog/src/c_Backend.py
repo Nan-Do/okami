@@ -21,12 +21,10 @@ SOURCE_DIRECTORY = "C_Template"
 #OUTPUT_DIRECTORY = "./"
 
 INCLUDE_FILES = ['utils.h', 'solver.h', 'data_structure.h', 
-                 'data_structure_common.h', 'arena.h','mem.h', 
-                 'fact.h', 'parser.h']
+                 'data_structure_common.h', 'fact.h', 'parser.h']
 
 SOURCE_FILES = ['makefile', 'main.c', 'parser.c',
-                'mem.c', 'data_structure_common.c', 'arena.c',
-                'solver.c', 'data_structure.c']
+                'data_structure_common.c', 'solver.c', 'data_structure.c']
 
 EMPTY_LINE = '\n'
 SPACES = ' ' * 4
@@ -223,7 +221,7 @@ def fillDataStructureQueryHeaderFunctions(outfile):
 
     ints = ['int', 'int']
     for p in xrange(max_length-1):
-        outfile.write('extern intList * Ds_get_intList_{}({});\n'.format(str(p+1), ', '.join(ints)))
+        outfile.write('extern uIntNodePtr Ds_get_intList_{}({});\n'.format(str(p+1), ', '.join(ints)))
         ints.append('int')
         
 def fillDataStructureSolutionHeaderFunctions(outfile):
@@ -1167,7 +1165,7 @@ def fillSolverFree(outfile):
     for queue_number in xrange(1, number_of_stratums+1):
         outfile.write('{}SolverQueue_free(&solver_queue{});\n'.format(spaces_level_1,
                                                                       queue_number))
-    outfile.write('{}Mem_free();\n'.format(spaces_level_1))
+    #outfile.write('{}Mem_free();\n'.format(spaces_level_1))
 
 @check_for_predicates_of_type2
 def fillIntList(outfile):
@@ -1197,14 +1195,14 @@ def fillIntList(outfile):
         if no_cvars_max_length == length:
             length -= 1
             
-    args = ', '.join(['*t{}'.format(str(x+1)) for x in xrange(length)])
+    args = ', '.join(['t{}'.format(str(x+1)) for x in xrange(length)])
 
     # If in the end the length is 0 that means that the intList will be empty. In that
     # case doesn't make too much sense to emit code for it as it would only trigger a
     # warning from the c compiler
     if length > 0:
-        outfile.write('{}intList {};\n'.format(spaces_level_1,
-                                               args))
+        outfile.write('{}uIntNodePtr {};\n'.format(spaces_level_1,
+                                                   args))
 
 def fillDataStructureLevelNodes(outfile):
     #equationsTable = GenerationData.equationsTable
@@ -1243,7 +1241,7 @@ def fillDataStructureLevelNodes(outfile):
         # to store the intList for the current level, also it would output m[0]
         # forbidden by ISO C and with no sense.
         if number_of_views_for_this_level:
-            outfile.write('{}intList *m[{}];\n'.format(spaces_level_1,
+            outfile.write('{}uIntList m[{}];\n'.format(spaces_level_1,
                                                        number_of_views_for_this_level))
         
         # Emit code to store the answers required by the level node
@@ -1368,7 +1366,7 @@ def fillDataStructureInsertFunctions(outfile):
             outfile.write('}\n\n')
             
         for x in xrange(2, length+1):
-            outfile.write('{}intList_append(&((DsData_{} *)'.format(spaces_level_1, x))
+            outfile.write('{}uIntList_append(&((DsData_{} *)'.format(spaces_level_1, x))
             outfile.write(' *PValue{})->m[pos], x_{});\n'.format(x-1, x))
             
         outfile.write('}\n\n')
@@ -1400,7 +1398,7 @@ def fillDataStructureGetIntListFunctions(outfile):
     # reserved in the template to retrieve the values of the root.
     for length in xrange(1, length+1):
         args_to_function = ('int x_{}'.format(str(v+1)) for v in xrange(length))
-        outfile.write('intList * Ds_get_intList_{}(int pos, {})'.format(length,
+        outfile.write('uIntNodePtr Ds_get_intList_{}(int pos, {})'.format(length,
                                                               ", ".join(args_to_function)))
         outfile.write('{\n')
         spaces = SPACES
@@ -1424,7 +1422,7 @@ def fillDataStructureGetIntListFunctions(outfile):
         outfile.write('{}return ((DsData_{} *) '.format(spaces,
                                                         str(length+1)))
         
-        outfile.write('*PValue{})->m[pos];\n'.format(str(length)))
+        outfile.write('*PValue{})->m[pos].head;\n'.format(str(length)))
         
         for x in xrange(1, length+1):
             spaces = spaces[:-len(SPACES)]
@@ -1563,7 +1561,7 @@ def fillDataStructureInitLevelFunctions(outfile):
         viewsData.append((length, viewLengths.count(length)))
 
     for pos, length in enumerate(lengths):
-        number_of_views_for_this_level = sum((x[1]) for x in viewsData 
+        number_of_views_for_this_level = sum((x[1]) for x in viewsData
                                              if x[0] >= length)
         
         outfile.write('void DsData_Level_{0}_init(DsData_{0} *d)'.format(length))
@@ -1572,17 +1570,17 @@ def fillDataStructureInitLevelFunctions(outfile):
         
         outfile.write('{}'.format(spaces_level_1))
         for i in xrange(number_of_views_for_this_level):
-            outfile.write('d->m[{}] = '.format(i))
-                
+            outfile.write('d->m[{}].head = '.format(i))
+
             if ((i%4) == 0 and i > 0):
                 outfile.write('NULL;\n');
                 if i != (number_of_views_for_this_level-1):
                     outfile.write('{}'.format(spaces_level_1));
-                
+
         if (((number_of_views_for_this_level-1) % 4) != 0 or
             (number_of_views_for_this_level == 1)):
                 outfile.write('NULL;\n');
-            
+
         outfile.write('\n')
         if pos != len(lengths)-1:
             outfile.write('{}d->level{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
@@ -1592,7 +1590,6 @@ def fillDataStructureInitLevelFunctions(outfile):
             if variable_id in answersToStore:
                 outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
                                                                     variable_id.name))
-            
         outfile.write('}\n')
    
 def fillDataStructureLevelNewNodeFunctions(outfile):
@@ -1612,7 +1609,8 @@ def fillDataStructureLevelNewNodeFunctions(outfile):
         outfile.write('{\n')
         outfile.write('{}{} * temp;\n\n'.format(spaces_level_1,
                                                 node))
-        outfile.write('{}ARENA_ALLOC(temp);\n'.format(spaces_level_1))
+        outfile.write('{}temp = malloc(sizeof({}));\n'.format(spaces_level_1,
+                                                              node))
         outfile.write('{}memset(temp, 0, sizeof({}));\n\n'.format(spaces_level_1,
                                                                   node))
         outfile.write('{}return temp;\n'.format(spaces_level_1))

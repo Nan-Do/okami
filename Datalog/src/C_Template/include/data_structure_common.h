@@ -3,13 +3,20 @@
 #ifndef DATA_STRUCTURE_COMMON_H_
 #define DATA_STRUCTURE_COMMON_H_
 
-struct intList{
+struct uIntNode{
     unsigned int value;
-    struct intList *next;
+    struct uIntNode *next;
 };
-typedef struct intList intList;
+typedef struct uIntNode uIntNode;
+typedef struct uIntNode* uIntNodePtr;
 
-extern void intList_free(intList *);
-extern void intList_append(intList **, int);
+struct uIntList{
+    uIntNodePtr head;
+};
+typedef struct uIntList uIntList;
+
+extern void uIntList_init(uIntList *);
+extern void uIntList_free(uIntList *);
+extern void uIntList_append(uIntList *, int);
 
 #endif

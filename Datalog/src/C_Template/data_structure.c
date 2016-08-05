@@ -7,7 +7,6 @@
 #include <Judy.h>
 
 #include "data_structure.h"
-#include "mem.h"
 
 /* Root level */
 static Pvoid_t root;

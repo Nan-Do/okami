@@ -2,26 +2,23 @@
 
 #include <stdlib.h>
 
-#include "mem.h"
 #include "data_structure_common.h"
 
-void intList_free(intList *l){
-    intList *temp;
-    for (temp = l; temp; l = l->next, temp = l)
+void uIntList_init(uIntList *l){
+    l->head = NULL;
+}
+
+void uIntList_free(uIntList *l){
+    uIntNodePtr temp;
+    for (temp = l->head; temp; l->head = l->head->next, temp = l->head)
         free(temp);
 }
 
-void intList_append(intList **l, int value){
-    intList *e;
-
-    /*NEW(e);*/
-    ARENA_ALLOC(e);
-
+void uIntList_append(uIntList *l, int value){
+    uIntNodePtr e;
+    
+    e = malloc(sizeof(uIntNode));
     e->value = value;
-    if (*l)
-        e->next = *l;
-    else
-        e->next = NULL;
-
-    (*l) = e;
+    e->next = l->head;
+    l->head = e;
 }

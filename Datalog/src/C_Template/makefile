@@ -6,15 +6,9 @@ LIB   = -lm -lJudy
 
 all: solver
 
-solver: main.c arena.o mem.o parser.o data_structure_common.o data_structure.o solver.o 
-	$(CC) $(FLAGS) -o solver $(INCL) main.c arena.o mem.o data_structure_common.o data_structure.o parser.o solver.o $(LIB)
+solver: main.c parser.o data_structure_common.o data_structure.o solver.o 
+	$(CC) $(FLAGS) -o solver $(INCL) main.c data_structure_common.o data_structure.o parser.o solver.o $(LIB)
 
-arena.o: arena.c include/arena.h
-	$(CC) $(FLAGS) $(INCL) -c arena.c
-
-mem.o: mem.c include/mem.h include/arena.h
-	$(CC) $(FLAGS) $(INCL) -c mem.c
-	
 parser.o: parser.c include/parser.h
 	$(CC) $(FLAGS) $(INCL) -c parser.c
 	

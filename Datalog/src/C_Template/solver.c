@@ -9,7 +9,6 @@
 #include "fact.h"
 #include "utils.h"
 #include "data_structure.h"
-#include "mem.h"
 
 %% fill_InputTuplesFiles
 
@@ -19,10 +18,11 @@ struct SolverNode{
 	TYPE_REWRITING_VARIABLE b;
 	struct SolverNode *next;
 };
-typedef struct SolverNode *SolverNode;
+typedef struct SolverNode SolverNode;
+typedef struct SolverNode *SolverNodePtr;
 
 struct SolverQueue{
-	SolverNode head, tail;
+	SolverNodePtr head, tail;
 };
 typedef struct SolverQueue SolverQueue;
 
@@ -44,15 +44,15 @@ void SolverQueue_init(SolverQueue *s){
 }
 
 void SolverQueue_free(SolverQueue *s){
-    SolverNode t1, t2;
+    SolverNodePtr t1, t2;
     for (t1 = s->head, t2 = s->head; t1; t2 = t2->next, t1 = t2 )
-        FREE(t1);
+        free(t1);
 }
 
 void SolverQueue_append(SolverQueue *s, TYPE_REWRITING_VARIABLE *b){
-    SolverNode t;
+    SolverNodePtr t;
 
-    NEW(t);
+    t = malloc(sizeof(SolverNode));
     memcpy((void *)&t->b, b, sizeof(TYPE_REWRITING_VARIABLE));
     t->next = NULL;
 
@@ -75,7 +75,6 @@ void print_answer(FILE *file, TYPE_REWRITING_VARIABLE *b){
 }
 
 int solver_init(){
-    Mem_init();
     Ds_init();
 
 %% fill_SolverInit
@@ -87,7 +86,7 @@ int solver_init(){
 
 int solver_compute(){
 %% fill_IntList
-    SolverNode current;
+    SolverNodePtr current;
     TYPE_REWRITING_VARIABLE VAR;
 
 %% fill_SolverCompute
