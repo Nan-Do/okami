@@ -1,5 +1,5 @@
-#FLAGS = -ggdb -Wall -O0 -static -DNDEBUG -Wextra -pedantic -ansi
-FLAGS = -Wall -O3 -static -Wextra -ansi -fomit-frame-pointer -march=native -pipe
+#FLAGS = -ggdb -Wall -O0 -static -DNDEBUG -Wextra -pedantic -ansi -std=c99
+FLAGS = -Wall -O3 -static -Wextra -ansi -fomit-frame-pointer -march=native -pipe -std=c99
 ARCH  = iX86
 INCL  = -Iinclude 
 LIB   = -lm -lJudy
