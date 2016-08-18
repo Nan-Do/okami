@@ -1919,6 +1919,12 @@ def fillDataStructureLevelFreeFunctions(outfile):
 # We check for all the possible solutions of length 1 or predicates and emit code
 # appropriately.
 def fillDataStructureRootSolutions(outfile):
+    def get_set_leaf_structure_name():
+        if GenerationData.compositionStructures['Sets'] == 'Judy': return 'Pvoid_t'
+        elif GenerationData.compositionStructures['Sets'] == 'BitMap': return 'BitMap'
+        elif GenerationData.compositionStructures['Sets'] == 'AVLTree': return 'AVLTree'
+        else: return 'UNKNOWN'
+        
     answers_of_length_1 = set()
     predicates_in_rules_of_length_1 = set()
     for equation in getEquationsFromAllStratums():
@@ -1933,12 +1939,12 @@ def fillDataStructureRootSolutions(outfile):
     if answers_of_length_1:
         outfile.write("/* Solution of length 1 */\n")
         line = ', '.join(['R{}'.format(variable_id.name) for variable_id in answers_of_length_1])
-        outfile.write('static Pvoid_t {};\n'.format(line))
+        outfile.write('static {} {};\n'.format(get_set_leaf_structure_name(), line))
         
     if predicates_in_rules_of_length_1:
         outfile.write("/* Predicates of length 1*/\n")
         line = ', '.join(['R{}'.format(variable_id.name) for variable_id in predicates_in_rules_of_length_1])
-        outfile.write('static Pvoid_t {};\n'.format(line))
+        outfile.write('static {} {};\n'.format(get_set_leaf_structure_name(), line))
 
 # This function only should be executed if there are predicates of length 2
 # If we only have type 1 rules we don't have level 2 nodes (as there is no database) 
