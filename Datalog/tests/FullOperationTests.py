@@ -23,7 +23,7 @@ SHOW_SHELL = True
 index = os.getcwd().rfind('/')
 base_dir = os.getcwd()[:index]
 
-Backends = ['C', 'Python']
+Frontends = ['C', 'Python']
 Datalog_Examples = ['flights.datalog',
                     'graphClausure.dl',
                     'one-rule.dl',
@@ -108,17 +108,17 @@ logging.basicConfig(level=logging.INFO,
                     datefmt="%Y-%m-%d %H:%M:%S")
 
 
-for backend in Backends:
+for frontend in Frontends:
     BACKEND = ''
     
-    if backend == 'C':
+    if frontend == 'C':
         GENERATED_DIR = C_GENERATED_DIR
         COMPILED_FILENAME = C_COMPILED_FILENAME
-        BACKEND = ' -b c'
+        BACKEND = ' -f C'
     else:
         GENERATED_DIR = PY_GENERATED_DIR
         COMPILED_FILENAME = PY_COMPILER_NAME
-        BACKEND = ' -b python'
+        BACKEND = ' -f Python'
         
     # Create the directories
     os.chdir(base_dir)
@@ -146,7 +146,7 @@ for backend in Backends:
         # Change to the solver directory, compile it and check that the solver was
         # created
         os.chdir(solver_dir)
-        if backend == 'C':
+        if frontend == 'C':
             logging.info("Compiling the source code")
             subprocess.call('make', shell=SHOW_SHELL)
             if os.path.exists(os.path.join(solver_dir, COMPILED_FILENAME)):
@@ -173,7 +173,7 @@ for backend in Backends:
         logging.info('Files copied')
         logging.info('Executing the solver')
         #subprocess.call('./solver', shell=SHOW_SHELL)
-        if backend == 'C':
+        if frontend == 'C':
             subprocess.call('./solver', shell=SHOW_SHELL)
         else:
             subprocess.call('python main.py', shell=SHOW_SHELL)
