@@ -35,8 +35,8 @@ from PredicateOrder import predicateOrder
 from RuleStratifier import stratifyRules
 from Types import Stratum, Ordering
 
-# Import the backends to generate the code
-import c_Backend, py_Backend
+# Import the frontends to generate the code
+import c_Frontend, py_Frontend
 
 __all__ = []
 __version__ = 0.1
@@ -401,11 +401,11 @@ USAGE
                     for key, value in options:
                         composition_structures[key] = value
                         
-                c_Backend.generate_code_from_template(dest_dir, stratums, composition_structures,
+                c_Frontend.generate_code_from_template(dest_dir, stratums, composition_structures,
                                                   predicateTypes, predicateTypes.intensional,
                                                   printVariables, idToStratumLevels)
             else:
-                py_Backend.generate_code_from_template(dest_dir, stratums,
+                py_Frontend.generate_code_from_template(dest_dir, stratums,
                                                        predicateTypes, predicateTypes.intensional,
                                                        printVariables, idToStratumLevels)
             logging.info("Source code generated")
