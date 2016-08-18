@@ -206,6 +206,10 @@ def fillRewritingVariable(outfile):
 # data_structure.h
 @check_for_predicates_of_type2
 def fillDataStructureQueryHeaderFunctions(outfile):
+    def get_successors_structure_name():
+        if GenerationData.compositionStructures['Successors'] == 'Stack': return 'uIntListStackNodePtr'
+        elif GenerationData.compositionStructures['Successors'] == 'Queue': return 'uIntArrayQueuePtr'
+        else: return 'UNKNOWN'
     min_length = getQueryMinimumLength()
     max_length = getQueryMaximumLength()
     
@@ -221,7 +225,9 @@ def fillDataStructureQueryHeaderFunctions(outfile):
 
     ints = ['int', 'int']
     for p in xrange(max_length-1):
-        outfile.write('extern uIntNodePtr Ds_get_intList_{}({});\n'.format(str(p+1), ', '.join(ints)))
+        outfile.write('extern {} Ds_get_intList_{}({});\n'.format(get_successors_structure_name(),
+                                                                  str(p+1),
+                                                                  ', '.join(ints)))
         ints.append('int')
         
 def fillDataStructureSolutionHeaderFunctions(outfile):
@@ -380,7 +386,7 @@ def fillStratumQueueInitializers(outfile):
             outfile.write('{}if (!fp){{\n'.format(spaces_level_1))
             outfile.write('{}fprintf(stderr, "Error: Can\'t open file %s\\n",'.format(spaces_level_2))
             outfile.write(' tuples_input_files[{}]);\n'.format(pos))
-            outfile.write('{}return FALSE;\n'.format(spaces_level_2))
+            outfile.write('{}return false;\n'.format(spaces_level_2))
             outfile.write('{}}}\n'.format(spaces_level_1))
             outfile.write('{}while (parser_get_fact(fp, NULL, &fact) == 1){{\n'.format(spaces_level_1))
             outfile.write('{}VAR.PREDICATE = {};\n'.format(spaces_level_2,
@@ -412,7 +418,7 @@ def fillStratumQueueInitializers(outfile):
             outfile.write('{}}}\n'.format(spaces_level_1))
             outfile.write('{}fclose(fp);\n\n'.format(spaces_level_1))
         
-        outfile.write('{}return TRUE;\n'.format(spaces_level_1))
+        outfile.write('{}return true;\n'.format(spaces_level_1))
         outfile.write('}\n\n')
     
 def fillSolverCompute(outfile):
@@ -441,7 +447,10 @@ def fillSolverCompute(outfile):
             else:
                 emitting_code += "t{}->value".format(t_index-1)
         else:
-            emitting_code += "t{}->value".format(t_index)
+            if GenerationData.compositionStructures['Successors'] == 'Queue':
+                    emitting_code += "t{0}->values[c{0}]".format(t_index)
+            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+                emitting_code += "t{}->value".format(t_index)
             
         return emitting_code        
 
@@ -993,8 +1002,12 @@ def fillSolverCompute(outfile):
                                                   int_length,
                                                   aliasToViewNames[equation.aliasName],
                                                   args_common))
-                            
-                            outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(spaces))
+                            if GenerationData.compositionStructures['Successors'] == 'Queue':
+                                outfile.write('{}for (c1 = 0; c1 < t1->last; c1++){{\n'.format(spaces))
+                            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+                                outfile.write('{}for (; t1; t1 = t1->next){{\n'.format(spaces))
+                            else:
+                                raise KeyError
                         else:
                             outfile.write("{}if (Ds_contains_solution_{}({})){{\n".format(spaces,
                                                                                           equation.consultingPredicate.id.name,
@@ -1031,8 +1044,14 @@ def fillSolverCompute(outfile):
                             #              .format(spaces, x, number_of_args,
                             #                      aliasToViewNames[equation.aliasName],
                             #                      args))
-                            outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(spaces,
-                                                                                      str(x)))
+                            if GenerationData.compositionStructures['Successors'] == 'Queue':
+                                outfile.write('{0}for (c{1} = 0; c{1} < t{1}->last; c{1}++)'.format(spaces,
+                                                                                                    str(x)))
+                            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+                                outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(spaces,
+                                                                                          str(x)))
+                            else:
+                                raise KeyError
                         else:
                             #outfile.write("X: {}\t\tARGS:{}\t\tNUMBER_OF_ARGS: {}\t\tY: {}\t\tCOMMON_VARS: {}\n".format(x, args, number_of_args, y, commonVars_len))
                             args += ', '.join(['t{}->value'.format(str(i))
@@ -1048,8 +1067,14 @@ def fillSolverCompute(outfile):
                             #              .format(spaces, (y-commonVars_len)+1, number_of_args,
                             #                      aliasToViewNames[equation.aliasName],
                             #                      args))
-                            outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(spaces,
-                                                                                      str((y-commonVars_len) + 1)))
+                            if GenerationData.compositionStructures['Successors'] == 'Queue':
+                                outfile.write('{0}for (c{1} = 0; c{1} < t{1}->last; c{1}++)'.format(spaces,
+                                                                                                    str((y-commonVars_len) + 1)))
+                            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+                                outfile.write('{0}for (; t{1}; t{1} = t{1}->next)'.format(spaces,
+                                                                                          str((y-commonVars_len) + 1)))
+                            else:
+                                raise KeyError
                                           
                         outfile.write('{\n')
                     
@@ -1196,18 +1221,37 @@ def fillIntList(outfile):
             length -= 1
             
     args = ', '.join(['t{}'.format(str(x+1)) for x in xrange(length)])
+    c_args = ', '.join(['c{}'.format(str(x+1)) for x in xrange(length)])
 
     # If in the end the length is 0 that means that the intList will be empty. In that
     # case doesn't make too much sense to emit code for it as it would only trigger a
     # warning from the c compiler
     if length > 0:
-        outfile.write('{}uIntNodePtr {};\n'.format(spaces_level_1,
-                                                   args))
+        if GenerationData.compositionStructures['Successors'] == 'Queue':
+            outfile.write('{}unsigned int {};\n'.format(spaces_level_1,
+                                                        c_args))
+            outfile.write('{}uIntArrayQueuePtr {};\n'.format(spaces_level_1,
+                                                             args))
+        elif GenerationData.compositionStructures['Successors'] == 'Stack':
+            outfile.write('{}uIntListStackNodePtr {};\n'.format(spaces_level_1,
+                                                                args))
 
 def fillDataStructureLevelNodes(outfile):
+    # Auxiliar clousure function name to get the name of the structure to be used to represent the set leaf
+    def get_set_leaf_structure_name():
+        if GenerationData.compositionStructures['Sets'] == 'Judy': return 'Pvoid_t'
+        elif GenerationData.compositionStructures['Sets'] == 'BitMap': return 'BitMap'
+        elif GenerationData.compositionStructures['Sets'] == 'AVLTree': return 'AVLTree'
+        else: return 'UNKNOWN'
+    # Auxiliar clousure function name to get the name of the structure to be used to represent the successors list
+    def get_successors_structure_name():
+        if GenerationData.compositionStructures['Successors'] == 'Stack': return 'uIntListStack'
+        elif GenerationData.compositionStructures['Successors'] == 'Queue': return 'uIntArrayQueue'
+        else: return 'UNKNOWN'
+
     #equationsTable = GenerationData.equationsTable
-    answersToStore = GenerationData.answersToStore
     #viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
+    answersToStore = GenerationData.answersToStore
     viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
     
     spaces_level_1 = SPACES
@@ -1241,14 +1285,16 @@ def fillDataStructureLevelNodes(outfile):
         # to store the intList for the current level, also it would output m[0]
         # forbidden by ISO C and with no sense.
         if number_of_views_for_this_level:
-            outfile.write('{}uIntList m[{}];\n'.format(spaces_level_1,
-                                                       number_of_views_for_this_level))
+            outfile.write('{}{} m[{}];\n'.format(spaces_level_1,
+                                                 get_successors_structure_name(),
+                                                 number_of_views_for_this_level))
         
         # Emit code to store the answers required by the level node
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
-                outfile.write('{}Pvoid_t R{};\n'.format(spaces_level_1,
-                                                        variable_id.name))
+                outfile.write('{}{} R{};\n'.format(spaces_level_1,
+                                                   get_set_leaf_structure_name(),
+                                                   variable_id.name))
                 
         # Check if we have to add a new solution because there is a predicate having
         # all the variables the same Equal card or there is a predicate having all
@@ -1258,8 +1304,9 @@ def fillDataStructureLevelNodes(outfile):
         #                  getPredicatesWithAllVariablesBeingInTheSharedSetIncludingConstants()):
         for variable_id in getAllSolutions():
             if variable_id not in answersToStore and getPredicateLength(variable_id) == length:
-                outfile.write('{}Pvoid_t R{};\n'.format(spaces_level_1,
-                                                        variable_id.name))
+                outfile.write('{}{} R{};\n'.format(spaces_level_1,
+                                                   get_set_leaf_structure_name(),
+                                                   variable_id.name))
                
         if pos != len(lengths) - 1:
             # This is purely esthetic if we have some views in the level we 
@@ -1304,6 +1351,12 @@ def fillDataStructureInsertFunctions(outfile):
 
         outfile.write('{}}}\n'.format(spaces_level_1))
         outfile.write('}\n')
+        
+    # Auxiliar clousure function name to get the name of the structure to be used to represent the successors list
+    def get_successors_structure_name():
+        if GenerationData.compositionStructures['Successors'] == 'Stack': return 'uIntListStack_append'
+        elif GenerationData.compositionStructures['Successors'] == 'Queue': return 'uIntArrayQueue_append'
+        else: return 'UNKNOWN'
 
     # Here we emit code to deal with the views. The length of the views is the same of the
     # length of the predicate it represents. Views can only exist for predicates on the 
@@ -1333,46 +1386,78 @@ def fillDataStructureInsertFunctions(outfile):
                                                               ", ".join(args_to_function)))
         outfile.write('{\n')
 
-        values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
-        outfile.write('{}Word_t {};\n\n'.format(spaces_level_1,
-                                              ', '.join(values)))
+        if GenerationData.compositionStructures['Paths'] == 'Judy':
+            values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
+            outfile.write('{}Word_t {};\n\n'.format(spaces_level_1,
+                                                    ', '.join(values)))
+        elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            values = ('* c_{}'.format(str(v+1)) for v in xrange(length-1))
+            outfile.write('{}Cell {};\n\n'.format(spaces_level_1,
+                                                  ', '.join(values)))
         
         for x in xrange(1, length):
             if x == 1:
                 node = 'root'
             else:
-                node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
+                if GenerationData.compositionStructures['Paths'] == 'Judy':
+                    node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
+                elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                    node = 'TODOOOOOO!!!!!!!!!!!!!!!!!!!!!'
             
-            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces_level_1, x,
-                                                                         node))
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces_level_1, x,
+                                                                             node))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                outfile.write('{0}if (!(c_{1} = HashTable_Lookup(&{2}, x_{1})))'.format(spaces_level_1, x,
+                                                                                        node))
+                
             outfile.write('{\n')
 
-            outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(spaces_level_2, x,
-                                                                    node))
-            outfile.write('{0}if (PValue{1} == PJERR)'.format(spaces_level_2, x))
-            outfile.write('{\n')
-
-            outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces_level_3))
-            outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
-            
-            outfile.write('{}abort();\n'.format(spaces_level_3))
-
-            outfile.write('{}'.format(spaces_level_2))
-            outfile.write('}\n')
-            outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces_level_2,
-                                                                                             x, x+1))
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(spaces_level_2, x,
+                                                                        node))
+                outfile.write('{0}if (PValue{1} == PJERR)'.format(spaces_level_2, x))
+                outfile.write('{\n')
+    
+                outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces_level_3))
+                outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
+                
+                outfile.write('{}abort();\n'.format(spaces_level_3))
+    
+                outfile.write('{}'.format(spaces_level_2))
+                outfile.write('}\n')
+                outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces_level_2,
+                                                                                                 x, x+1))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                outfile.write('{0}c_{1} = HashTable_Insert(&{2}, x_{1});\n'.format(spaces_level_2, x, node))
+                outfile.write('{0}c_{1}->value = (size_t) DsData_Level_{2}_new_node();\n'.format(spaces_level_2,
+                                                                                                 x, x+1))
+                
 
             outfile.write('{}'.format(spaces_level_1))
             outfile.write('}\n\n')
             
         for x in xrange(2, length+1):
-            outfile.write('{}uIntList_append(&((DsData_{} *)'.format(spaces_level_1, x))
-            outfile.write(' *PValue{})->m[pos], x_{});\n'.format(x-1, x))
+            returning_node = ''
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                returning_node = '*PValue{}'.format(x-1)
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                returning_node = 'c_{}->value'.format(x-1)
+                
+            outfile.write('{}{}(&((DsData_{} *)'.format(spaces_level_1, 
+                                                        get_successors_structure_name(),
+                                                        x))
+            outfile.write(' {})->m[pos], x_{});\n'.format(returning_node, x))
             
         outfile.write('}\n\n')
 
 @check_for_predicates_of_type2        
 def fillDataStructureGetIntListFunctions(outfile):
+    # Auxiliar clousure function name to get the name of the structure to be used to represent the successors list
+    def get_successors_structure_name():
+        if GenerationData.compositionStructures['Successors'] == 'Stack': return 'uIntListStackNodePtr'
+        elif GenerationData.compositionStructures['Successors'] == 'Queue': return 'uIntArrayQueuePtr'
+        else: return 'UNKNOWN'
     #equationsTable = GenerationData.equationsTable
     
     # Here we emit source code for the functions to retrieve the lists we need
@@ -1398,32 +1483,61 @@ def fillDataStructureGetIntListFunctions(outfile):
     # reserved in the template to retrieve the values of the root.
     for length in xrange(1, length+1):
         args_to_function = ('int x_{}'.format(str(v+1)) for v in xrange(length))
-        outfile.write('uIntNodePtr Ds_get_intList_{}(int pos, {})'.format(length,
-                                                              ", ".join(args_to_function)))
+        outfile.write('{} Ds_get_intList_{}(int pos, {})'.format(get_successors_structure_name(),
+                                                                 length,
+                                                                 ", ".join(args_to_function)))
         outfile.write('{\n')
         spaces = SPACES
-        values = ('* PValue{}'.format(str(v+1)) for v in xrange(length))
-        outfile.write('{}Word_t {};\n\n'.format(spaces,
-                                                ', '.join(values)))
+        
+        if GenerationData.compositionStructures['Paths'] == 'Judy':
+            values = ('* PValue{}'.format(str(v+1)) for v in xrange(length))
+            outfile.write('{}Word_t {};\n\n'.format(spaces,
+                                                    ', '.join(values)))
+        elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            values = ('* c_{}'.format(str(v+1)) for v in xrange(length))
+            outfile.write('{}Cell {};\n\n'.format(spaces,
+                                                  ', '.join(values)))
         
         for x in xrange(1, length+1):
             if x == 1:
                 node = 'root'
             else:
-                node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
+                if GenerationData.compositionStructures['Paths'] == 'Judy':
+                    node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
+                elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                    node = 'TODOOOOOO!!!!!!!!!!!!!!!!!!!!!'
+            
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                outfile.write('{}if ((JLG(PValue{}, {}, x_{})))'.format(spaces, str(x),
+                                                                        node, str(x)))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                outfile.write('{0}if ((c_{1} = HashTable_Lookup(&{2}, x_{1})))'.format(spaces, 
+                                                                                       str(x), 
+                                                                                       node))
 
-            outfile.write('{}if ((JLG(PValue{}, {}, x_{})))'.format(spaces,
-                                                                    str(x),
-                                                                    node,
-                                                                    str(x)))
             outfile.write('{\n')
             spaces += SPACES
             
-        outfile.write('{}return ((DsData_{} *) '.format(spaces,
-                                                        str(length+1)))
-        
-        outfile.write('*PValue{})->m[pos].head;\n'.format(str(length)))
-        
+        returning_node = ''
+        if GenerationData.compositionStructures['Paths'] == 'Judy':
+            returning_node = '*PValue{}'.format(length)
+        elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            returning_node = 'c_{}->value'.format(length)
+            
+        if GenerationData.compositionStructures['Successors'] == 'Stack':
+            outfile.write('{}return ((DsData_{} *) {})->m[pos].head;\n'.format(spaces,
+                                                                               str(length+1),
+                                                                               returning_node))
+        elif GenerationData.compositionStructures['Successors'] == 'Queue':
+            outfile.write('{}return &((DsData_{} *) {})->m[pos];\n'.format(spaces,
+                                                                           str(length+1),
+                                                                           returning_node))
+        else:
+            error = "Don't know how to generate code for the data structure"
+            error += " {} ".format(GenerationData.compositionStructures['Successors'])
+            error += "at function fillDataStructureGetIntListFunctions"
+            raise KeyError(error)
+            
         for x in xrange(1, length+1):
             spaces = spaces[:-len(SPACES)]
             outfile.write('{}'.format(spaces))
@@ -1443,34 +1557,67 @@ def fillDataStructureContainSolutionFunctions(outfile):
         outfile.write('{\n')
         spaces = SPACES
         if length > 1:
-            values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
-            outfile.write('{}Word_t {};\n\n'.format(spaces,
-                                                    ', '.join(values)))
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
+                outfile.write('{}Word_t {};\n\n'.format(spaces,
+                                                        ', '.join(values)))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                values = ('* c_{}'.format(str(v+1)) for v in xrange(length-1))
+                outfile.write('{}Cell {};\n\n'.format(spaces,
+                                                      ', '.join(values)))
         
         for x in xrange(1, length):
             if x == 1:
                 node = 'root'
             else:
-                node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
+                if GenerationData.compositionStructures['Paths'] == 'Judy':
+                    node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
+                elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                    node = 'TO DOOOOOOOOOOOOOOOOOO!!!!!!!!!!!'
+                    
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))\n'.format(spaces,
+                                                                               x, node))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                outfile.write('{0}if (!(c_{1} = HashTable_Lookup(&{2}, x_{1})))\n'.format(spaces,
+                                                                                        x, node))
                 
-            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))\n'.format(spaces,
-                                                                           x,
-                                                                           node))
             spaces += SPACES
-            outfile.write('{}return FALSE;\n'.format(spaces))
+            outfile.write('{}return false;\n'.format(spaces))
             spaces = spaces[:-len(SPACES)]
             
         if length > 1:
             outfile.write('\n')
-            node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
-                                                           str(length-1),
-                                                           variable_id.name)
+            returning_node = ''
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                returning_node = '*PValue{}'.format(length-1)
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                returning_node = 'c_{}->value'.format(length-1)
+                
+            node = '((DsData_{} *) {})->R{}'.format(str(length),
+                                                    returning_node,
+                                                    variable_id.name)
         else:
             node = 'R{}'.format(variable_id.name)
         
-        outfile.write('{}return Judy1Test({}, x_{}, PJE0);\n'.format(spaces,
-                                                                     node,
-                                                                     length))
+        if GenerationData.compositionStructures['Sets'] == 'BitMap':
+            outfile.write('{}return BitMap_testBit(&{}, x_{});\n'.format(spaces,
+                                                                         node,
+                                                                         length))
+        elif GenerationData.compositionStructures['Sets'] == 'Judy':
+            outfile.write('{}return Judy1Test({}, x_{}, PJE0);\n'.format(spaces,
+                                                                         node,
+                                                                         length))
+        elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
+            outfile.write('{}return AVLTree_contains({}, x_{});\n'.format(spaces,
+                                                                           node,
+                                                                           length))
+        else:
+            error = "Don't know how to generate code for the data structure"
+            error += " {} ".format(GenerationData.compositionStructures['Successors'])
+            error += "at function fillDataStructureContainSolutionFunctions"
+            raise KeyError(error)
+            
         outfile.write('}\n\n')
         
 def fillDataStructureAppendSolutionFunctions(outfile):
@@ -1483,59 +1630,97 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         outfile.write('{\n')
         spaces = SPACES
         if length > 1:
-            values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
-            outfile.write('{}Word_t {};\n\n'.format(spaces,
-                                                    ', '.join(values)))
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
+                outfile.write('{}Word_t {};\n\n'.format(spaces,
+                                                        ', '.join(values)))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                values = ('* c_{}'.format(str(v+1)) for v in xrange(length-1))
+                outfile.write('{}Cell {};\n\n'.format(spaces,
+                                                      ', '.join(values)))
         for x in xrange(1, length):
             if x == 1:
                 node = 'root'
             else:
-                node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
+                if GenerationData.compositionStructures['Paths'] == 'Judy':
+                    node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
+                elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                    node = 'TO DOOOOOOOOOOOOOOOOOO!!!!!!!!!!!'
             
-            outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces,
-                                                                         x,
-                                                                         node))
-            outfile.write('{\n')
-            spaces += SPACES
-            outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(spaces,
-                                                                    x,
-                                                                    node))
-            outfile.write('{0}if (PValue{1} == PJERR)'.format(spaces,
-                                                              x))
-            outfile.write('{\n')
-            spaces += SPACES
-            outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces))
-            outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces,
+                                                                             x,
+                                                                             node))
+                outfile.write('{\n')
+                spaces += SPACES
+                outfile.write('{0}JLI(PValue{1}, {2}, x_{1});\n'.format(spaces,
+                                                                        x,
+                                                                        node))
+                outfile.write('{0}if (PValue{1} == PJERR)'.format(spaces,
+                                                                  x))
+                outfile.write('{\n')
+                spaces += SPACES
+                outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces))
+                outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
+                
+                outfile.write('{}abort();\n'.format(spaces))
+                spaces = spaces[:-len(SPACES)]
+                outfile.write('{}'.format(spaces))
+                outfile.write('}\n')
+                outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces,
+                                                                                                x, x+1))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                outfile.write('{0}if (!(c_{1} = HashTable_Lookup(&{2}, x_{1})))'.format(spaces,
+                                                                                          x, node))
+                outfile.write('{\n')
+                spaces += SPACES
+                outfile.write('{0}c_{1} = HashTable_Insert(&{2}, x_{1});\n'.format(spaces,
+                                                                                   x, node))
+                outfile.write('{}c_{}->value = (size_t) DsData_Level_{}_new_node();\n'.format(spaces,
+                                                                                              x, x+1))
+                
             
-            outfile.write('{}abort();\n'.format(spaces))
-            spaces = spaces[:-len(SPACES)]
-            outfile.write('{}'.format(spaces))
-            outfile.write('}\n')
-            outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces,
-                                                                                            x,
-                                                                                            x+1))
             spaces = spaces[:-len(SPACES)]
             outfile.write('{}'.format(spaces))
             outfile.write('}\n\n')
         
         if length > 1:
-            node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
-                                                           str(length-1),
-                                                           variable_id.name)
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
+                                                               str(length-1),
+                                                               variable_id.name)
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                node = '((DsData_{} *) c_{}->value)->R{}'.format(str(length),
+                                                                 str(length-1),
+                                                                 variable_id.name)
         else:
             node = 'R{}'.format(variable_id.name)
         
-        outfile.write('{}if (Judy1Set(&{}, x_{}, PJE0) == JERR)'.format(spaces,
-                                                                        node,
-                                                                        str(length)))
-        outfile.write('{\n')
-        spaces += SPACES
-        outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces))
-        outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
-        outfile.write('{}abort();\n'.format(spaces))
-        spaces = spaces[:-len(SPACES)]
-        outfile.write('{}'.format(spaces))
-        outfile.write('}\n')
+        if GenerationData.compositionStructures['Sets'] == 'Judy':
+            outfile.write('{}if (Judy1Set(&{}, x_{}, PJE0) == JERR)'.format(spaces,
+                                                                            node,
+                                                                            str(length)))
+            outfile.write('{\n')
+            spaces += SPACES
+            outfile.write('{}fprintf(stderr, "Solver: Error '.format(spaces))
+            outfile.write('allocating memory %s:%i\\n", __FILE__, __LINE__);\n')
+            outfile.write('{}abort();\n'.format(spaces))
+            spaces = spaces[:-len(SPACES)]
+            outfile.write('{}'.format(spaces))
+            outfile.write('}\n')
+        elif GenerationData.compositionStructures['Sets'] == 'BitMap':
+            outfile.write('{}BitMap_setBit(&{}, x_{});\n'.format(spaces,
+                                                                 node,
+                                                                 str(length)))
+        elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
+            outfile.write('{}AVLTree_insert({}, x_{});\n'.format(spaces,
+                                                                  node,
+                                                                  str(length)))
+        else:
+            error = "Don't know how to generate code for the data structure"
+            error += " {} ".format(GenerationData.compositionStructures['Successors'])
+            error += "at function fillDataStructureAppendSolutionFunctions"
+            raise KeyError(error)
         
         outfile.write('}\n\n')
 
@@ -1568,18 +1753,29 @@ def fillDataStructureInitLevelFunctions(outfile):
         outfile.write('{\n')
         spaces_level_1 = SPACES
         
-        outfile.write('{}'.format(spaces_level_1))
+        if GenerationData.compositionStructures['Successors'] == 'Stack':
+            outfile.write('{}'.format(spaces_level_1))
+            
         for i in xrange(number_of_views_for_this_level):
-            outfile.write('d->m[{}].head = '.format(i))
+            if GenerationData.compositionStructures['Successors'] == 'Queue':
+                outfile.write('{}uIntArrayQueue_init(&d->m[{}]);\n'.format(spaces_level_1, i))
+            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+                outfile.write('d->m[{}].head = '.format(i))
+    
+                if ((i%4) == 0 and i > 0):
+                    outfile.write('NULL;\n');
+                    if i != (number_of_views_for_this_level-1):
+                        outfile.write('{}'.format(spaces_level_1));
+            else:
+                error = "Don't know how to generate code for the data structure"
+                error += " {} ".format(GenerationData.compositionStructures['Successors'])
+                error += "at function fillDataStructureInitLevelFunctions"
+                raise KeyError(error)
 
-            if ((i%4) == 0 and i > 0):
-                outfile.write('NULL;\n');
-                if i != (number_of_views_for_this_level-1):
-                    outfile.write('{}'.format(spaces_level_1));
-
-        if (((number_of_views_for_this_level-1) % 4) != 0 or
-            (number_of_views_for_this_level == 1)):
-                outfile.write('NULL;\n');
+        if GenerationData.compositionStructures['Successors'] == 'Stack':
+            if (((number_of_views_for_this_level-1) % 4) != 0 or
+                (number_of_views_for_this_level == 1)):
+                    outfile.write('NULL;\n');
 
         outfile.write('\n')
         if pos != len(lengths)-1:
@@ -1588,8 +1784,21 @@ def fillDataStructureInitLevelFunctions(outfile):
             
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
-                outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
-                                                                    variable_id.name))
+                if GenerationData.compositionStructures['Sets'] == 'Judy':
+                    outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
+                                                                        variable_id.name))
+                elif GenerationData.compositionStructures['Sets'] == 'BitMap':
+                    outfile.write('{}BitMap_init(&d->R{});\n'.format(spaces_level_1,
+                                                                      variable_id.name))
+                elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
+                    outfile.write('{}AVLTree_init(&d->R{});\n'.format(spaces_level_1,
+                                                                       variable_id.name))
+                else:
+                    error = "Don't know how to generate code for the data structure"
+                    error += " {} ".format(GenerationData.compositionStructures['Sets'])
+                    error += "at function fillDataStructureInitLevelFunctions"
+                    raise KeyError(error)
+                    
         outfile.write('}\n')
    
 def fillDataStructureLevelNewNodeFunctions(outfile):
@@ -1611,20 +1820,35 @@ def fillDataStructureLevelNewNodeFunctions(outfile):
                                                 node))
         outfile.write('{}temp = malloc(sizeof({}));\n'.format(spaces_level_1,
                                                               node))
-        outfile.write('{}memset(temp, 0, sizeof({}));\n\n'.format(spaces_level_1,
-                                                                  node))
+        #outfile.write('{}memset(temp, 0, sizeof({}));\n\n'.format(spaces_level_1,
+        #                                                          node))
+        outfile.write('{}DsData_Level_{}_init(temp);\n\n'.format(spaces_level_1,
+                                                                 length))
         outfile.write('{}return temp;\n'.format(spaces_level_1))
         outfile.write('}\n\n')
 
 def fillDataStructureLevelFreeFunctions(outfile):
     #equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
+    
+    viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
+
+    lengthToPreds = defaultdict(set)
+    for rule in getEquationsFromAllStratums():
+        if len(rule.rightArguments) > 1:
+            lengthToPreds[len(rule.rightArguments)].add(rule.rightVariable.id)
+        
+    viewLengths = list((len(x) for x in viewNamesToCombinations.itervalues()))
+    viewsData = []
 
     # This checks that we don't handle level 1 nodes as for the current generation model doesn't 
     # contemplate the possibility of having a level 1 node.
     #if min_value == 1: min_value += 1
     #lengths = xrange(min_value, max_value + 1)
     lengths = xrange(2, getDataStructureNodesMaximumLength() + 1)
+    
+    for length in lengths:
+        viewsData.append((length, viewLengths.count(length)))
     
     lengthToPreds = defaultdict(set)
     for rule in getEquationsFromAllStratums():
@@ -1650,11 +1874,33 @@ def fillDataStructureLevelFreeFunctions(outfile):
             spaces = spaces[:-len(SPACES)]
             outfile.write('{}'.format(spaces))
             outfile.write('}\n')
+            
+        number_of_views_for_this_level = sum((x[1]) for x in viewsData
+                                             if x[0] >= length)
+        for i in xrange(number_of_views_for_this_level):
+            if GenerationData.compositionStructures['Successors'] == 'Queue':
+                outfile.write('{}uIntArrayQueue_free(&d->m[{}]);\n'.format(spaces, i))
+            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+                outfile.write('{}uIntListStack_free(&d->m[{}]);\n'.format(spaces, i))
+        outfile.write('\n');
+        
         
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
-                outfile.write('{}Judy1FreeArray(&d->R{}, PJE0);\n'.format(spaces,
-                                                                          variable_id.name))
+                if GenerationData.compositionStructures['Sets'] == 'BitMap':
+                    outfile.write('{}BitMap_free(&d->R{});\n'.format(spaces,
+                                                                     variable_id.name))
+                elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
+                    outfile.write('{}AVLTree_free(d->R{});\n'.format(spaces,
+                                                                      variable_id.name))
+                elif GenerationData.compositionStructures['Sets'] == 'Judy':
+                    outfile.write('{}Judy1FreeArray(&d->R{}, PJE0);\n'.format(spaces,
+                                                                              variable_id.name))
+                else:
+                    error = "Don't know how to generate code for the data structure"
+                    error += " {} ".format(GenerationData.compositionStructures['Sets'])
+                    error += "at function fillDataStructureLevelFreeFunctions"
+                    raise KeyError(error)
                 
         outfile.write('{}*&d = NULL;\n'.format(spaces))
         outfile.write('}\n\n')
@@ -1700,6 +1946,100 @@ def fillStratumSolverQueues(outfile):
     queues = ", ".join('solver_queue' + str(x) for x in xrange(1, number_of_stratums+1))
     outfile.write('SolverQueue {};\n'.format(queues))
     
+def fillDataStructureJudyHeader(outfile):
+    if GenerationData.compositionStructures['Paths'] == 'Judy' or\
+            GenerationData.compositionStructures['Sets'] == 'Judy':
+        outfile.write('#include <Judy.h>\n')
+        
+def fill_DataStructureRootLevel(outfile):
+    if GenerationData.compositionStructures['Paths'] == 'Judy':
+        outfile.write('static Pvoid_t root;\n')
+    elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        outfile.write('HashTable root;\n')
+    else:
+        raise KeyError('Unknown data structure for paths')
+        
+def fillDataStructureScanZeroLevelVariables(outfile):
+    if GenerationData.compositionStructures['Paths'] == 'Judy':
+        outfile.write('Word_t zero_index;\n')
+        outfile.write('short first_value;\n')
+    elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        outfile.write('unsigned int zero_index;\n')
+    else:
+        raise KeyError('Unknown data structure for paths')
+    
+def fill_DataStructurefillLevelZeroInit(outfile):
+    spaces = SPACES
+    if GenerationData.compositionStructures['Paths'] == 'Judy':
+        outfile.write('{}zero_index = 0;\n'.format(spaces))
+        outfile.write('{}first_value = 1;\n'.format(spaces))
+    elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        outfile.write('{}zero_index = 0;\n'.format(spaces))
+    else:
+        raise KeyError('Unknown data structure for paths')
+    
+def fill_DataStructureGetZeroValues(outfile):
+    spaces = SPACES
+    if GenerationData.compositionStructures['Paths'] == 'Judy':
+        outfile.write('{}Word_t * PValue;\n\n'.format(spaces))
+        outfile.write('{}if (first_value){{\n'.format(spaces))
+        outfile.write('{}first_value = 0;\n'.format(spaces * 2))
+        outfile.write('{}JLF(PValue, root, zero_index);\n{}}}\n'.format(spaces * 2, spaces))
+        outfile.write('{}else{{\n'.format(spaces))
+        outfile.write('{}JLN(PValue, root, zero_index);\n{}}}\n\n'.format(spaces * 2, spaces))
+        outfile.write('{}(*value) = zero_index;\n\n'.format(spaces))
+        outfile.write('{}if (PValue){{\n'.format(spaces))
+        outfile.write('{}return true;\n{}}}\n'.format(spaces * 2, spaces))
+        outfile.write('{}return false;\n'.format(spaces))
+    elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        outfile.write('{}while (zero_index < root.m_arraySize){{\n'.format(spaces))
+        outfile.write('{}if (root.m_cells[zero_index].key){{\n'.format(spaces * 2))
+        outfile.write('{}(*value) = root.m_cells[zero_index].value;\n'.format(spaces * 3))
+        outfile.write('{}zero_index++;\n'.format(spaces * 3))
+        outfile.write('{}return true;\n{}}}\n'.format(spaces * 3, spaces*2))
+        outfile.write('{}zero_index++;\n{}}}\n'.format(spaces * 2, spaces))
+        outfile.write('{}return false;\n'.format(spaces))
+    else:
+        raise KeyError('Unknown data structure for paths')
+    
+def fill_DataStructureInit(outfile):
+    spaces = SPACES
+    if GenerationData.compositionStructures['Paths'] == 'Judy':
+        outfile.write('{}root = (Pvoid_t) NULL;\n'.format(spaces))
+    elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        outfile.write('{}HashTable_Init(&root);\n'.format(spaces))
+    else:
+        raise KeyError('Unknown data structure for paths')
+    
+def fill_DataStructureFree(outfile):
+    spaces = SPACES
+    if GenerationData.compositionStructures['Paths'] == 'Judy':
+        outfile.write('{}Word_t * PValue, index = 0;\n\n'.format(spaces))
+        outfile.write('{}JLF(PValue, root, index);\n'.format(spaces))
+        outfile.write('{}while (PValue != NULL){{;\n'.format(spaces))
+        
+        if getDataStructureNodesMaximumLength() > 1:
+            outfile.write('{}DsData_Level_2_free((DsData_2 *) *PValue);\n\n'.format(spaces * 2))
+        
+        outfile.write('{}JudyLDel(&root, index, PJE0);\n'.format(spaces * 2))
+        outfile.write('{}JLN(PValue, root, index);\n'.format(spaces * 2))
+        outfile.write('{}}}\n'.format(spaces))
+    if GenerationData.compositionStructures['Paths'] == 'Hash':
+        if getDataStructureNodesMaximumLength() > 1:
+            outfile.write('{}unsigned int i;\n\n'.format(spaces))
+            outfile.write('{}for (i = 0; i < root.m_arraySize; i++)\n'.format(spaces))
+            outfile.write('{}if (root.m_cells[i].key)\n'.format(spaces*2))
+            outfile.write('{}DsData_Level_2_free((DsData_2 *) root.m_cells[i].value);\n\n'.format(spaces*3))
+            
+        outfile.write('{}HashTable_Free(&root);\n'.format(spaces))
+        
+def fillMakefileLibs(outfile):
+    if GenerationData.compositionStructures['Paths'] == 'Judy' or\
+        GenerationData.compositionStructures['Sets'] == 'Judy':
+        outfile.write('LIB   = -lm -lJudy\n')
+    else:
+        outfile.write('LIB   = -lm\n')
+        
 
 # Function mapping for directives
 fill_template = {
@@ -1728,7 +2068,15 @@ fill_template = {
      'fill_DsLevelFreeFunctions' : fillDataStructureLevelFreeFunctions,
      'fill_DsRootAnswers'        : fillDataStructureRootSolutions,
      'fill_DsFreeLevel2Line'     : fillDataStructureLevel2Line,
-     'fill_StratumSolverQueues'  : fillStratumSolverQueues
+     'fill_DsFillJudyHeader'     : fillDataStructureJudyHeader,
+     'fill_DsRootLevel'          : fill_DataStructureRootLevel,
+     'fill_DsScanZeroLevelVariables'  : fillDataStructureScanZeroLevelVariables,
+     'fill_DsfillLevelZeroInit'  : fill_DataStructurefillLevelZeroInit,
+     'fill_DsGetZeroValues'      : fill_DataStructureGetZeroValues,
+     'fill_DsInit'               : fill_DataStructureInit,
+     'fill_DsFree'               : fill_DataStructureFree,
+     'fill_StratumSolverQueues'  : fillStratumSolverQueues,
+     'fill_MakefileLibs'         : fillMakefileLibs
      }
 
  
@@ -1763,16 +2111,16 @@ def fill_file(filename, orig_file, dest_file):
                     
     return True
               
-def generate_code_from_template(output_directory, stratums,
-                                predicateTypes, answersToStore, 
-                                printVariables, idToStratumLevels):
+def generate_code_from_template(output_directory, stratums, 
+                                compositionStructures, predicateTypes, 
+                                answersToStore, printVariables, 
+                                idToStratumLevels):
     # Make the necessary data to generate the source code available to the rest of the functions
-    GD = namedtuple('GD', ['stratums', 'predicateTypes', 'answersToStore', 
-                           'printVariables', 'idToStratumLevels'])
+    GD = namedtuple('GD', ['stratums', 'predicateTypes', 'compositionStructures', 
+                           'answersToStore', 'printVariables', 'idToStratumLevels'])
     
-    globals()['GenerationData'] = GD(stratums, predicateTypes,
-                                     answersToStore, printVariables,
-                                     idToStratumLevels)
+    globals()['GenerationData'] = GD(stratums, predicateTypes, compositionStructures,
+                                     answersToStore, printVariables, idToStratumLevels)
     
     #Check that the output directory exists
     path = os.path.normpath(output_directory + '/Solver_C_code')
