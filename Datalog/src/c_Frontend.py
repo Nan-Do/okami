@@ -1724,13 +1724,28 @@ def fillDataStructureAppendSolutionFunctions(outfile):
         
         outfile.write('}\n\n')
 
-@check_for_predicates_of_type2  
 def fillDataStructureInitLevelFunctions(outfile):
+    def emit_code_set_leaf_init_function(spaces, name):
+        if GenerationData.compositionStructures['Sets'] == 'Judy':
+            outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(spaces,
+                                                                name))
+        elif GenerationData.compositionStructures['Sets'] == 'BitMap':
+            outfile.write('{}BitMap_init(&d->R{});\n'.format(spaces,
+                                                             name))
+        elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
+            outfile.write('{}AVLTree_init(&d->R{});\n'.format(spaces,
+                                                              name))
+        else:
+            error = "Don't know how to generate code for the data structure"
+            error += " {} ".format(GenerationData.compositionStructures['Sets'])
+            error += "at function fillDataStructureInitLevelFunctions"
+            raise KeyError(error)
+        
     #equationsTable = GenerationData.equationsTable
     answersToStore = GenerationData.answersToStore
     #viewNamesToCombinations = GenerationData.viewsData.viewNamesToCombinations
     viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
-
+    
     lengthToPreds = defaultdict(set)
     for rule in getEquationsFromAllStratums():
         if len(rule.rightArguments) > 1:
@@ -1741,7 +1756,8 @@ def fillDataStructureInitLevelFunctions(outfile):
     
     # As we don't store a level0 type of node the minimum length we can have here is 2, that 
     # is the reason why the max value between the minimum query value and 2 is used.
-    lengths = xrange(max(getQueryMinimumLength(), 2), getQueryMaximumLength()+1)
+    #lengths = xrange(max(getQueryMinimumLength(), 2), getQueryMaximumLength()+1)
+    lengths = xrange(2, getDataStructureNodesMaximumLength() + 1)
     for length in lengths:
         viewsData.append((length, viewLengths.count(length)))
 
@@ -1784,20 +1800,13 @@ def fillDataStructureInitLevelFunctions(outfile):
             
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
-                if GenerationData.compositionStructures['Sets'] == 'Judy':
-                    outfile.write('{}d->R{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
-                                                                        variable_id.name))
-                elif GenerationData.compositionStructures['Sets'] == 'BitMap':
-                    outfile.write('{}BitMap_init(&d->R{});\n'.format(spaces_level_1,
-                                                                      variable_id.name))
-                elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
-                    outfile.write('{}AVLTree_init(&d->R{});\n'.format(spaces_level_1,
-                                                                       variable_id.name))
-                else:
-                    error = "Don't know how to generate code for the data structure"
-                    error += " {} ".format(GenerationData.compositionStructures['Sets'])
-                    error += "at function fillDataStructureInitLevelFunctions"
-                    raise KeyError(error)
+                emit_code_set_leaf_init_function(spaces_level_1, variable_id.name)
+                
+        # This has been extracted from the function fillDataStructureLevelNodes
+        # to cover some edge cases regarding the status of a variable as a solution
+        for variable_id in getAllSolutions():
+            if variable_id not in answersToStore and getPredicateLength(variable_id) == length:
+                emit_code_set_leaf_init_function(spaces_level_1, variable_id.name)
                     
         outfile.write('}\n')
    
