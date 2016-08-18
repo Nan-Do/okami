@@ -7,7 +7,7 @@ dcompiler is a Datalog compiler it takes a datalog specification and generates a
 
 @author:     Fernando Tarin Morales
 
-@copyright:  2014 The University of Tokyo / National Institute of Informatics. All rights reserved.
+@copyright:  2016 The University of Tokyo / National Institute of Informatics. All rights reserved.
 
 @license:    license
 
@@ -41,7 +41,7 @@ import c_Backend, py_Backend
 __all__ = []
 __version__ = 0.1
 __date__ = '2014-02-18'
-__updated__ = '2014-02-18'
+__updated__ = '2016-07-18'
 
 DEBUG = 0
 TESTRUN = 0
@@ -86,23 +86,26 @@ USAGE
 
     try:
         # Setup argument parser
-        parser = argparse.ArgumentParser(description='Compiler for datalog.')
+        parser = argparse.ArgumentParser(description='State-of-the art compiler for Datalog.')
         parser.add_argument('source_file', metavar='file.datalog', type=str, nargs=1,
-                       help='The datalog program to compile')
+                   help='the Datalog program to compile')
         
-        parser.add_argument('-b', '--backend', help='Choose the back end to emit the code (c is the default', type=str, choices=['c', 'python'])
-        parser.add_argument('-d', '--dest-dir', help='destination directory for the generated code by default current directory is used.')
-        parser.add_argument('-q', '--show-rewriting-equations', help='Show the rewriting equations for the given datalog program.',
+        parser.add_argument('-f', '--frontend', help='select front-end to generate the source code (C is the default).', type=str, choices=['C', 'Python'])
+        parser.add_argument('-d', '--dest-dir', help='destination directory for the generated source code (current directory is used by default).')
+        parser.add_argument('-q', '--show-rewriting-equations', help='show the rewriting equations for the given Datalog program.',
                             action="store_true")
         parser.add_argument("-v", "--verbosity", type=str, choices=['minimum', 'info', 'debug'],
-                                    help="set output verbosity default is info")
-        parser.add_argument("-p", "--print-variables", help='indicate which variables, separated by commas, will be printed if not indicated all the intensional predicates will be printed')
-        parser.add_argument("-r", "--decompose-program", type=str, choices=['left', 'right', 'random', 'common'], 
-                            help='it takes the specified datalog program and generates a decomposed version of it')
-        parser.add_argument("-n", "--no-code", help='option for debugging purposes, when activated doesn\'t emit source code',
+                                    help="output verbosity (info is the default).")
+        parser.add_argument("-p", "--print-variables", help='indicate which variables, separated by commas, will be printed (if not present all the ' + 
+                                                            'intensional predicates will be printed).')
+        parser.add_argument("-r", "--decompose-program", help='it takes the specified Datalog program and generates a decomposed version of it',
                             action="store_true")
-        parser.add_argument("-e", "--extensional", help='if the program has any predicate defined by the rules but it is also extensional use this option to specify it. ' +
-                                                        'If there are more than one separate them by commas')
+        parser.add_argument("-n", "--no-code", help='when activated doesn\'t emit source code (option for debugging purposes)',
+                            action="store_true")
+        parser.add_argument("-o", "--options", type=str, help='options to be passed to the front-end. For example, for the C front-end: "Sets=Judy,Paths=Judy,Successors=Queue" '+
+                                                              '(check the source code for more options).')
+        parser.add_argument("-e", "--extensional", help='if the program has any predicate defined by the rules but it is also extensional use this option to specify it. ' + 
+                                                        '(if there are more than one separate them by commas).')
 
         # Process arguments
         args = parser.parse_args()
@@ -125,9 +128,9 @@ USAGE
                             format="%(asctime)s %(levelname)s %(message)s",
                             datefmt="%Y-%m-%d %H:%M:%S")
         
-        backend = 'c'
-        if args.backend == 'python':
-            backend = 'python'
+        frontend = 'C'
+        if args.frontend == 'Python':
+            frontend = 'Python'
         
         # Options for the pretty printer to work nicely
         # with the compiler defined types
@@ -372,8 +375,33 @@ USAGE
             # This function is in charge to generate the source code for a given
             # back-end. Currently only the C one is implemented. More planned
             # for the future.
-            if backend == 'c':
-                c_Backend.generate_code_from_template(dest_dir, stratums,
+            if frontend == 'C':
+                # Here we define the default data structures for the c frontend to generate
+                # code for the compositional data structure. In total we have 12 options 
+                # We have three different options:
+                # Paths (How to store the trie): 
+                #     - Judy (to use a radix trie implementation (external implementation)
+                #     - Hash (to use a hash to build the trie (local implementation)
+                # Successors (How to store the successors given a prefix):
+                #     - Stack (To use a linked list that behaves as an stack)
+                #     - Queue (To use an array that behaves as an standard queue)
+                # Sets (How to store the last level successors):
+                #     - Judy (to use a radix trie implementation as a bitmap)
+                #     - AVLTree (to use an AVL Tree that behaves as a set)
+                #     - BitMap (to use a local implementation of a bit map)
+                composition_structures = {"Paths" : "Judy",
+                                          "Successors" : "Stack",
+                                          "Sets": "Judy"}
+            
+                # Parse the options for the c frontend so far only the data structure
+                # Currently something like Sets=Judy,Paths=Judy,Successors=Queue
+                if args.options:
+                    options = args.options.split(',')
+                    options = [ x.split('=') for x in options ]
+                    for key, value in options:
+                        composition_structures[key] = value
+                        
+                c_Backend.generate_code_from_template(dest_dir, stratums, composition_structures,
                                                   predicateTypes, predicateTypes.intensional,
                                                   printVariables, idToStratumLevels)
             else:
