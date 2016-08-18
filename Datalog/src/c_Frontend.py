@@ -1713,9 +1713,9 @@ def fillDataStructureAppendSolutionFunctions(outfile):
                                                                  node,
                                                                  str(length)))
         elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
-            outfile.write('{}AVLTree_insert({}, x_{});\n'.format(spaces,
-                                                                  node,
-                                                                  str(length)))
+            outfile.write('{0}{1} = AVLTree_insert({1}, x_{2});\n'.format(spaces,
+                                                                          node,
+                                                                          str(length)))
         else:
             error = "Don't know how to generate code for the data structure"
             error += " {} ".format(GenerationData.compositionStructures['Successors'])
