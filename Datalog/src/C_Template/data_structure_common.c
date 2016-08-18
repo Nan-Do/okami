@@ -228,7 +228,6 @@ short AVLTree_contains(AVLTree node, unsigned int key)
     AVLTree temp = node;
     
     while (temp != NULL){
-        printf("\tNode value: %i\n", temp->key);
         if (temp->key == key) return true;
         else if (key < temp->key) temp = temp->left;
         else temp = temp->right;
