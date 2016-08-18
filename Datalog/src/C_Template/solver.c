@@ -79,7 +79,7 @@ int solver_init(){
 
 %% fill_SolverInit
 
-    return TRUE;
+    return true;
 }
 
 %% fill_StratumQueueInitializers
@@ -91,7 +91,7 @@ int solver_compute(){
 
 %% fill_SolverCompute
 
-    return TRUE;
+    return true;
 }
 
 void solver_free(){

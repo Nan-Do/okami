@@ -2,7 +2,7 @@
 FLAGS = -Wall -O3 -static -Wextra -ansi -fomit-frame-pointer -march=native -pipe -std=c99
 ARCH  = iX86
 INCL  = -Iinclude 
-LIB   = -lm -lJudy
+%% fill_MakefileLibs
 
 all: solver
 

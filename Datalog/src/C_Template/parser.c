@@ -20,7 +20,7 @@ int create_fact(const char *temp_fact, Fact *f) {
     pos = strstr(temp_fact, "(");
 
     if (pos == NULL || temp_fact[strlen(temp_fact) -1] != ')')
-            return FALSE;
+            return false;
     /*
      * If (pos - temp_atom) > 10 -> Error
      */
@@ -39,7 +39,7 @@ int create_fact(const char *temp_fact, Fact *f) {
         }
 
         if (!isdigit(*pos))
-            return FALSE;
+            return false;
 
         value[i++] = (*pos);
     }
@@ -47,7 +47,7 @@ int create_fact(const char *temp_fact, Fact *f) {
     value[i++] = '\0';
     f->values[f->num_values++] = atol(value);
 
-    return TRUE;
+    return true;
 }
 
 int parser_get_fact(FILE *fp, int *num_line, Fact *f){
@@ -77,5 +77,5 @@ int parser_get_fact(FILE *fp, int *num_line, Fact *f){
         line[i++] = c;
     }
 
-    return FALSE;
+    return false;
 }

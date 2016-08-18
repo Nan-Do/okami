@@ -1,5 +1,8 @@
 %% fill_Header
  
+#include <stdlib.h>
+#include <stdbool.h>
+
 #ifndef DATA_STRUCTURE_COMMON_H_
 #define DATA_STRUCTURE_COMMON_H_
 
@@ -56,7 +59,7 @@ extern void AVLTree_size(AVLTree root, int *);
 /* BitMap header functions */
 struct BitMap{
     unsigned int size;
-    int * bitarray;
+    unsigned int * bitarray;
 };
 typedef struct BitMap BitMap;
 typedef struct BitMap* BitMapPtr;
@@ -66,4 +69,33 @@ extern void BitMap_free(BitMapPtr);
 extern void BitMap_setBit(BitMapPtr, unsigned int);
 extern int BitMap_testBit(BitMapPtr, unsigned int);
 extern void BitMap_clearBit(BitMapPtr, unsigned int);
+
+/* Hash header functions */
+/* Each member of the array */
+struct Cell
+{
+        size_t key;
+        size_t value;
+};
+typedef struct Cell Cell;
+
+/* Hast Table definition */
+struct HashTable
+{
+    Cell* m_cells;
+    size_t m_arraySize;
+    size_t m_population;
+    bool m_zeroUsed;
+    Cell m_zeroCell;
+};
+typedef struct HashTable HashTable;
+
+/* Management functions */
+extern void HashTable_Init(HashTable *);
+extern void HashTable_Free(HashTable *);
+
+/* Utilization functions */
+extern Cell* HashTable_Insert(HashTable *, size_t);
+extern Cell* HashTable_Lookup(HashTable *, size_t);
+
 #endif

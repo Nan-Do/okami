@@ -25,5 +25,5 @@ int main(){
 
     solver_free();
 
-    return 0;
+    return EXIT_SUCCESS;
 }

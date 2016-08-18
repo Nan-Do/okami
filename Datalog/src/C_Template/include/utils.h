@@ -4,11 +4,9 @@
 #define UTILS_H_
 
 #include <math.h>
+#include <stdbool.h>
 
 %% fill_ProgramName
-
-#define TRUE 1
-#define FALSE 0
 
 %% fill_Hypothesis
 

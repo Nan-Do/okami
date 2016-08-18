@@ -2,22 +2,29 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <assert.h>
 
 #include "data_structure_common.h"
 #include "utils.h"
 
 /* BitMap constants */
 #define INITIAL_BITARRAY_SIZE 1000
-
-#if __SIZEOF_POINTER__ == 8
-#define BITMAP_BASE 64
-#else
 #define BITMAP_BASE 32
-#endif
 
 /* Queue constants */
 #define INITIAL_QUEUE_SIZE 16
 #define QUEUE_SIZE_MODIFIER 2
+
+/* Hash constants and macros */
+#define HASH_INITIAL_SIZE 1024
+#define HASH_FUNCTION integerHash_32
+
+#define FIRST_CELL(hash) (h->m_cells + ((hash) & (h->m_arraySize - 1)))
+#define CIRCULAR_NEXT(c) ((c) + 1 != h->m_cells + h->m_arraySize ? (c) + 1 : h->m_cells)
+#define CIRCULAR_OFFSET(a, b) ((b) >= (a) ? (b) - (a) : h->m_arraySize + (b) - (a))
+
 
 
 /*
@@ -109,7 +116,7 @@ int max(int a, int b)
  
 /* Helper function that allocates a new node with the given key and
     NULL left and right pointers. */
-AVLNode *newNode(int key)
+AVLNode *newNode(unsigned int key)
 {
     AVLNode* node = (AVLNode*) malloc(sizeof(AVLNode));
     node->key   = key;
@@ -221,12 +228,13 @@ short AVLTree_contains(AVLTree node, unsigned int key)
     AVLTree temp = node;
     
     while (temp != NULL){
-        if (temp->key == key) return TRUE;
-        else if (temp->key > key) temp = temp->left;
+        printf("\tNode value: %i\n", temp->key);
+        if (temp->key == key) return true;
+        else if (key < temp->key) temp = temp->left;
         else temp = temp->right;
     }
     
-    return FALSE;
+    return false;
 }
 
 void AVLTree_init(AVLTree *root)
@@ -267,6 +275,7 @@ void AVLTree_preOrder(AVLTree root)
 /* BitMap Array implementation */
 void BitMap_init(BitMapPtr b){
     b->bitarray = malloc(sizeof(unsigned int) * INITIAL_BITARRAY_SIZE);
+    memset(b->bitarray, 0, sizeof(unsigned int) * INITIAL_BITARRAY_SIZE);
     b->size = INITIAL_BITARRAY_SIZE;
 }
 
@@ -284,7 +293,7 @@ void BitMap_setBit(BitMapPtr b, unsigned int k){
         b->size = new_size;
     }
     
-    b->bitarray[k/BITMAP_BASE] |= 1 << (k%BITMAP_BASE);
+    b->bitarray[k/BITMAP_BASE] |= (unsigned int) 1 << (k%BITMAP_BASE);
 }
 
 void BitMap_clearBit(BitMapPtr b, unsigned int k)
@@ -292,18 +301,172 @@ void BitMap_clearBit(BitMapPtr b, unsigned int k)
     /* If the bitmap can't hold that value just ignore it */
     if (k > (b->size * BITMAP_BASE)) return;
     
-    b->bitarray[k/BITMAP_BASE] &= ~(1 << (k%BITMAP_BASE));
+    b->bitarray[k/BITMAP_BASE] &= ~((unsigned int) 1 << (k%BITMAP_BASE));
 }
 
 int BitMap_testBit(BitMapPtr b, unsigned int k)
 {
     /* If the bitmap can't hold that value just ignore it */
-    if (k > (b->size * BITMAP_BASE)) return FALSE;
+    if (k > (b->size * BITMAP_BASE)) return false;
     
-    return ((b->bitarray[k/BITMAP_BASE] & (1 << (k%BITMAP_BASE))) != 0);
+    return ((b->bitarray[k/BITMAP_BASE] & ((unsigned int) 1 << (k%BITMAP_BASE))) != 0);
 }
 
 void BitMap_free(BitMapPtr b){
     free(b->bitarray);
     b->size = 0;
 }
+
+
+/* Hash Table implementation */
+
+/* Hashing functions */
+/* from code.google.com/p/smhasher/wiki/MurmurHash3 */
+static inline uint32_t integerHash_32(uint32_t h)
+{
+	h ^= h >> 16;
+	h *= 0x85ebca6b;
+	h ^= h >> 13;
+	h *= 0xc2b2ae35;
+	h ^= h >> 16;
+	return h;
+}
+
+/* from code.google.com/p/smhasher/wiki/MurmurHash3 */
+static inline uint64_t integerHash_64(uint64_t k)
+{
+	k ^= k >> 33;
+	k *= 0xff51afd7ed558ccd;
+	k ^= k >> 33;
+	k *= 0xc4ceb9fe1a85ec53;
+	k ^= k >> 33;
+	return k;
+}
+
+void HashTable_Init(HashTable *h){
+    /* Initialize regular cells */
+    h->m_arraySize = HASH_INITIAL_SIZE;
+    h->m_cells = malloc(sizeof(Cell) * HASH_INITIAL_SIZE);
+    memset(h->m_cells, 0, sizeof(Cell) * h->m_arraySize);
+    h->m_population = 0;
+
+    /* Initialize zero cell */
+    h->m_zeroUsed = 0;
+    h->m_zeroCell.key = 0;
+    h->m_zeroCell.value = 0;
+}
+
+void Repopulate(HashTable *h, size_t desiredSize)
+{
+    Cell *c, *cell, *oldCells, *end;
+
+    assert((desiredSize & (desiredSize - 1)) == 0);   /* Must be a power of 2 */
+    assert(h->m_population * 4  <= desiredSize * 3);
+
+    /* Get start/end pointers of old array */
+    oldCells = h->m_cells;
+    end = h->m_cells + h->m_arraySize;
+
+    /* Allocate new array */
+    h->m_arraySize = desiredSize;
+    h->m_cells = malloc(sizeof(Cell) * h->m_arraySize);
+    memset(h->m_cells, 0, sizeof(Cell) * h->m_arraySize);
+
+    /* Iterate through old array */
+    for (c = oldCells; c != end; c++)
+    {
+        if (c->key)
+        {
+            /* Insert this element into new array */
+            for (cell = FIRST_CELL(HASH_FUNCTION(c->key));; cell = CIRCULAR_NEXT(cell))
+            {
+                if (!cell->key)
+                {
+                    /* Insert here */
+                    *cell = *c;
+                    break;
+                }
+            }
+        }
+    }
+
+    /* Delete old array */
+    free(oldCells);
+}
+
+Cell* HashTable_Lookup(HashTable *h, size_t key)
+{
+    Cell* cell;
+
+    if (key)
+    {
+        /* Check regular cells */
+        for (cell = FIRST_CELL(HASH_FUNCTION(key));; cell = CIRCULAR_NEXT(cell))
+        {
+            if (cell->key == key)
+                return cell;
+            if (!cell->key)
+                return NULL;
+        }
+    }
+    else
+    {
+        /* Check zero cell */
+        if (h->m_zeroUsed)
+            return &h->m_zeroCell;
+        return NULL;
+    }
+}
+
+
+Cell* HashTable_Insert(HashTable *h, size_t key){
+    Cell* cell;
+
+    if (key)
+    {
+        /* Check for regular cells */
+        for (;;)
+        {
+            for (cell = FIRST_CELL(HASH_FUNCTION(key));; cell = CIRCULAR_NEXT(cell))
+            {
+                if (cell->key == key)
+                    return cell;        /* Found */
+                if (cell->key == 0)
+                {
+                    /* Insert here */
+                    if ((h->m_population + 1) * 4 >= h->m_arraySize * 3)
+                    {
+                        /* Time to resize */
+                        Repopulate(h, h->m_arraySize * 2);
+                        break;
+                    }
+                    ++h->m_population;
+                    cell->key = key;
+                    return cell;
+                }
+            }
+        }
+    }
+    else
+    {
+        /* Check zero cell */
+        if (!h->m_zeroUsed)
+        {
+            /* Insert here */
+            h->m_zeroUsed = true;
+            if (++h->m_population * 4 >= h->m_arraySize * 3)
+			{
+				/* Even though we didn't use a regular slot, let's keep the sizing rules consistent */
+                Repopulate(h, h->m_arraySize * 2);
+			}
+        }
+        return &h->m_zeroCell;
+    }
+}
+
+
+void HashTable_Free(HashTable *h){
+    free(h->m_cells);
+    h->m_arraySize = h->m_population = h->m_zeroUsed = 0;
+}
+
