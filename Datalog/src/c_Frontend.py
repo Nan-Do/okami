@@ -445,12 +445,15 @@ def fillSolverCompute(outfile):
             if t_index == 1:
                 emitting_code += "t0"
             else:
-                emitting_code += "t{}->value".format(t_index-1)
+                if GenerationData.compositionStructures['Successors'] == 'Stack':
+                    emitting_code += "t{}->value".format(t_index-1)
+                elif GenerationData.compositionStructures['Successors'] == 'Queue':
+                    emitting_code += "t{0}->values[c{0}]".format(t_index-1)
         else:
-            if GenerationData.compositionStructures['Successors'] == 'Queue':
-                    emitting_code += "t{0}->values[c{0}]".format(t_index)
-            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+            if GenerationData.compositionStructures['Successors'] == 'Stack':
                 emitting_code += "t{}->value".format(t_index)
+            elif GenerationData.compositionStructures['Successors'] == 'Queue':
+                    emitting_code += "t{0}->values[c{0}]".format(t_index)
             
         return emitting_code        
 
@@ -767,7 +770,7 @@ def fillSolverCompute(outfile):
                             
                         lists_of_duplicated_vars = filter(lambda x: len(x) > 1, temp_dict.values())
                         
-                        outfile.write('{}if('.format(spaces))
+                        outfile.write('{}if ('.format(spaces))
                         for pos, l in enumerate(lists_of_duplicated_vars):
                             t = ['current->b.VAR_{}'.format(x) for x in l]
                             outfile.write('{}'.format(' == '.join(t)))
@@ -777,7 +780,7 @@ def fillSolverCompute(outfile):
                         if have_equal_cards:
                             outfile.write(' &&\n{}   '.format(spaces))
                         else:
-                            outfile.write('{}if('.format(spaces))
+                            outfile.write('{}if ('.format(spaces))
                             
                         for pos, elem in enumerate(argument_constants_left_side):
                             outfile.write('current->b.VAR_{} == {}'.format(elem[1], 
@@ -1032,8 +1035,12 @@ def fillSolverCompute(outfile):
                             args = args_common + ', '
                            
                         if not equal_cards_query_common_vars:
-                            args += ', '.join(['t{}->value'.format(str(i))
-                                               for i in xrange(1, x)])
+                            if GenerationData.compositionStructures['Successors'] == 'Stack':
+                                args += ', '.join(['t{}->value'.format(i)
+                                                for i in xrange(1, x)])
+                            elif GenerationData.compositionStructures['Successors'] == 'Queue':
+                                args += ', '.join(['t{0}->values[c{0}]'.format(i)
+                                                for i in xrange(1, x)])
                             
                             outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'
                                           .format(spaces, x, query_value,
@@ -1054,8 +1061,12 @@ def fillSolverCompute(outfile):
                                 raise KeyError
                         else:
                             #outfile.write("X: {}\t\tARGS:{}\t\tNUMBER_OF_ARGS: {}\t\tY: {}\t\tCOMMON_VARS: {}\n".format(x, args, number_of_args, y, commonVars_len))
-                            args += ', '.join(['t{}->value'.format(str(i))
-                                               for i in xrange(1, (y-commonVars_len)+1)])
+                            if GenerationData.compositionStructures['Successors'] == 'Queue':
+                                args += ', '.join(['t{0}->values[c{0}]'.format(i)
+                                                   for i in xrange(1, (y-commonVars_len)+1)])
+                            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+                                args += ', '.join(['t{}->value'.format(i)
+                                                   for i in xrange(1, (y-commonVars_len)+1)])
     
                             outfile.write('{}t{} = Ds_get_intList_{}({}, {});\n'.format(spaces,
                                                                                         (y-commonVars_len)+1,
@@ -1116,8 +1127,11 @@ def fillSolverCompute(outfile):
                         # We only have to iterate over each list emitting code appropriately 
                         outfile.write('{}if('.format(spaces))
                         for pos, l in enumerate(lists_of_duplicated_vars):
-                            t = ['t{}'.format(x) for x in l]
-                            t = map(lambda x: x if (x == "t0") else x + "->value", t)
+                            if GenerationData.compositionStructures['Successors'] == 'Queue':
+                                t = ['t{0}->values[c{0}]'.format(x) if (x > 0) else 't{}'.format(x) for x in l]
+                            elif GenerationData.compositionStructures['Successors'] == 'Stack':
+                                t = ['t{0}->value'.format(x) if (x > 0) else 't{}'.format(x) for x in l]
+
                             outfile.write('{}'.format(' == '.join(t)))
                             if pos != len(lists_of_duplicated_vars)-1:
                                 outfile.write(' &&\n{}   '.format(spaces))
@@ -1543,7 +1557,10 @@ def fillDataStructureGetIntListFunctions(outfile):
             outfile.write('{}'.format(spaces))
             outfile.write('}\n')
         
-        outfile.write('\n{}return NULL;\n'.format(spaces))
+        if GenerationData.compositionStructures['Successors'] == 'Queue':
+            outfile.write('\n{}return &queue_not_found;\n'.format(spaces))
+        else:
+            outfile.write('\n{}return NULL;\n'.format(spaces))
         
         outfile.write('}\n\n')
         
@@ -2026,6 +2043,9 @@ def fill_DataStructureInit(outfile):
     else:
         raise KeyError('Unknown data structure for paths')
     
+    if GenerationData.compositionStructures['Successors'] == 'Queue':
+        outfile.write('{}memset(&queue_not_found, 0, sizeof(uIntArrayQueue));\n'.format(spaces))
+    
 def fill_DataStructureFree(outfile):
     spaces = SPACES
     if GenerationData.compositionStructures['Paths'] == 'Judy':
@@ -2047,6 +2067,11 @@ def fill_DataStructureFree(outfile):
             outfile.write('{}DsData_Level_2_free((DsData_2 *) root.m_cells[i].value);\n\n'.format(spaces*3))
             
         outfile.write('{}HashTable_Free(&root);\n'.format(spaces))
+        
+def fill_DataStructureQueueNotFound(outfile):
+    if GenerationData.compositionStructures['Successors'] == 'Queue':
+        outfile.write('/* Variable used to represent that a queue has not been found */\n')
+        outfile.write('uIntArrayQueue queue_not_found;\n')
         
 def fillMakefileLibs(outfile):
     if GenerationData.compositionStructures['Paths'] == 'Judy' or\
@@ -2090,6 +2115,7 @@ fill_template = {
      'fill_DsGetZeroValues'      : fill_DataStructureGetZeroValues,
      'fill_DsInit'               : fill_DataStructureInit,
      'fill_DsFree'               : fill_DataStructureFree,
+     'fill_DsQueueNotFound'      : fill_DataStructureQueueNotFound,
      'fill_StratumSolverQueues'  : fillStratumSolverQueues,
      'fill_MakefileLibs'         : fillMakefileLibs
      }
