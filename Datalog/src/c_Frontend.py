@@ -1328,8 +1328,14 @@ def fillDataStructureLevelNodes(outfile):
             # level declaration clearly
             if number_of_views_for_this_level:
                 outfile.write('\n')
-            outfile.write('{}Pvoid_t level{};\n'.format(spaces_level_1,
-                                                        length+1))
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                outfile.write('{}Pvoid_t level{};\n'.format(spaces_level_1,
+                                                            length+1))
+            if GenerationData.compositionStructures['Paths'] == 'Hash':
+                outfile.write('{}HashTable level{};\n'.format(spaces_level_1,
+                                                            length+1))
+            
+            
             
         outfile.write('};\n')
         outfile.write('typedef struct DsData_Level_{0} DsData_{0};\n\n'.format(length))
@@ -1347,24 +1353,44 @@ def fillDataStructureInsertFunctions(outfile):
         spaces_level_1 = SPACES
         spaces_level_2 = SPACES * 2
         spaces_level_3 = SPACES * 3
-
+        
         outfile.write('void Ds_insert_1(int x_1){\n')
-        outfile.write('{}Word_t * PValue1;\n\n'.format(spaces_level_1))
-        outfile.write('{}if (!(JLG(PValue1, root, x_1))){{\n'.format(spaces_level_1))
-
-        outfile.write('{}JLI(PValue1, root, x_1);\n'.format(spaces_level_2))
-        outfile.write('{}if (PValue1 == PJERR){{\n'.format(spaces_level_2))
-
-        outfile.write('{}fprintf(stderr, "Solver: Error allocating '.format(spaces_level_3))
-        outfile.write('memory %s:%i\\n", __FILE__, __LINE__);\n')
-        outfile.write('{}abort();\n'.format(spaces_level_3))
-
-        outfile.write('{}}}\n'.format(spaces_level_2))
-        if getDataStructureNodesMaximumLength() > 1:
-            outfile.write('{}(*PValue1) = ((Word_t) DsData_Level_2_new_node());\n'.format(spaces_level_2))
-
-        outfile.write('{}}}\n'.format(spaces_level_1))
+        
+        if GenerationData.compositionStructures['Paths'] == 'Judy':
+            outfile.write('{}Word_t * PValue1;\n\n'.format(spaces_level_1))
+            outfile.write('{}if (!(JLG(PValue1, root, x_1))){{\n'.format(spaces_level_1))
+    
+            outfile.write('{}JLI(PValue1, root, x_1);\n'.format(spaces_level_2))
+            outfile.write('{}if (PValue1 == PJERR){{\n'.format(spaces_level_2))
+    
+            outfile.write('{}fprintf(stderr, "Solver: Error allocating '.format(spaces_level_3))
+            outfile.write('memory %s:%i\\n", __FILE__, __LINE__);\n')
+            outfile.write('{}abort();\n'.format(spaces_level_3))
+    
+            outfile.write('{}}}\n'.format(spaces_level_2))
+            
+            if getDataStructureNodesMaximumLength() > 1:
+                outfile.write('{}(*PValue1) = ((Word_t) DsData_Level_2_new_node());\n'.format(spaces_level_2))
+            else:
+                outfile.write('{}(*PValue1) = (Word_t) NULL;\n'.format(spaces_level_2))
+    
+            outfile.write('{}}}\n'.format(spaces_level_1))
+        elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            outfile.write('{}Cell * c_1;\n\n'.format(spaces_level_1))
+            outfile.write('{}if (!(c_1 = HashTable_Lookup(&root, x_1))){{\n'.format(spaces_level_1))
+            outfile.write('{}c_1 = HashTable_Insert(&root, x_1);\n'.format(spaces_level_2))
+            
+            if getDataStructureNodesMaximumLength() > 1:
+                outfile.write('{}c_1->value = (size_t) DsData_Level_2_new_node();\n'.format(spaces_level_2))
+            else:
+                outfile.write('{}c_1->value = (size_t) NULL;\n'.format(spaces_level_2))
+            
+            outfile.write('{}}}\n'.format(spaces_level_1))
+        else:
+            raise KeyError('Unknowun data structure to represent the paths')
+        
         outfile.write('}\n')
+            
         
     # Auxiliar clousure function name to get the name of the structure to be used to represent the successors list
     def get_successors_structure_name():
@@ -1416,7 +1442,7 @@ def fillDataStructureInsertFunctions(outfile):
                 if GenerationData.compositionStructures['Paths'] == 'Judy':
                     node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
                 elif GenerationData.compositionStructures['Paths'] == 'Hash':
-                    node = 'TODOOOOOO!!!!!!!!!!!!!!!!!!!!!'
+                    node = '((DsData_{} *) c_{}->value)->level{}'.format(x, x-1, x+1)
             
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces_level_1, x,
@@ -1519,7 +1545,7 @@ def fillDataStructureGetIntListFunctions(outfile):
                 if GenerationData.compositionStructures['Paths'] == 'Judy':
                     node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
                 elif GenerationData.compositionStructures['Paths'] == 'Hash':
-                    node = 'TODOOOOOO!!!!!!!!!!!!!!!!!!!!!'
+                    node = '((DsData_{} *) c_{}->value)->level{}'.format(x, x-1, x+1)
             
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 outfile.write('{}if ((JLG(PValue{}, {}, x_{})))'.format(spaces, str(x),
@@ -1590,7 +1616,7 @@ def fillDataStructureContainSolutionFunctions(outfile):
                 if GenerationData.compositionStructures['Paths'] == 'Judy':
                     node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
                 elif GenerationData.compositionStructures['Paths'] == 'Hash':
-                    node = 'TO DOOOOOOOOOOOOOOOOOO!!!!!!!!!!!'
+                    node = '((DsData_{} *) c_{}->value)->level{}'.format(x, x-1, x+1)
                     
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))\n'.format(spaces,
@@ -1662,7 +1688,7 @@ def fillDataStructureAppendSolutionFunctions(outfile):
                 if GenerationData.compositionStructures['Paths'] == 'Judy':
                     node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
                 elif GenerationData.compositionStructures['Paths'] == 'Hash':
-                    node = 'TO DOOOOOOOOOOOOOOOOOO!!!!!!!!!!!'
+                    node = '((DsData_{} *) c_{}->value)->level{}'.format(x, x-1, x+1)
             
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 outfile.write('{0}if (!(JLG(PValue{1}, {2}, x_{1})))'.format(spaces,
@@ -1812,8 +1838,12 @@ def fillDataStructureInitLevelFunctions(outfile):
 
         outfile.write('\n')
         if pos != len(lengths)-1:
-            outfile.write('{}d->level{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
-                                                                    length + 1))
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                outfile.write('{}d->level{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
+                                                                        length + 1))
+            if GenerationData.compositionStructures['Paths'] == 'Hash':
+                outfile.write('{}HashTable_Init(&d->level{});\n'.format(spaces_level_1,
+                                                                        length + 1))
             
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
@@ -1885,21 +1915,34 @@ def fillDataStructureLevelFreeFunctions(outfile):
         spaces = SPACES
         outfile.write('{\n')
         if pos != len(lengths) - 1:
-            outfile.write('{}Word_t * PValue, index = 0;\n\n'.format(spaces))
-            outfile.write('{}JLF(PValue, d->level{}, index);\n'.format(spaces,
-                                                                       length+1))
-            outfile.write('{}while (PValue != NULL)'.format(spaces))
-            outfile.write('{\n')
-            spaces += SPACES
-            outfile.write('{0}DsData_Level_{1}_free((DsData_{1} *) *PValue);\n'.format(spaces,
-                                                                                       length+1))
-            outfile.write('{}JudyLDel(&d->level{}, index, PJE0);\n'.format(spaces,
+            if GenerationData.compositionStructures['Paths'] == 'Judy':
+                outfile.write('{}Word_t * PValue, index = 0;\n\n'.format(spaces))
+                outfile.write('{}JLF(PValue, d->level{}, index);\n'.format(spaces,
                                                                            length+1))
-            outfile.write('{}JLN(PValue, d->level{}, index);\n'.format(spaces,
-                                                                       length+1))
-            spaces = spaces[:-len(SPACES)]
-            outfile.write('{}'.format(spaces))
-            outfile.write('}\n')
+                outfile.write('{}while (PValue != NULL)'.format(spaces))
+                outfile.write('{\n')
+                spaces += SPACES
+                outfile.write('{0}DsData_Level_{1}_free((DsData_{1} *) *PValue);\n'.format(spaces,
+                                                                                           length+1))
+                outfile.write('{}JudyLDel(&d->level{}, index, PJE0);\n'.format(spaces,
+                                                                               length+1))
+                outfile.write('{}JLN(PValue, d->level{}, index);\n'.format(spaces,
+                                                                           length+1))
+                spaces = spaces[:-len(SPACES)]
+                outfile.write('{}'.format(spaces))
+                outfile.write('}\n')
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                node = 'd->level{0}.m_cells[i].value'.format(length+1)
+                outfile.write('{}size_t i;\n\n'.format(spaces))
+                outfile.write('{}for (i=0; i < d->level{}.m_arraySize; i++)\n'.format(spaces, length+1))
+                spaces += SPACES
+                outfile.write('{}if ({})\n'.format(spaces, node))
+                spaces += SPACES
+                outfile.write('{0}DsData_Level_{1}_free((DsData_{1} *) {2});\n\n'.format(spaces, length+1, node))
+                spaces = spaces[:-len(SPACES)]
+                spaces = spaces[:-len(SPACES)]
+            else:
+                raise KeyError('Unknown paths data structure')
             
         number_of_views_for_this_level = sum((x[1]) for x in viewsData
                                              if x[0] >= length)
@@ -2026,7 +2069,7 @@ def fill_DataStructureGetZeroValues(outfile):
     elif GenerationData.compositionStructures['Paths'] == 'Hash':
         outfile.write('{}while (zero_index < root.m_arraySize){{\n'.format(spaces))
         outfile.write('{}if (root.m_cells[zero_index].key){{\n'.format(spaces * 2))
-        outfile.write('{}(*value) = root.m_cells[zero_index].value;\n'.format(spaces * 3))
+        outfile.write('{}(*value) = root.m_cells[zero_index].key;\n'.format(spaces * 3))
         outfile.write('{}zero_index++;\n'.format(spaces * 3))
         outfile.write('{}return true;\n{}}}\n'.format(spaces * 3, spaces*2))
         outfile.write('{}zero_index++;\n{}}}\n'.format(spaces * 2, spaces))
