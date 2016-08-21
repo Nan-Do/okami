@@ -26,7 +26,6 @@
 #define CIRCULAR_OFFSET(a, b) ((b) >= (a) ? (b) - (a) : h->m_arraySize + (b) - (a))
 
 
-
 /*
   Next we have the implementations for the lists of the based stack 
   compositional data structure.
@@ -96,6 +95,11 @@ void uIntListStack_append(uIntListStackPtr l, int value){
 */
 
 /* AVL implementation */
+/*
+ * This implementation is a modified version of the AVL Tree from
+ * http://www.geeksforgeeks.org/avl-tree-set-1-insertion/
+ */
+
 /* An AVL tree node */
 /* A utility function to get maximum of two integers */
 int max(int a, int b);
@@ -318,6 +322,9 @@ void BitMap_free(BitMapPtr b){
 
 
 /* Hash Table implementation */
+/* This implementation is a modified version of the Hash Table from
+ * https://github.com/preshing/CompareIntegerMaps
+ */
 
 /* Hashing functions */
 /* from code.google.com/p/smhasher/wiki/MurmurHash3 */
