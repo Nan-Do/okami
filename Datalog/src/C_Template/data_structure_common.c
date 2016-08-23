@@ -25,6 +25,17 @@
 #define CIRCULAR_NEXT(c) ((c) + 1 != h->m_cells + h->m_arraySize ? (c) + 1 : h->m_cells)
 #define CIRCULAR_OFFSET(a, b) ((b) >= (a) ? (b) - (a) : h->m_arraySize + (b) - (a))
 
+/* BTreeSet constants and definitions */
+#define BTREE_SET_MAX_KEYS 1024
+
+struct BTreeSetNode{
+    bool isLeaf;                                      /* Is this node a leaf node?             */
+    unsigned int numKeys;                                      /* How many keys does this node contain? */
+    unsigned int keys[BTREE_SET_MAX_KEYS];            /* The actual keys                       */
+    struct BTreeSetNode *kids[BTREE_SET_MAX_KEYS+1];  /* Kids[i] holds nodes < keys[i]         */
+};
+
+
 
 /*
   Next we have the implementations for the lists of the based stack 
@@ -476,3 +487,176 @@ void HashTable_Free(HashTable *h){
     h->m_arraySize = h->m_population = h->m_zeroUsed = 0;
 }
 
+
+/*
+ * Implementation of the functions for the BTree as a set of integers
+ * It is a modified version of the BTree found at
+ * http://www.cs.yale.edu/homes/aspnes/pinewiki/BTrees.html
+ */
+/* Return smallest index i in sorted array such that key <= a[i] */
+/* (or n if there is no such index) */
+static unsigned int private_BTreeSet_SearchKey(int n, const unsigned int *a, unsigned int key){
+    unsigned int lo, hi, mid;
+
+    /* Invariant: a[lo] < key <= a[hi] */
+    lo = -1;
+    hi = n;
+
+    while(lo + 1 < hi) {
+        mid = (lo+hi)/2;
+        if(a[mid] == key) {
+            return mid;
+        } else if(a[mid] < key) {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+
+    return hi;
+}
+
+/* Insert a new key into a tree */
+/* returns new right sibling if the node splits */
+/* and puts the median in *median */
+/* else returns 0 */
+static BTreeSet private_BTreeSet_Insert_Internal(BTreeSet b, unsigned int key, unsigned int *median){
+    unsigned int pos, mid;
+    BTreeSet b2;
+
+    pos = private_BTreeSet_SearchKey(b->numKeys, b->keys, key);
+
+    if(pos < b->numKeys && b->keys[pos] == key) {
+        /* nothing to do */
+        return NULL;
+    }
+
+    if(b->isLeaf) {
+
+        /* everybody above pos moves up one space */
+        memmove(&b->keys[pos+1], &b->keys[pos], sizeof(*(b->keys)) * (b->numKeys - pos));
+        b->keys[pos] = key;
+        b->numKeys++;
+
+    } else {
+
+        /* insert in child */
+        b2 = private_BTreeSet_Insert_Internal(b->kids[pos], key, &mid);
+
+        /* maybe insert a new key in b */
+        if(b2) {
+
+            /* every key above pos moves up one space */
+            memmove(&b->keys[pos+1], &b->keys[pos], sizeof(*(b->keys)) * (b->numKeys - pos));
+            /* new kid goes in pos + 1*/
+            memmove(&b->kids[pos+2], &b->kids[pos+1], sizeof(*(b->keys)) * (b->numKeys - pos));
+
+            b->keys[pos] = mid;
+            b->kids[pos+1] = b2;
+            b->numKeys++;
+        }
+    }
+
+    /* we waste a tiny bit of space by splitting now
+     * instead of on next insert */
+    if(b->numKeys >= BTREE_SET_MAX_KEYS) {
+        mid = b->numKeys/2;
+
+        *median = b->keys[mid];
+
+        /* make a new node for keys > median */
+        /* picture is:
+         *
+         *      3 5 7
+         *      A B C D
+         *
+         * becomes
+         *          (5)
+         *      3        7
+         *      A B      C D
+         */
+        b2 = malloc(sizeof(*b2));
+
+        b2->numKeys = b->numKeys - mid - 1;
+        b2->isLeaf = b->isLeaf;
+
+        memmove(b2->keys, &b->keys[mid+1], sizeof(*(b->keys)) * b2->numKeys);
+        if(!b->isLeaf) {
+            memmove(b2->kids, &b->kids[mid+1], sizeof(*(b->kids)) * (b2->numKeys + 1));
+        }
+
+        b->numKeys = mid;
+
+        return b2;
+    } else {
+        return NULL;
+    }
+}
+
+BTreeSet BTreeSet_Init(void){
+    BTreeSet b;
+
+    b = malloc(sizeof(*b));
+    assert(b);
+
+    b->isLeaf = true;
+    b->numKeys = 0;
+
+    return b;
+}
+
+void BTreeSet_Free(BTreeSet b){
+    unsigned int i;
+
+    if(!b->isLeaf) {
+        for(i = 0; i < b->numKeys + 1; i++) {
+            BTreeSet_Free(b->kids[i]);
+        }
+    }
+
+    free(b);
+}
+
+bool BTreeSet_Contains(BTreeSet b, unsigned int key){
+    unsigned int pos;
+
+    /* have to check for empty tree */
+    if(b->numKeys == 0) {
+        return false;
+    }
+
+    /* look for smallest position that key fits below */
+    pos = private_BTreeSet_SearchKey(b->numKeys, b->keys, key);
+
+    if(pos < b->numKeys && b->keys[pos] == key) {
+        return true;
+    } else {
+        return(!b->isLeaf && BTreeSet_Contains(b->kids[pos], key));
+    }
+}
+
+void BTreeSet_Insert(BTreeSet b, unsigned int key){
+    BTreeSet b1;   /* new left child */
+    BTreeSet b2;   /* new right child */
+    unsigned int median;
+
+    b2 = private_BTreeSet_Insert_Internal(b, key, &median);
+
+    if(b2) {
+        /* basic issue here is that we are at the root */
+        /* so if we split, we have to make a new root */
+
+        b1 = malloc(sizeof(*b1));
+        assert(b1);
+
+        /* copy root to b1 */
+        memmove(b1, b, sizeof(*b));
+
+        /* make root point to b1 and b2 */
+        b->numKeys = 1;
+        b->isLeaf = false;
+        b->keys[0] = median;
+        b->kids[0] = b1;
+        b->kids[1] = b2;
+    }
+}

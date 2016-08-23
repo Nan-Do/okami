@@ -98,4 +98,20 @@ extern void HashTable_Free(HashTable *);
 extern Cell* HashTable_Insert(HashTable *, size_t);
 extern Cell* HashTable_Lookup(HashTable *, size_t);
 
+/* BTree as a Set for integers definition */
+typedef struct BTreeSetNode BTreeSetNode;
+typedef struct BTreeSetNode* BTreeSet;
+
+/* Create a new empty tree */
+BTreeSet BTreeSet_Init(void);
+
+/* Free a tree */
+void BTreeSet_Free(BTreeSet);
+
+/* Insert a new element into a tree */
+void BTreeSet_Insert(BTreeSet, unsigned int);
+
+/* Return nonzero if key is present in tree */
+bool BTreeSet_Contains(BTreeSet, unsigned int);
+
 #endif
