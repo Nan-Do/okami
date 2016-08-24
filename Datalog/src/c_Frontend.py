@@ -134,6 +134,25 @@ def getNegatedPredicates():
     
     return answers
 
+# This function returns the Answers of length 1.
+# An answer of length 1 is:
+#    A predicate on the body of a rule with length 1.
+#    A predicate on the head of a rule with length 1.
+#    A negated predicate of length 1
+def getAnswersOfLength_1():
+    answers_of_length_1 = set()
+    predicates_in_rules_of_length_1 = set()
+    for equation in getEquationsFromAllStratums():
+        if len(equation.rightArguments) == 1:
+            answers_of_length_1.add(equation.rightVariable.id)
+        if equation.type == 2 and len(equation.leftArguments) == 1:
+            predicates_in_rules_of_length_1.add(equation.leftVariable.id)
+        for negated_element in equation.negatedElements:
+            if len(negated_element.arguments) == 1:
+                answers_of_length_1.add(negated_element.id)
+                
+    return (answers_of_length_1, predicates_in_rules_of_length_1) 
+
 
 # This function get the solutions of the Datalog program. It returns a set
 # containing the union of all the answers that must be stored represented by the 
@@ -1256,6 +1275,7 @@ def fillDataStructureLevelNodes(outfile):
         if GenerationData.compositionStructures['Sets'] == 'Judy': return 'Pvoid_t'
         elif GenerationData.compositionStructures['Sets'] == 'BitMap': return 'BitMap'
         elif GenerationData.compositionStructures['Sets'] == 'AVLTree': return 'AVLTree'
+        elif GenerationData.compositionStructures['Sets'] == 'BTree': return 'BTreeSet'
         else: return 'UNKNOWN'
     # Auxiliar clousure function name to get the name of the structure to be used to represent the successors list
     def get_successors_structure_name():
@@ -1653,6 +1673,10 @@ def fillDataStructureContainSolutionFunctions(outfile):
                                                                          length))
         elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
             outfile.write('{}return AVLTree_contains({}, x_{});\n'.format(spaces,
+                                                                          node,
+                                                                          length))
+        elif GenerationData.compositionStructures['Sets'] == 'BTree':
+            outfile.write('{}return BTreeSet_Contains({}, x_{});\n'.format(spaces,
                                                                            node,
                                                                            length))
         else:
@@ -1759,6 +1783,10 @@ def fillDataStructureAppendSolutionFunctions(outfile):
             outfile.write('{0}{1} = AVLTree_insert({1}, x_{2});\n'.format(spaces,
                                                                           node,
                                                                           str(length)))
+        elif GenerationData.compositionStructures['Sets'] == 'BTree':
+            outfile.write('{0}BTreeSet_Insert({1}, x_{2});\n'.format(spaces,
+                                                                     node,
+                                                                     str(length)))
         else:
             error = "Don't know how to generate code for the data structure"
             error += " {} ".format(GenerationData.compositionStructures['Successors'])
@@ -1778,6 +1806,9 @@ def fillDataStructureInitLevelFunctions(outfile):
         elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
             outfile.write('{}AVLTree_init(&d->R{});\n'.format(spaces,
                                                               name))
+        elif GenerationData.compositionStructures['Sets'] == 'BTree':
+            outfile.write('{}d->R{} = BTreeSet_Init();\n'.format(spaces,
+                                                                 name))
         else:
             error = "Don't know how to generate code for the data structure"
             error += " {} ".format(GenerationData.compositionStructures['Sets'])
@@ -1965,6 +1996,9 @@ def fillDataStructureLevelFreeFunctions(outfile):
                 elif GenerationData.compositionStructures['Sets'] == 'Judy':
                     outfile.write('{}Judy1FreeArray(&d->R{}, PJE0);\n'.format(spaces,
                                                                               variable_id.name))
+                elif GenerationData.compositionStructures['Sets'] == 'BTree':
+                    outfile.write('{}BTreeSet_Free(d->R{});\n'.format(spaces,
+                                                                   variable_id.name))
                 else:
                     error = "Don't know how to generate code for the data structure"
                     error += " {} ".format(GenerationData.compositionStructures['Sets'])
@@ -1983,19 +2017,11 @@ def fillDataStructureRootSolutions(outfile):
         if GenerationData.compositionStructures['Sets'] == 'Judy': return 'Pvoid_t'
         elif GenerationData.compositionStructures['Sets'] == 'BitMap': return 'BitMap'
         elif GenerationData.compositionStructures['Sets'] == 'AVLTree': return 'AVLTree'
+        elif GenerationData.compositionStructures['Sets'] == 'BTree': return 'BTreeSet'
         else: return 'UNKNOWN'
         
-    answers_of_length_1 = set()
-    predicates_in_rules_of_length_1 = set()
-    for equation in getEquationsFromAllStratums():
-        if len(equation.rightArguments) == 1:
-            answers_of_length_1.add(equation.rightVariable.id)
-        if equation.type == 2 and len(equation.leftArguments) == 1:
-            predicates_in_rules_of_length_1.add(equation.leftVariable.id)
-        for negated_element in equation.negatedElements:
-            if len(negated_element.arguments) == 1:
-                answers_of_length_1.add(negated_element.id)
-            
+    (answers_of_length_1, predicates_in_rules_of_length_1) = getAnswersOfLength_1()
+                
     if answers_of_length_1:
         outfile.write("/* Solution of length 1 */\n")
         line = ', '.join(['R{}'.format(variable_id.name) for variable_id in answers_of_length_1])
@@ -2088,6 +2114,20 @@ def fill_DataStructureInit(outfile):
     
     if GenerationData.compositionStructures['Successors'] == 'Queue':
         outfile.write('{}memset(&queue_not_found, 0, sizeof(uIntArrayQueue));\n'.format(spaces))
+    
+    # The getAnswersOfLength_1 returns two sets. Using the reduce function
+    # we convert them into one as it is more convenient for the iteration.
+    for variable_id in reduce(lambda x,y: x.union(y), getAnswersOfLength_1()):
+        if GenerationData.compositionStructures['Sets'] == 'Judy':
+            outfile.write('{}R{} = NULL;\n'.format(spaces, variable_id.name))
+        elif GenerationData.compositionStructures['Sets'] == 'BTree':
+            outfile.write('{}R{} = BTreeSet_Init();\n'.format(spaces, variable_id.name))
+        elif GenerationData.compositionStructures['Sets'] == 'AVLTree':
+            outfile.write('{}AVLTree_init(&R{});\n'.format(spaces, variable_id.name))
+        elif GenerationData.compositionStructures['Sets'] == 'BitMap':
+            outfile.write('{}BitMap_init(&R{});\n'.format(spaces, variable_id.name))
+        else:
+            raise KeyError("Unknown data structure for Sets at DsInitLevel")
     
 def fill_DataStructureFree(outfile):
     spaces = SPACES
@@ -2226,5 +2266,3 @@ def generate_code_from_template(output_directory, stratums,
         orig_path = os.path.normpath(SOURCE_DIRECTORY + "/" + source_file)
         dest_path = os.path.normpath(path + "/" + source_file)
         fill_file(source_file, orig_path, dest_path)
-        
-    
