@@ -106,12 +106,31 @@ typedef struct BTreeSetNode* BTreeSet;
 BTreeSet BTreeSet_Init(void);
 
 /* Free a tree */
-void BTreeSet_Free(BTreeSet);
+extern void BTreeSet_Free(BTreeSet);
 
 /* Insert a new element into a tree */
-void BTreeSet_Insert(BTreeSet, unsigned int);
+extern void BTreeSet_Insert(BTreeSet, unsigned int);
 
 /* Return nonzero if key is present in tree */
-bool BTreeSet_Contains(BTreeSet, unsigned int);
+extern bool BTreeSet_Contains(BTreeSet, unsigned int);
+
+/* Definition of the BTree */
+struct BTreeNode{
+    /* An array of cells see the definition for a Cell above */
+    Cell *m_cells;
+    /* An array of child pointers */
+    struct BTreeNode **m_children;
+    /* Current number of keys */
+    unsigned int m_numkeys;
+    /* True when the node is a leaf. Otherwise false */
+    bool m_leaf;
+};
+typedef struct BTreeNode BTreeNode;
+typedef struct BTreeNode* BTree;
+
+extern BTree BTree_Init(void);
+extern void BTree_Free(BTree);
+extern Cell* BTree_Lookup(BTree, unsigned int);
+extern Cell* BTree_Insert(BTree *, unsigned int);
 
 #endif
