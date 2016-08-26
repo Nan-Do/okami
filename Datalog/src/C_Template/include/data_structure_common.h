@@ -128,9 +128,19 @@ struct BTreeNode{
 typedef struct BTreeNode BTreeNode;
 typedef struct BTreeNode* BTree;
 
+/* This data structure is a list that grows from the head and will
+ * contain all the keys of the BTree
+ */
+struct intList{
+    unsigned int value;
+    struct intList * next;
+};
+typedef struct intList BTreeKeyList;
+
 extern BTree BTree_Init(void);
-extern void BTree_Free(BTree);
+extern void BTree_Free(BTree, void (*)(size_t));
 extern Cell* BTree_Lookup(BTree, unsigned int);
 extern Cell* BTree_Insert(BTree *, unsigned int);
+extern void BTree_Fill_KeysList(BTree b, BTreeKeyList **l);
 
 #endif

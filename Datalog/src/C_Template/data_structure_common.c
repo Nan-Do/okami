@@ -673,16 +673,16 @@ void BTreeSet_Insert(BTreeSet b, unsigned int key){
  */
 
 void private_BTree_Split(BTree x, int i, BTree y){
-    int j, median = BTREE_MAX_KEYS / 2;
+    int j, median = (BTREE_MAX_KEYS / 2);
     BTree z = BTree_Init();
 
     /* z and y are siblings */
     /* We copy the (t-1) superior elements of y */
     z->m_leaf = y->m_leaf;
-    z->m_numkeys = median;
+    z->m_numkeys = median - 1;
 
     /* Update the z and y nodes */
-    for (j = 0; j < (median + 1); j++) z->m_cells[j] = y->m_cells[j + median];
+    for (j = 0; j < median; j++) z->m_cells[j] = y->m_cells[j + median + 1];
 
     /* If it is not a leaf we also have to copy the pointers */
     if (!y->m_leaf)
@@ -692,11 +692,11 @@ void private_BTree_Split(BTree x, int i, BTree y){
     y->m_numkeys = median;
 
     /* Move the pointers on x */
-    for (j = x->m_numkeys+1; j > i; j--) x->m_children[j] = x->m_children[j-1];
-    x->m_children[i+1] = z;
+    for (j = (x->m_numkeys + 1); j > i; j--) x->m_children[j] = x->m_children[(j - 1)];
+    x->m_children[(i + 1)] = z;
 
     /* Move keys on the parent */
-    for (j = x->m_numkeys; j > i; j--) x->m_cells[j] = x->m_cells[j-1];
+    for (j = x->m_numkeys; j > i; j--) x->m_cells[j] = x->m_cells[(j - 1)];
 
     /* Move the central key up and update the counter */
     x->m_cells[i] = y->m_cells[median];
@@ -728,8 +728,13 @@ static Cell * private_BTree_Insert_NonFull(BTree b, unsigned int key){
 	unsigned int pos = private_BTree_SearchLevelKey(b->m_cells, b->m_numkeys, key);
 
     /* Check if the element is already on the Tree */
-    if (b->m_cells[pos].key == key){
-        printf("NODE ALREADY INSERTED\n");
+	/*
+	 * The cells are initialized with a NULL value (0), if we ask for a zero key we might
+	 * deduce that the key is in the array when it is really not. To be sure that the key is
+	 * indeed in the array we have to make sure that the key of the cell is indeed set. To do
+	 * that we have to check also that the value of the cell is not null.
+	 */
+    if (b->m_cells[pos].key == key && b->m_cells[pos].value){
         return NULL;
     }
 
@@ -748,8 +753,7 @@ static Cell * private_BTree_Insert_NonFull(BTree b, unsigned int key){
             private_BTree_Split(b, pos, b->m_children[pos]);
             if(key > b->m_cells[pos].key) pos++;
         }
-        private_BTree_Insert_NonFull(b->m_children[pos], key);
-        return NULL;
+        return private_BTree_Insert_NonFull(b->m_children[pos], key);
     }
 }
 
@@ -768,12 +772,16 @@ BTree BTree_Init(){
     return b;
 }
 
-void BTree_Free(BTree b){
+void BTree_Free(BTree b, void (*f)(size_t)){
 	unsigned int i;
 
+	/* Free the node values */
+	for (i=0; i < b->m_numkeys; i++)
+	    f(b->m_cells[i].value);
+
     if(!b->m_leaf)
-        for(i = 0; i < b->m_numkeys; i++)
-            BTree_Free(b->m_children[i]);
+        for(i = 0; i < b->m_numkeys + 1; i++)
+            BTree_Free(b->m_children[i], f);
 
     free(b->m_cells);
     free(b->m_children);
@@ -791,7 +799,7 @@ Cell* BTree_Lookup(BTree b, unsigned int key){
     /* look for smallest position that key fits below */
     pos = private_BTree_SearchLevelKey(b->m_cells, b->m_numkeys, key);
 
-    if(pos < b->m_numkeys && b->m_cells[pos].key == key)
+    if(pos < b->m_numkeys && b->m_cells[pos].key == key && b->m_cells[pos].value)
         return &b->m_cells[pos];
     else if (b->m_leaf)
         return NULL;
@@ -814,4 +822,20 @@ Cell* BTree_Insert(BTree *b, unsigned int key){
     else{
         return private_BTree_Insert_NonFull(temp, key);
     }
+}
+
+void BTree_Fill_KeysList(BTree b, BTreeKeyList **l){
+    unsigned int i;
+    BTreeKeyList *temp;
+
+    if(!b->m_leaf)
+        for(i = 0; i < b->m_numkeys + 1; i++)
+        	BTree_Fill_KeysList(b->m_children[i], l);
+
+    for (i=0; i < b->m_numkeys; i++){
+		temp = malloc(sizeof(BTreeKeyList));
+		temp->value = b->m_cells[i].key;
+		temp->next = (*l);
+		*l = temp;
+	}
 }
