@@ -1351,9 +1351,12 @@ def fillDataStructureLevelNodes(outfile):
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 outfile.write('{}Pvoid_t level{};\n'.format(spaces_level_1,
                                                             length+1))
-            if GenerationData.compositionStructures['Paths'] == 'Hash':
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
                 outfile.write('{}HashTable level{};\n'.format(spaces_level_1,
-                                                            length+1))
+                                                              length+1))
+            elif GenerationData.compositionStructures['Paths'] == 'BTree':
+                outfile.write('{}BTree level{};\n'.format(spaces_level_1,
+                                                          length+1))
             
             
             
@@ -1362,7 +1365,10 @@ def fillDataStructureLevelNodes(outfile):
         
         outfile.write('DsData_{0} * DsData_Level_{0}_new_node();\n'.format(length))
         outfile.write('void DsData_Level_{0}_init(DsData_{0} *);\n'.format(length))
-        outfile.write('void DsData_Level_{0}_free(DsData_{0} *);\n'.format(length))
+        if GenerationData.compositionStructures['Paths'] == 'BTree':
+            outfile.write('void DsData_Level_{0}_free(size_t);\n'.format(length))
+        else:
+            outfile.write('void DsData_Level_{0}_free(DsData_{0} *);\n'.format(length))
         outfile.write('\n')
         
     #outfile.write('\n')
@@ -1395,10 +1401,20 @@ def fillDataStructureInsertFunctions(outfile):
                 outfile.write('{}(*PValue1) = (Word_t) NULL;\n'.format(spaces_level_2))
     
             outfile.write('{}}}\n'.format(spaces_level_1))
-        elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        
+        elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+          GenerationData.compositionStructures['Paths'] == 'BTree':
+            function_name = 'HashTable'
+            ampersand = '&'
+            if GenerationData.compositionStructures['Paths'] == 'BTree':
+                function_name = 'BTree'
+                ampersand = ''
+
             outfile.write('{}Cell * c_1;\n\n'.format(spaces_level_1))
-            outfile.write('{}if (!(c_1 = HashTable_Lookup(&root, x_1))){{\n'.format(spaces_level_1))
-            outfile.write('{}c_1 = HashTable_Insert(&root, x_1);\n'.format(spaces_level_2))
+            outfile.write('{}if (!(c_1 = {}_Lookup({}root, x_1))){{\n'.format(spaces_level_1, 
+                                                                              function_name,
+                                                                              ampersand))
+            outfile.write('{}c_1 = {}_Insert(&root, x_1);\n'.format(spaces_level_2, function_name))
             
             if getDataStructureNodesMaximumLength() > 1:
                 outfile.write('{}c_1->value = (size_t) DsData_Level_2_new_node();\n'.format(spaces_level_2))
@@ -1407,7 +1423,7 @@ def fillDataStructureInsertFunctions(outfile):
             
             outfile.write('{}}}\n'.format(spaces_level_1))
         else:
-            raise KeyError('Unknowun data structure to represent the paths')
+            raise KeyError('Unknown data structure to represent the paths')
         
         outfile.write('}\n')
             
@@ -1450,7 +1466,8 @@ def fillDataStructureInsertFunctions(outfile):
             values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
             outfile.write('{}Word_t {};\n\n'.format(spaces_level_1,
                                                     ', '.join(values)))
-        elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+          GenerationData.compositionStructures['Paths'] == 'BTree':
             values = ('* c_{}'.format(str(v+1)) for v in xrange(length-1))
             outfile.write('{}Cell {};\n\n'.format(spaces_level_1,
                                                   ', '.join(values)))
@@ -1461,7 +1478,8 @@ def fillDataStructureInsertFunctions(outfile):
             else:
                 if GenerationData.compositionStructures['Paths'] == 'Judy':
                     node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
-                elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+                  GenerationData.compositionStructures['Paths'] == 'BTree':
                     node = '((DsData_{} *) c_{}->value)->level{}'.format(x, x-1, x+1)
             
             if GenerationData.compositionStructures['Paths'] == 'Judy':
@@ -1470,6 +1488,9 @@ def fillDataStructureInsertFunctions(outfile):
             elif GenerationData.compositionStructures['Paths'] == 'Hash':
                 outfile.write('{0}if (!(c_{1} = HashTable_Lookup(&{2}, x_{1})))'.format(spaces_level_1, x,
                                                                                         node))
+            elif GenerationData.compositionStructures['Paths'] == 'BTree':
+                outfile.write('{0}if (!(c_{1} = BTree_Lookup({2}, x_{1})))'.format(spaces_level_1, x,
+                                                                                   node))
                 
             outfile.write('{\n')
 
@@ -1488,8 +1509,14 @@ def fillDataStructureInsertFunctions(outfile):
                 outfile.write('}\n')
                 outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces_level_2,
                                                                                                  x, x+1))
-            elif GenerationData.compositionStructures['Paths'] == 'Hash':
-                outfile.write('{0}c_{1} = HashTable_Insert(&{2}, x_{1});\n'.format(spaces_level_2, x, node))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+              GenerationData.compositionStructures['Paths'] == 'BTree':
+                structure_name = 'HashTable'
+                if GenerationData.compositionStructures['Paths'] == 'BTree':
+                    structure_name = 'BTree'
+
+                outfile.write('{0}c_{1} = {2}_Insert(&{3}, x_{1});\n'.format(spaces_level_2, x,
+                                                                             structure_name, node))
                 outfile.write('{0}c_{1}->value = (size_t) DsData_Level_{2}_new_node();\n'.format(spaces_level_2,
                                                                                                  x, x+1))
                 
@@ -1501,7 +1528,8 @@ def fillDataStructureInsertFunctions(outfile):
             returning_node = ''
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 returning_node = '*PValue{}'.format(x-1)
-            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+              GenerationData.compositionStructures['Paths'] == 'BTree':
                 returning_node = 'c_{}->value'.format(x-1)
                 
             outfile.write('{}{}(&((DsData_{} *)'.format(spaces_level_1, 
@@ -1553,7 +1581,8 @@ def fillDataStructureGetIntListFunctions(outfile):
             values = ('* PValue{}'.format(str(v+1)) for v in xrange(length))
             outfile.write('{}Word_t {};\n\n'.format(spaces,
                                                     ', '.join(values)))
-        elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+          GenerationData.compositionStructures['Paths'] == 'BTree':
             values = ('* c_{}'.format(str(v+1)) for v in xrange(length))
             outfile.write('{}Cell {};\n\n'.format(spaces,
                                                   ', '.join(values)))
@@ -1564,16 +1593,25 @@ def fillDataStructureGetIntListFunctions(outfile):
             else:
                 if GenerationData.compositionStructures['Paths'] == 'Judy':
                     node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
-                elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+                  GenerationData.compositionStructures['Paths'] == 'BTree':
                     node = '((DsData_{} *) c_{}->value)->level{}'.format(x, x-1, x+1)
             
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 outfile.write('{}if ((JLG(PValue{}, {}, x_{})))'.format(spaces, str(x),
                                                                         node, str(x)))
-            elif GenerationData.compositionStructures['Paths'] == 'Hash':
-                outfile.write('{0}if ((c_{1} = HashTable_Lookup(&{2}, x_{1})))'.format(spaces, 
-                                                                                       str(x), 
-                                                                                       node))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+              GenerationData.compositionStructures['Paths'] == 'BTree':
+                structure_name = 'HashTable'
+                ampersand = '&'
+                if GenerationData.compositionStructures['Paths'] == 'BTree':
+                    structure_name = 'BTree'
+                    ampersand = ''
+                    
+                outfile.write('{0}if ((c_{1} = {2}_Lookup({3}{4}, x_{1})))'.format(spaces, str(x), 
+                                                                                   structure_name, 
+                                                                                   ampersand,
+                                                                                   node))
 
             outfile.write('{\n')
             spaces += SPACES
@@ -1581,7 +1619,8 @@ def fillDataStructureGetIntListFunctions(outfile):
         returning_node = ''
         if GenerationData.compositionStructures['Paths'] == 'Judy':
             returning_node = '*PValue{}'.format(length)
-        elif GenerationData.compositionStructures['Paths'] == 'Hash':
+        elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+          GenerationData.compositionStructures['Paths'] == 'BTree':
             returning_node = 'c_{}->value'.format(length)
             
         if GenerationData.compositionStructures['Successors'] == 'Stack':
@@ -1624,7 +1663,8 @@ def fillDataStructureContainSolutionFunctions(outfile):
                 values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
                 outfile.write('{}Word_t {};\n\n'.format(spaces,
                                                         ', '.join(values)))
-            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+              GenerationData.compositionStructures['Paths'] == 'BTree':
                 values = ('* c_{}'.format(str(v+1)) for v in xrange(length-1))
                 outfile.write('{}Cell {};\n\n'.format(spaces,
                                                       ', '.join(values)))
@@ -1635,7 +1675,8 @@ def fillDataStructureContainSolutionFunctions(outfile):
             else:
                 if GenerationData.compositionStructures['Paths'] == 'Judy':
                     node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
-                elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+                  GenerationData.compositionStructures['Paths'] == 'BTree':
                     node = '((DsData_{} *) c_{}->value)->level{}'.format(x, x-1, x+1)
                     
             if GenerationData.compositionStructures['Paths'] == 'Judy':
@@ -1643,7 +1684,10 @@ def fillDataStructureContainSolutionFunctions(outfile):
                                                                                x, node))
             elif GenerationData.compositionStructures['Paths'] == 'Hash':
                 outfile.write('{0}if (!(c_{1} = HashTable_Lookup(&{2}, x_{1})))\n'.format(spaces,
-                                                                                        x, node))
+                                                                                          x, node))
+            elif GenerationData.compositionStructures['Paths'] == 'BTree':
+                outfile.write('{0}if (!(c_{1} = BTree_Lookup({2}, x_{1})))\n'.format(spaces,
+                                                                                      x, node))
                 
             spaces += SPACES
             outfile.write('{}return false;\n'.format(spaces))
@@ -1654,7 +1698,8 @@ def fillDataStructureContainSolutionFunctions(outfile):
             returning_node = ''
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 returning_node = '*PValue{}'.format(length-1)
-            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+              GenerationData.compositionStructures['Paths'] == 'BTree':
                 returning_node = 'c_{}->value'.format(length-1)
                 
             node = '((DsData_{} *) {})->R{}'.format(str(length),
@@ -1701,7 +1746,8 @@ def fillDataStructureAppendSolutionFunctions(outfile):
                 values = ('* PValue{}'.format(str(v+1)) for v in xrange(length-1))
                 outfile.write('{}Word_t {};\n\n'.format(spaces,
                                                         ', '.join(values)))
-            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+              GenerationData.compositionStructures['Paths'] == 'BTree':
                 values = ('* c_{}'.format(str(v+1)) for v in xrange(length-1))
                 outfile.write('{}Cell {};\n\n'.format(spaces,
                                                       ', '.join(values)))
@@ -1711,7 +1757,8 @@ def fillDataStructureAppendSolutionFunctions(outfile):
             else:
                 if GenerationData.compositionStructures['Paths'] == 'Judy':
                     node = '((DsData_{} *) *PValue{})->level{}'.format(x, x-1, x+1)
-                elif GenerationData.compositionStructures['Paths'] == 'Hash':
+                elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+                  GenerationData.compositionStructures['Paths'] == 'BTree':
                     node = '((DsData_{} *) c_{}->value)->level{}'.format(x, x-1, x+1)
             
             if GenerationData.compositionStructures['Paths'] == 'Judy':
@@ -1736,13 +1783,22 @@ def fillDataStructureAppendSolutionFunctions(outfile):
                 outfile.write('}\n')
                 outfile.write('{}(*PValue{}) = ((Word_t) DsData_Level_{}_new_node());\n'.format(spaces,
                                                                                                 x, x+1))
-            elif GenerationData.compositionStructures['Paths'] == 'Hash':
-                outfile.write('{0}if (!(c_{1} = HashTable_Lookup(&{2}, x_{1})))'.format(spaces,
-                                                                                          x, node))
+            elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+              GenerationData.compositionStructures['Paths'] == 'BTree':
+                structure_name = 'HashTable'
+                ampersand = '&'
+                if GenerationData.compositionStructures['Paths'] == 'BTree':
+                    structure_name = 'BTree'
+                    ampersand = ''
+                     
+                outfile.write('{0}if (!(c_{1} = {2}_Lookup({3}{4}, x_{1})))'.format(spaces, x,
+                                                                                    structure_name, 
+                                                                                    ampersand, 
+                                                                                    node))
                 outfile.write('{\n')
                 spaces += SPACES
-                outfile.write('{0}c_{1} = HashTable_Insert(&{2}, x_{1});\n'.format(spaces,
-                                                                                   x, node))
+                outfile.write('{0}c_{1} = {2}_Insert(&{3}, x_{1});\n'.format(spaces, x, 
+                                                                             structure_name, node))
                 outfile.write('{}c_{}->value = (size_t) DsData_Level_{}_new_node();\n'.format(spaces,
                                                                                               x, x+1))
                 
@@ -1756,7 +1812,8 @@ def fillDataStructureAppendSolutionFunctions(outfile):
                 node = '((DsData_{} *) *PValue{})->R{}'.format(str(length),
                                                                str(length-1),
                                                                variable_id.name)
-            elif GenerationData.compositionStructures['Paths'] == 'Hash':
+            elif GenerationData.compositionStructures['Paths'] == 'Hash' or\
+              GenerationData.compositionStructures['Paths'] == 'BTree':
                 node = '((DsData_{} *) c_{}->value)->R{}'.format(str(length),
                                                                  str(length-1),
                                                                  variable_id.name)
@@ -1872,9 +1929,12 @@ def fillDataStructureInitLevelFunctions(outfile):
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 outfile.write('{}d->level{} = (Pvoid_t) NULL;\n'.format(spaces_level_1,
                                                                         length + 1))
-            if GenerationData.compositionStructures['Paths'] == 'Hash':
+            elif GenerationData.compositionStructures['Paths'] == 'Hash':
                 outfile.write('{}HashTable_Init(&d->level{});\n'.format(spaces_level_1,
                                                                         length + 1))
+            elif GenerationData.compositionStructures['Paths'] == 'BTree':
+                outfile.write('{}d->level{} = BTree_Init();\n'.format(spaces_level_1,
+                                                                      length + 1))
             
         for variable_id in lengthToPreds[length]:
             if variable_id in answersToStore:
@@ -1942,9 +2002,14 @@ def fillDataStructureLevelFreeFunctions(outfile):
         lengthToPreds[len(rule.rightArguments)].add(rule.rightVariable.id)
         
     for pos, length in enumerate(lengths):
-        outfile.write('void DsData_Level_{0}_free(DsData_{0} *d)'.format(length))
         spaces = SPACES
-        outfile.write('{\n')
+        
+        if GenerationData.compositionStructures['Paths'] == 'BTree':
+            outfile.write('void DsData_Level_{0}_free(size_t node){{\n'.format(length))
+            outfile.write('{0}DsData_{1} *d = (DsData_{1} *) node;\n'.format(spaces, length))
+        else:
+            outfile.write('void DsData_Level_{0}_free(DsData_{0} *d)'.format(length))
+            outfile.write('{\n')
         if pos != len(lengths) - 1:
             if GenerationData.compositionStructures['Paths'] == 'Judy':
                 outfile.write('{}Word_t * PValue, index = 0;\n\n'.format(spaces))
@@ -1972,6 +2037,8 @@ def fillDataStructureLevelFreeFunctions(outfile):
                 outfile.write('{0}DsData_Level_{1}_free((DsData_{1} *) {2});\n\n'.format(spaces, length+1, node))
                 spaces = spaces[:-len(SPACES)]
                 spaces = spaces[:-len(SPACES)]
+            elif GenerationData.compositionStructures['Paths'] == 'BTree':
+                outfile.write('{0}BTree_Free(d->level{1}, DsData_Level_{1}_free);\n'.format(spaces, length+1))
             else:
                 raise KeyError('Unknown paths data structure')
             
@@ -2057,6 +2124,8 @@ def fill_DataStructureRootLevel(outfile):
         outfile.write('static Pvoid_t root;\n')
     elif GenerationData.compositionStructures['Paths'] == 'Hash':
         outfile.write('HashTable root;\n')
+    elif GenerationData.compositionStructures['Paths'] == 'BTree':
+        outfile.write('BTree root;\n')
     else:
         raise KeyError('Unknown data structure for paths')
         
@@ -2066,6 +2135,8 @@ def fillDataStructureScanZeroLevelVariables(outfile):
         outfile.write('short first_value;\n')
     elif GenerationData.compositionStructures['Paths'] == 'Hash':
         outfile.write('unsigned int zero_index;\n')
+    elif GenerationData.compositionStructures['Paths'] == 'BTree':
+        outfile.write('BTreeKeyList *zero_index;\n')
     else:
         raise KeyError('Unknown data structure for paths')
     
@@ -2076,6 +2147,9 @@ def fill_DataStructurefillLevelZeroInit(outfile):
         outfile.write('{}first_value = 1;\n'.format(spaces))
     elif GenerationData.compositionStructures['Paths'] == 'Hash':
         outfile.write('{}zero_index = 0;\n'.format(spaces))
+    elif GenerationData.compositionStructures['Paths'] == 'BTree':
+        outfile.write('{}zero_index = NULL;\n'.format(spaces))
+        outfile.write('{}BTree_Fill_KeysList(root, &zero_index);\n'.format(spaces))
     else:
         raise KeyError('Unknown data structure for paths')
     
@@ -2100,6 +2174,16 @@ def fill_DataStructureGetZeroValues(outfile):
         outfile.write('{}return true;\n{}}}\n'.format(spaces * 3, spaces*2))
         outfile.write('{}zero_index++;\n{}}}\n'.format(spaces * 2, spaces))
         outfile.write('{}return false;\n'.format(spaces))
+    elif GenerationData.compositionStructures['Paths'] == 'BTree':
+        outfile.write('{}BTreeKeyList *temp;\n\n'.format(spaces))
+        outfile.write('{}if (zero_index){{\n'.format(spaces))
+        outfile.write('{}temp = zero_index;\n'.format(spaces*2))
+        outfile.write('{}(*value) = zero_index->value;\n'.format(spaces*2))
+        outfile.write('{}zero_index = zero_index->next;\n'.format(spaces*2))
+        outfile.write('{}free(temp);\n'.format(spaces*2))
+        outfile.write('{}return true;\n'.format(spaces*2))
+        outfile.write('{}}}\n\n'.format(spaces))
+        outfile.write('{}return false;\n'.format(spaces))
     else:
         raise KeyError('Unknown data structure for paths')
     
@@ -2109,6 +2193,8 @@ def fill_DataStructureInit(outfile):
         outfile.write('{}root = (Pvoid_t) NULL;\n'.format(spaces))
     elif GenerationData.compositionStructures['Paths'] == 'Hash':
         outfile.write('{}HashTable_Init(&root);\n'.format(spaces))
+    elif GenerationData.compositionStructures['Paths'] == 'BTree':
+        outfile.write('{}root = BTree_Init();\n'.format(spaces))
     else:
         raise KeyError('Unknown data structure for paths')
     
@@ -2142,7 +2228,7 @@ def fill_DataStructureFree(outfile):
         outfile.write('{}JudyLDel(&root, index, PJE0);\n'.format(spaces * 2))
         outfile.write('{}JLN(PValue, root, index);\n'.format(spaces * 2))
         outfile.write('{}}}\n'.format(spaces))
-    if GenerationData.compositionStructures['Paths'] == 'Hash':
+    elif GenerationData.compositionStructures['Paths'] == 'Hash':
         if getDataStructureNodesMaximumLength() > 1:
             outfile.write('{}unsigned int i;\n\n'.format(spaces))
             outfile.write('{}for (i = 0; i < root.m_arraySize; i++)\n'.format(spaces))
@@ -2150,6 +2236,11 @@ def fill_DataStructureFree(outfile):
             outfile.write('{}DsData_Level_2_free((DsData_2 *) root.m_cells[i].value);\n\n'.format(spaces*3))
             
         outfile.write('{}HashTable_Free(&root);\n'.format(spaces))
+    elif GenerationData.compositionStructures['Paths'] == 'BTree':
+        if getDataStructureNodesMaximumLength() > 1:
+            outfile.write('{}BTree_Free(root, DsData_Level_2_free);\n'.format(spaces))
+        
+    
         
 def fill_DataStructureQueueNotFound(outfile):
     if GenerationData.compositionStructures['Successors'] == 'Queue':
