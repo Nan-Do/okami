@@ -53,7 +53,8 @@ void SolverQueue_append(SolverQueue *s, TYPE_REWRITING_VARIABLE *b){
     SolverNodePtr t;
 
     t = malloc(sizeof(SolverNode));
-    memcpy((void *)&t->b, b, sizeof(TYPE_REWRITING_VARIABLE));
+    /*memcpy((void *)&t->b, b, sizeof(TYPE_REWRITING_VARIABLE));*/
+    t->b = *b;
     t->next = NULL;
 
     if (s->tail){
