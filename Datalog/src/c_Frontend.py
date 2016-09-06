@@ -21,10 +21,12 @@ SOURCE_DIRECTORY = "C_Template"
 #OUTPUT_DIRECTORY = "./"
 
 INCLUDE_FILES = ['utils.h', 'solver.h', 'data_structure.h', 
-                 'data_structure_common.h', 'fact.h', 'parser.h']
+                 'data_structure_common.h', 'fact.h', 'parser.h',
+                 'solver_queue.h']
 
 SOURCE_FILES = ['makefile', 'main.c', 'parser.c',
-                'data_structure_common.c', 'solver.c', 'data_structure.c']
+                'data_structure_common.c', 'solver.c', 
+                'data_structure.c', 'solver_queue.c']
 
 EMPTY_LINE = '\n'
 SPACES = ' ' * 4

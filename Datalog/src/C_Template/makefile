@@ -6,8 +6,8 @@ INCL  = -Iinclude
 
 all: solver
 
-solver: main.c parser.o data_structure_common.o data_structure.o solver.o 
-	$(CC) $(FLAGS) -o solver $(INCL) main.c data_structure_common.o data_structure.o parser.o solver.o $(LIB)
+solver: main.c parser.o data_structure_common.o data_structure.o solver.o solver_queue.o 
+	$(CC) $(FLAGS) -o solver $(INCL) main.c data_structure_common.o data_structure.o parser.o solver.o solver_queue.o $(LIB)
 
 parser.o: parser.c include/parser.h
 	$(CC) $(FLAGS) $(INCL) -c parser.c
@@ -20,6 +20,9 @@ data_structure.o: data_structure.c include/data_structure.h include/data_structu
 
 solver.o: solver.c include/solver.h
 	$(CC) $(FLAGS) $(INCL) -c solver.c
+	
+solver_queue.o: solver_queue.c include/solver_queue.h
+	$(CC) $(FLAGS) $(INCL) -c solver_queue.c
 
 clean:
 	rm -rf *.o datalogsolve
