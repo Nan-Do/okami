@@ -657,10 +657,14 @@ def fillSolverCompute(outfile):
                                                   level))
         outfile.write('{}solver_init_stratum_level{}();\n'.format(spaces_level_1,
                                                                   str(level)))
-        outfile.write('{}while (solver_queue{}.head){{\n'.format(spaces_level_1,
-                                                                 str(level)))
-        outfile.write('{}current = solver_queue{}.head;\n\n'.format(spaces_level_2,
-                                                                    str(level)))
+        # THIS HAS TO BE PRINTED IF WE WORK WITH THE SOLVER QUEUE BASED IN ONE QUEUE
+        #outfile.write('{}while (solver_queue{}.head){{\n'.format(spaces_level_1,
+        #                                                         str(level)))
+        #outfile.write('{}current = solver_queue{}.head;\n\n'.format(spaces_level_2,
+        #                                                            str(level)))
+        # THIS HAS TO BE PRINTED IF WE WORK WITH THE SOLVER QUEUE BASED IN TWO QUEUES
+        outfile.write('{}while ((current = SolverQueue_pop(&solver_queue{}))){{\n'.format(spaces_level_1,
+                                                                                          str(level)))
         
         block1 = stratum.ordering.block1
         block2 = stratum.ordering.block2
@@ -1203,8 +1207,9 @@ def fillSolverCompute(outfile):
                     outfile.write('{}}}\n'.format(spaces))
 
             outfile.write('{}}}\n\n'.format(spaces_level_2))
-        outfile.write('{0}solver_queue{1}.head = solver_queue{1}.head->next;\n'.format(spaces_level_2,
-                                                                                       str(level)))
+        # THIS HAS TO BE PRINTED IF WE WORK WITH THE SOLVER QUEUE BASED IN ONE QUEUE
+        #outfile.write('{0}solver_queue{1}.head = solver_queue{1}.head->next;\n'.format(spaces_level_2,
+        #                                                                               str(level)))
         outfile.write('{}free(current);\n'.format(spaces_level_2))
         outfile.write('{}}}\n'.format(spaces_level_1))
         

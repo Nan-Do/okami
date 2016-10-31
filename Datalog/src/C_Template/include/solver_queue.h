@@ -19,8 +19,13 @@ struct Queue{
 };
 typedef struct Queue Queue;
 typedef struct Queue * QueuePtr;
-typedef struct Queue SolverQueue;
-typedef struct Queue * SolverQueuePtr;
+
+struct SolverQueue{
+    Queue q1, q2;
+    QueuePtr reading, writing;
+};
+typedef struct SolverQueue SolverQueue;
+typedef struct SolverQueue * SolverQueuePtr;
 
 extern void SolverQueue_init(SolverQueuePtr);
 extern void SolverQueue_free(SolverQueuePtr);
