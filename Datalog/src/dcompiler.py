@@ -405,9 +405,18 @@ USAGE
                                                   predicateTypes, predicateTypes.intensional,
                                                   printVariables, idToStratumLevels)
             else:
-                py_Frontend.generate_code_from_template(dest_dir, stratums,
-                                                       predicateTypes, predicateTypes.intensional,
-                                                       printVariables, idToStratumLevels)
+                backend = "Python"
+                # Parse the options for the python frontend so far only the data structure
+                # Right now just the data backend (Python or SQLite)
+                if args.options:
+                    options = options = args.options.split(',')
+                    options = [ x.split('=') for x in options ]
+                    backend = options[0][1]
+                    
+                py_Frontend.generate_code_from_template(dest_dir, stratums, 
+                                                        predicateTypes, predicateTypes.intensional, 
+                                                        printVariables, idToStratumLevels, 
+                                                        backend)
             logging.info("Source code generated")
         
         

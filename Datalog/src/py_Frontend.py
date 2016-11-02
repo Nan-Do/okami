@@ -64,11 +64,21 @@ def getQueryMaximumLength():
     #return max(len(x.leftArguments) for x in GenerationData.equationsTable if x.type == 2)
     return max(len(x.leftArguments) for x in getEquationsFromAllStratums() if x.type == 2)
 
+# Decorators
 def check_for_predicates_of_type2(view_func):
     def _decorator(request, *args, **kwargs):
         response = None
         # Make sure we don't call the function if we don't have predicates of type 2
         if len([x for x in getEquationsFromAllStratums() if x.type == 2]):
+            response = view_func(request, *args, **kwargs)
+        return response
+    return wraps(view_func)(_decorator)
+
+def check_for_python_database_backend(view_func):
+    def _decorator(request, *args, **kwargs):
+        response = None
+        # Make sure we don't call the function if we are using other data back-end than Python
+        if GenerationData.Backend == "Python":
             response = view_func(request, *args, **kwargs)
         return response
     return wraps(view_func)(_decorator)
@@ -171,6 +181,19 @@ def print_append_query_to_the_trie(outfile, length, spaces):
                                                                              query,
                                                                              x + 1))
 
+def fillModules(outfile):
+    backend = GenerationData.Backend
+    
+    if backend == 'SQLite':
+        outfile.write('import sqlite3\n')
+        outfile.write('\nfrom itertools import chain\n')
+        
+    outfile.write('from array import array\n')
+        
+    if backend == 'SQLite':
+        outfile.write('\nfrom utils import views\n')
+
+@check_for_python_database_backend
 def fillSolutions(outfile):
     c = Counter()
     viewsData = []
@@ -229,6 +252,7 @@ def fillHypothesesNames(outfile):
 def fillInitDataStructure(outfile):
     spaces_for_function_definition = SPACES
     spaces_for_function_body = SPACES * 2
+    backend = GenerationData.Backend
     
     answers_of_length_1 = set()
     predicates_in_rules_of_length_1 = set()
@@ -242,12 +266,44 @@ def fillInitDataStructure(outfile):
                 answers_of_length_1.add(negated_element.id)
     
     outfile.write('{}def __init__(self):\n'.format(spaces_for_function_definition))
-    outfile.write('{}self.__root = dict()\n'.format(spaces_for_function_body))
     
-    for variable_id in answers_of_length_1.union(predicates_in_rules_of_length_1):
-        outfile.write('{}self.R_{} = set()\n'.format(spaces_for_function_body,
-                                               variable_id.name))
+    if backend == 'Python':
+        outfile.write('{}self.__root = dict()\n'.format(spaces_for_function_body))
+    
+        for variable_id in answers_of_length_1.union(predicates_in_rules_of_length_1):
+            outfile.write('{}self.R_{} = set()\n'.format(spaces_for_function_body,
+                                                         variable_id.name))
+    elif backend == 'SQLite':
+        outfile.write("{}self.con = sqlite3.connect(':memory:')\n\n".format(spaces_for_function_body))
+        outfile.write("{}# Create the required tables\n".format(spaces_for_function_body))
+        outfile.write("{}self.cur = self.con.cursor()\n".format(spaces_for_function_body))
+        
+        sql_query = "CREATE TABLE {}({});"
+        
+        outfile.write("\n{}# Views tables\n".format(spaces_for_function_body))
+        for view in getViewsFromAllStratums():
+            for view_name, positions in view.viewNamesToCombinations.iteritems():
+                values = ["V{}".format(x) for x in xrange(1, len(positions) + 1)]
+                columns = ", ".join(["{} INTEGER NOT NULL".format(v) for v in values])
+                primary_key = "PRIMARY KEY " + "(" + ", ".join(values) + ")" 
+                inside_parens = columns + ', ' + primary_key
+                
+                outfile.write('{}self.cur.execute("{}")\n'.format(spaces_for_function_body,
+                                                                  sql_query.format(view_name, inside_parens)))
+        outfile.write("\n{}# Solution tables\n".format(spaces_for_function_body))
+        for predicate in getAllSolutions():
+            length = getPredicateLength(predicate)
+            
+            values = ["V{}".format(x) for x in xrange(1, length + 1)]
+            columns = ", ".join(["{} INTEGER NOT NULL".format(v) for v in values])
+            primary_key = "PRIMARY KEY " + "(" + ", ".join(values) + ")" 
+            inside_parens = columns + ', ' + primary_key
+            outfile.write('{}self.cur.execute("{}")\n'.format(spaces_for_function_body,
+                                                              sql_query.format("solution_{}".format(predicate.name),
+                                                                               inside_parens)))
 
+
+@check_for_python_database_backend
 def fillCreateNodes(outfile):
     viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
     
@@ -331,18 +387,34 @@ def fillCreateNodes(outfile):
 @check_for_predicates_of_type2
 def fillInsertNodes(outfile):
     def print_code_for_Ds_insert_1():
+        backend = GenerationData.Backend
         spaces_level1 = SPACES
         spaces_level2 = SPACES * 2
         spaces_level3 = SPACES * 3
         outfile.write('{}def insert1(self, x_1):\n'.format(spaces_level1))
-        outfile.write('{}if x_1 not in self.__root:\n'.format(spaces_level2))
-        if getDataStructureNodesMaximumLength() > 1:
-            outfile.write('{}self.__root[x_1] = self.__create_node2()\n'.format(spaces_level3))
-        else:
-            outfile.write('{}self.__root[x_1] = tuple()\n'.format(spaces_level3))
+        if backend == 'Python':
+            outfile.write('{}if x_1 not in self.__root:\n'.format(spaces_level2))
+            if getDataStructureNodesMaximumLength() > 1:
+                outfile.write('{}self.__root[x_1] = self.__create_node2()\n'.format(spaces_level3))
+            else:
+                outfile.write('{}self.__root[x_1] = tuple()\n'.format(spaces_level3))
+        elif backend == 'SQLite':
+            outfile.write('{}try:\n'.format(spaces_level2))
+            for view in getViewsFromAllStratums():
+                for view_name, positions in view.viewNamesToCombinations.iteritems():
+                    if len(positions) == 1:
+                        outfile.write('{}self.cur.execute("INSERT INTO {} VALUES(?)", (x_1, ))\n'.format(spaces_level3,
+                                                                                                         view_name))
+            if len(getViewsFromAllStratums()) == 0:
+                outfile.write('{}pass\n'.format(spaces_level3))
+            outfile.write('{}except sqlite3.IntegrityError:\n{}pass\n'.format(spaces_level2,
+                                                                              spaces_level3))
+                
+            
         outfile.write(EMPTY_LINE)
         
-        
+    
+    backend = GenerationData.Backend
     lengths = xrange(getQueryMinimumLength(), getQueryMaximumLength()+1)
     last_level_of_the_data_structure = getDataStructureNodesMaximumLength()
     
@@ -363,36 +435,96 @@ def fillInsertNodes(outfile):
                                                                 length,
                                                                 ", ".join(args_to_function)))
         
-        # Check key and if it doesn't exist create a node
-        print_append_query_to_the_trie(outfile, length, spaces_for_function_body)
-        
-        outfile.write(EMPTY_LINE)
-        for x in xrange(1, length):
-            pos = 'pos'
-            if (x + 1) != last_level_of_the_data_structure:
-                pos += '+1'
-                
-            query = '[x_1]'
-            for y in xrange(1, x):
-                query += '[0][x_{}]'.format(y+1)
-            outfile.write('{0}self.__root{1}[{2}].append(x_{3})\n'.format(spaces_for_function_body,
-                                                                          query,
-                                                                          pos,
-                                                                          x + 1))
+        if backend == 'Python':
+            # Check key and if it doesn't exist create a node
+            print_append_query_to_the_trie(outfile, length, spaces_for_function_body)
+            
+            outfile.write(EMPTY_LINE)
+            for x in xrange(1, length):
+                pos = 'pos'
+                if (x + 1) != last_level_of_the_data_structure:
+                    pos += '+1'
+                    
+                query = '[x_1]'
+                for y in xrange(1, x):
+                    query += '[0][x_{}]'.format(y+1)
+                outfile.write('{0}self.__root{1}[{2}].append(x_{3})\n'.format(spaces_for_function_body,
+                                                                              query,
+                                                                              pos,
+                                                                              x + 1))
+        elif backend == 'SQLite':
+            spaces_for_function_body_if = SPACES * 3
+            total_ifs = 0
+
+            outfile.write('{}try:\n'.format(spaces_for_function_body))            
+            for view in getViewsFromAllStratums():
+                for view_name, positions in view.viewNamesToCombinations.iteritems():
+                    if len(positions) == length:
+                        interrogants = ', '.join('?' for _ in xrange(length))
+                        values_tuple = ', '.join('x_{}'.format(x) for x in xrange(1, length + 1))
+                        if length == 1:
+                            values_tuple = '(' + values_tuple + ', )'
+                        else:
+                            values_tuple = '(' + values_tuple + ')'
+                        
+                        if total_ifs == 0:
+                            outfile.write('{}if pos == views.{}:\n'.format(spaces_for_function_body_if, view_name))
+                        else:
+                            outfile.write('{}elif pos == views.{}:\n'.format(spaces_for_function_body_if, view_name))
+                        
+                        total_ifs += 1    
+                        outfile.write('{}self.cur.execute("INSERT INTO {} VALUES({})", {})\n'.format(spaces_for_function_body_if + SPACES,
+                                                                                                     view_name,
+                                                                                                     interrogants,
+                                                                                                     values_tuple))
+            if total_ifs > 0:
+                outfile.write("\n{}self.con.commit()\n".format(spaces_for_function_body_if))
+            else:
+                outfile.write("{}pass\n".format(spaces_for_function_body_if + SPACES))
+            
+            outfile.write('{}except sqlite3.IntegrityError:\n{}pass\n'.format(spaces_for_function_body,
+                                                                              spaces_for_function_body_if))
+            
         outfile.write(EMPTY_LINE)
     
 def fillGetLevel0Values(outfile):
+    backend = GenerationData.Backend
     spaces_for_function_definition = SPACES
     spaces_for_function_body = SPACES * 2
     
     outfile.write('{}def get_level0_values(self):\n'.format(spaces_for_function_definition))
-    outfile.write('{}return self.__root.iterkeys()\n'.format(spaces_for_function_body))
+    if backend == 'Python':
+        outfile.write('{}return self.__root.iterkeys()\n'.format(spaces_for_function_body))
+    else:
+        views_query = ''
+        for views_per_stratum in getViewsFromAllStratums():
+            if len(views_query) == 0:
+                space = ''
+            else:
+                space = ' '
+            views_query += space + ' UNION '.join('SELECT V1 FROM {}'.format(v_name) 
+                                                  for v_name in 
+                                                  views_per_stratum.viewNamesToCombinations.iterkeys())
+          
+        solutions_query = ' UNION '.join('SELECT V1 FROM solution_{}'.format(solution.name)
+                                         for solution in getAllSolutions())  
+            
+        query = views_query
+        if solutions_query:
+            query += ' UNION ' + solutions_query + ';'
+        
+        outfile.write('{}self.cur.execute("{}")\n'.format(spaces_for_function_body, query))
+        outfile.write('\n{}data = self.cur.fetchall()\n'.format(spaces_for_function_body))
+        outfile.write("{}for d in chain.from_iterable(data):\n".format(spaces_for_function_body))
+        outfile.write("{}yield d\n".format(spaces_for_function_body + SPACES))
+        
     outfile.write(EMPTY_LINE)
 
 @check_for_predicates_of_type2
 def fillGetFunctions(outfile):
     lengths = xrange(2, getQueryMaximumLength()+1)
     last_level_of_the_data_structure = getDataStructureNodesMaximumLength()
+    backend = GenerationData.Backend
     
     spaces_for_function_definition = SPACES
     spaces_for_function_body = SPACES * 2
@@ -402,34 +534,67 @@ def fillGetFunctions(outfile):
                                                              length,
                                                              ", ".join(args_to_function)))
         
-        outfile.write('{0}if '.format(spaces_for_function_body))
-        for x in xrange(1, length):
-            query = ''
-            for y in xrange(1, x):
-                query += '[x_{}][0]'.format(y)
-            outfile.write('self.__root{}.has_key(x_{})'.format(query,
-                                                                  x))
-            if (x != length - 1):
-                outfile.write(' and\\\n{}   '.format(spaces_for_function_body))
-        outfile.write(':\n')
-        
-        pos = 'pos'
-        if (x + 1) != last_level_of_the_data_structure:
-            pos += '+1'
+        if backend == 'Python':
+            outfile.write('{0}if '.format(spaces_for_function_body))
+            for x in xrange(1, length):
+                query = ''
+                for y in xrange(1, x):
+                    query += '[x_{}][0]'.format(y)
+                outfile.write('self.__root{}.has_key(x_{})'.format(query,
+                                                                      x))
+                if (x != length - 1):
+                    outfile.write(' and\\\n{}   '.format(spaces_for_function_body))
+            outfile.write(':\n')
             
-        query = '[x_1]'
-        for x in xrange(1, length-1):
-            query += '[0][x_{}]'.format(x+1)
-        outfile.write('{0}return self.__root{1}[{2}]\n'.format(spaces_for_function_body + SPACES,
-                                                               query,
-                                                               pos))
+            pos = 'pos'
+            if (x + 1) != last_level_of_the_data_structure:
+                pos += '+1'
+                
+            query = '[x_1]'
+            for x in xrange(1, length-1):
+                query += '[0][x_{}]'.format(x+1)
+            outfile.write('{0}return self.__root{1}[{2}]\n'.format(spaces_for_function_body + SPACES,
+                                                                   query,
+                                                                   pos))
+    
+            outfile.write('\n{}return list()\n'.format(spaces_for_function_body))
+        elif backend == 'SQLite':
+            spaces_for_function_body_if = SPACES * 3
+            total_ifs = 0
+            outfile.write('{}values = [{}]\n\n'.format(spaces_for_function_body,
+                                                       ', '.join('x_{}'.format(x) for x in xrange(1, length))))
+            
+            for view in getViewsFromAllStratums():
+                for view_name, positions in view.viewNamesToCombinations.iteritems():
+                    
+                    if len(positions) < length:
+                        continue
+                     
+                    v_select = ', '.join('V{}'.format(x) for x in xrange(length, len(positions) + 1))
+                    v_where = ' AND '.join('V{}=?'.format(x) for x in xrange(1, length))
 
-        outfile.write('\n{}return list()\n'.format(spaces_for_function_body))
+                    if total_ifs == 0:
+                        outfile.write('{}if pos == views.{}:\n'.format(spaces_for_function_body, view_name))
+                    else:
+                        outfile.write('{}elif pos == views.{}:\n'.format(spaces_for_function_body, view_name))
+                    
+                    total_ifs += 1    
+                    outfile.write('{}self.cur.execute("SELECT {} FROM {} WHERE {}", values)\n'.format(spaces_for_function_body_if,
+                                                                                                      v_select,
+                                                                                                      view_name,
+                                                                                                      v_where))
+            
+            outfile.write('\n{}data = self.cur.fetchall()\n'.format(spaces_for_function_body))
+            outfile.write("{}for d in chain.from_iterable(data):\n".format(spaces_for_function_body))
+            outfile.write("{}yield d\n".format(spaces_for_function_body + SPACES))
+
         outfile.write(EMPTY_LINE)
         
 def fillAppendFunctions(outfile):
+    backend = GenerationData.Backend
     spaces_level_1 = SPACES
     spaces_level_2 = SPACES * 2
+    spaces_level_3 = SPACES * 3
     
     for variable_id in getAllSolutions():
         length = getPredicateLength(variable_id)
@@ -438,28 +603,50 @@ def fillAppendFunctions(outfile):
                                                                      variable_id.name,
                                                                      ', '.join(args)))
         
-        if length == 1:
-            outfile.write('{}self.R_{}.add(x_1)\n'.format(spaces_level_2,
-                                                                 variable_id.name))
-            continue
-        
-        
-        # Check key and if it doesn't exist create a node
-        print_append_query_to_the_trie(outfile, length, spaces_level_2)
-        
-        outfile.write(EMPTY_LINE)
-        query = '[x_1]'
-        for x in xrange(1, length-1):
-            query += '[0][x_{}]'.format(x+1)
+        if backend == 'Python':
+            if length == 1:
+                outfile.write('{}self.R_{}.add(x_1)\n'.format(spaces_level_2,
+                                                                     variable_id.name))
+                continue
             
-        outfile.write('{0}self.__root{1}[solution_{2}].add(x_{3})\n'.format(spaces_level_2,
-                                                                            query,
-                                                                            variable_id.name,
-                                                                            length))
+            
+            # Check key and if it doesn't exist create a node
+            print_append_query_to_the_trie(outfile, length, spaces_level_2)
+            
+            outfile.write(EMPTY_LINE)
+            query = '[x_1]'
+            for x in xrange(1, length-1):
+                query += '[0][x_{}]'.format(x+1)
+                
+            outfile.write('{0}self.__root{1}[solution_{2}].add(x_{3})\n'.format(spaces_level_2,
+                                                                                query,
+                                                                                variable_id.name,
+                                                                                length))
+        elif backend == 'SQLite':
+            length = getPredicateLength(variable_id)
+            interrogants = ', '.join('?'.format(x) for x in xrange(1, length + 1))
+            views_query = ', '.join('x_{}'.format(x) for x in xrange(1, length + 1))
+            if length == 1:
+                views_query = '(' + views_query + ', )'
+            else:
+                views_query = '(' + views_query + ')'
+                
+            outfile.write("{}try:\n".format(spaces_level_2))
+            
+            outfile.write('{}self.cur.execute("INSERT INTO solution_{} VALUES({})", {})\n'.format(spaces_level_3,
+                                                                                                  variable_id.name,
+                                                                                                  interrogants,
+                                                                                                  views_query))
+            outfile.write('{}self.con.commit()\n'.format(spaces_level_3))
+            
+            outfile.write('{}except sqlite3.IntegrityError:\n{}pass\n'.format(spaces_level_2,
+                                                                              spaces_level_3))
+            
 
         outfile.write(EMPTY_LINE)
         
 def fillContainsFunctions(outfile):
+    backend = GenerationData.Backend
     spaces_for_function_definition = SPACES
     spaces_for_function_body = SPACES * 2
     for variable_id in getAllSolutions():
@@ -469,30 +656,44 @@ def fillContainsFunctions(outfile):
                                                                       variable_id.name,
                                                                       ', '.join(args)))
         
-        if length == 1:
-            outfile.write('{}return (x_1 in self.R_{})\n'.format(spaces_for_function_body,
-                                                                 variable_id.name))
-            continue
-        
-        
-        for x in xrange(1, length):
-            query = ''
-            for y in xrange(1, x):
-                query += '[x_{}][0]'.format(y)
-            outfile.write('{0}if not self.__root{1}.has_key(x_{2}):\n'.format(spaces_for_function_body,
-                                                                              query,
-                                                                              x))
-            outfile.write("{0}return False\n".format(spaces_for_function_body + SPACES))
+        if backend == 'Python':
+            if length == 1:
+                outfile.write('{}return (x_1 in self.R_{})\n'.format(spaces_for_function_body,
+                                                                     variable_id.name))
+                continue
             
-        query = '[x_1]'
-        for x in xrange(1, length-1):
-            query += '[0][x_{}]'.format(x+1)
             
-        outfile.write(EMPTY_LINE)
-        outfile.write('{}return (x_{} in self.__root{}[solution_{}])\n'.format(spaces_for_function_body,
-                                                                               length,
-                                                                               query,
-                                                                               variable_id.name))
+            for x in xrange(1, length):
+                query = ''
+                for y in xrange(1, x):
+                    query += '[x_{}][0]'.format(y)
+                outfile.write('{0}if not self.__root{1}.has_key(x_{2}):\n'.format(spaces_for_function_body,
+                                                                                  query,
+                                                                                  x))
+                outfile.write("{0}return False\n".format(spaces_for_function_body + SPACES))
+                
+            query = '[x_1]'
+            for x in xrange(1, length-1):
+                query += '[0][x_{}]'.format(x+1)
+                
+            outfile.write(EMPTY_LINE)
+            outfile.write('{}return (x_{} in self.__root{}[solution_{}])\n'.format(spaces_for_function_body,
+                                                                                   length,
+                                                                                   query,
+                                                                                   variable_id.name))
+        elif backend == 'SQLite':
+            length = getPredicateLength(variable_id)
+            v_where = ' AND '.join('V{}=?'.format(x) for x in xrange(1, length + 1))
+            views_query = ', '.join('x_{}'.format(x) for x in xrange(1, length + 1))
+            if length == 1:
+                views_query = '(' + views_query + ', )'
+            else:
+                views_query = '(' + views_query + ')'
+            outfile.write('{}d = self.cur.execute("SELECT V1 FROM solution_{} WHERE {}", {})\n'.format(spaces_for_function_body,
+                                                                                                       variable_id.name,
+                                                                                                       v_where,
+                                                                                                       views_query))
+            outfile.write('{}return d.fetchone() != None\n'.format(spaces_for_function_body))
             
         outfile.write(EMPTY_LINE)
 
@@ -1278,6 +1479,7 @@ def fillSolverEnd(outfile):
 fill_template = {
         'fillAccessViews'   : fillAccessViews,
         'fillHypothesesNames' : fillHypothesesNames,
+        'fillModules': fillModules,
         'fillSolutions' : fillSolutions,
         'fillInitDataStructure' : fillInitDataStructure,
         'fillCreateNodes': fillCreateNodes,
@@ -1326,16 +1528,17 @@ def fill_file(filename, orig_file, dest_file):
                     
     return True
 
-def generate_code_from_template(output_directory, stratums,
-                                predicateTypes, answersToStore, 
-                                printVariables, idToStratumLevels):
+def generate_code_from_template(output_directory, stratums, 
+                                predicateTypes, answersToStore,
+                                printVariables, idToStratumLevels,
+                                backend):
     # Make the necessary data to generate the source code available to the rest of the functions
     GD = namedtuple('GD', ['stratums', 'predicateTypes', 'answersToStore', 
-                           'printVariables', 'idToStratumLevels'])
+                           'printVariables', 'idToStratumLevels', 'Backend'])
     
     globals()['GenerationData'] = GD(stratums, predicateTypes,
                                      answersToStore, printVariables,
-                                     idToStratumLevels)
+                                     idToStratumLevels, backend)
     
     #Check that the output directory exists
     path = os.path.normpath(output_directory + '/Solver_Py_code')
