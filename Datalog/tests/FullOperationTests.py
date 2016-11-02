@@ -109,16 +109,18 @@ logging.basicConfig(level=logging.INFO,
 
 
 for frontend in Frontends:
-    BACKEND = ''
+    FRONTEND = ''
     
     if frontend == 'C':
         GENERATED_DIR = C_GENERATED_DIR
         COMPILED_FILENAME = C_COMPILED_FILENAME
-        BACKEND = ' -f C'
+        FRONTEND = ' -f C'
+        OPTIONS = ''
     else:
         GENERATED_DIR = PY_GENERATED_DIR
         COMPILED_FILENAME = PY_COMPILER_NAME
-        BACKEND = ' -f Python'
+        FRONTEND = ' -f Python'
+        OPTIONS = ''
         
     # Create the directories
     os.chdir(base_dir)
@@ -134,7 +136,7 @@ for frontend in Frontends:
         # program
         os.chdir(compiler_dir)
         logging.info("Emitting code for: " + example)
-        command = 'python ' + COMPILER_NAME + BACKEND + ' -d ' + TMP_DIR + ' ../examples/' + example
+        command = 'python ' + COMPILER_NAME + FRONTEND + OPTIONS + ' -d ' + TMP_DIR + ' ../examples/' + example
         subprocess.call(command, shell=SHOW_SHELL)
         if os.path.isdir(solver_dir):
             logging.info("Code emitted successfully")
