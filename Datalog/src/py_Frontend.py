@@ -1528,6 +1528,10 @@ def fill_file(filename, orig_file, dest_file):
                     
     return True
 
+# The options are currently represented by the variable backend. It represents the data backend
+# The possible options are:
+#     SQLite -> It will use the SQLite module from the standard library
+#     Python -> It will use a pure python representation of the data structure
 def generate_code_from_template(output_directory, stratums, 
                                 predicateTypes, answersToStore,
                                 printVariables, idToStratumLevels,
