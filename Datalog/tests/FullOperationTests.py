@@ -7,7 +7,7 @@ import subprocess
 import shutil
 import time
 
-from itertools import chain
+from itertools import chain, product
 
 TMP_DIR = '/tmp'
 COMPILER_NAME = 'dcompiler.py'
@@ -115,12 +115,16 @@ for frontend in Frontends:
         GENERATED_DIR = C_GENERATED_DIR
         COMPILED_FILENAME = C_COMPILED_FILENAME
         FRONTEND = ' -f C'
-        OPTIONS = ''
+        # Build the options
+        paths = ["Paths=" + x for x  in ["Judy", "Hash", "BTree"]]
+        sets =  ["Sets=" + x for x in  ["BitMap", "Judy", "AVLTree", "BTree"]]
+        successors = ["Successors=" + x for x in ["Queue", "Stack"]]
+        OPTIONS = map(lambda x: ' -o ' + ','.join(x), product(paths, sets, successors))
     else:
         GENERATED_DIR = PY_GENERATED_DIR
         COMPILED_FILENAME = PY_COMPILER_NAME
         FRONTEND = ' -f Python'
-        OPTIONS = ''
+        OPTIONS = [' -o backend=' +  x for x in ['Python', 'SQLite']] 
         
     # Create the directories
     os.chdir(base_dir)
@@ -128,78 +132,80 @@ for frontend in Frontends:
     solver_dir = os.path.join(TMP_DIR, GENERATED_DIR)
     
     for example in Datalog_Examples:
-        # If the solver directory exists remove it
-        if os.path.exists(solver_dir):
-            shutil.rmtree(solver_dir)
-    
-        # Change to the compiler directory and generate the solver for the given
-        # program
-        os.chdir(compiler_dir)
-        logging.info("Emitting code for: " + example)
-        command = 'python ' + COMPILER_NAME + FRONTEND + OPTIONS + ' -d ' + TMP_DIR + ' ../examples/' + example
-        subprocess.call(command, shell=SHOW_SHELL)
-        if os.path.isdir(solver_dir):
-            logging.info("Code emitted successfully")
-        else:
-            logging.error("Code not emitted.")
-            logging.error("EXITING")
-            sys.exit()
-    
-        # Change to the solver directory, compile it and check that the solver was
-        # created
-        os.chdir(solver_dir)
-        if frontend == 'C':
-            logging.info("Compiling the source code")
-            subprocess.call('make', shell=SHOW_SHELL)
-            if os.path.exists(os.path.join(solver_dir, COMPILED_FILENAME)):
-                logging.info('Compiled successfully')
+        for option in OPTIONS:
+            # If the solver directory exists remove it
+            if os.path.exists(solver_dir):
+                shutil.rmtree(solver_dir)
+        
+            # Change to the compiler directory and generate the solver for the given
+            # program
+            os.chdir(compiler_dir)
+            logging.info("Emitting code for: " + example)
+            command = 'python ' + COMPILER_NAME + FRONTEND + option + ' -d ' + TMP_DIR + ' ../examples/' + example
+            logging.info("Command line: " + command)
+            subprocess.call(command, shell=SHOW_SHELL)
+            if os.path.isdir(solver_dir):
+                logging.info("Code emitted successfully")
             else:
-                logging.info('Compilation failed')
-
-    
-        # Copy the input files, execute the solver and check we got the correct
-        # answers
-        logging.info('Copying the files into compiler directory')
-        data_dir = os.path.join(base_dir, 'examples', example.split('.')[0])
-        input_files =  glob.glob(os.path.join(data_dir, '*.input'))
-        output_files =  glob.glob(os.path.join(data_dir, '*.output'))
-        answer_names = []
-        for pos, src in enumerate(chain(input_files, output_files)):
-            name =  os.path.basename(src).split('.')[0]
-            chunk = '.tuples'
-            if pos >= len (input_files):
-                chunk = '-CorrectAnswer.tuples'
-                answer_names.append(name)
-            dst = os.path.join(solver_dir, name + chunk)
-            shutil.copy(src, dst)
-        logging.info('Files copied')
-        logging.info('Executing the solver')
-        #subprocess.call('./solver', shell=SHOW_SHELL)
-        if frontend == 'C':
-            subprocess.call('./solver', shell=SHOW_SHELL)
-        else:
-            subprocess.call('python main.py', shell=SHOW_SHELL)
-            
-        logging.info('Solver finished')
-        logging.info('Checking that the answers are correct')
-    
-        # Compare the results with the results that should be obtained
-        for answer in answer_names:
-            if not os.path.exists(answer + '.tuples'):
-                logging.error(answer + '.tuples not generated properly')
+                logging.error("Code not emitted.")
                 logging.error("EXITING")
                 sys.exit()
-            subprocess.Popen(['sort', answer + '.tuples', '-o' + answer + '.tuples'])
-            time.sleep(0.01)
-            #subprocess.Popen(['sort', answer + '-CorrectAnswer.tuples', '-o' + answer + '-CorrectAnswer.tuples'])
-            #time.sleep(0.01)
-            p = subprocess.Popen(['diff', answer + '.tuples', answer + '-CorrectAnswer.tuples'], stdout=subprocess.PIPE)
+        
+            # Change to the solver directory, compile it and check that the solver was
+            # created
+            os.chdir(solver_dir)
+            if frontend == 'C':
+                logging.info("Compiling the source code")
+                subprocess.call('make', shell=SHOW_SHELL)
+                if os.path.exists(os.path.join(solver_dir, COMPILED_FILENAME)):
+                    logging.info('Compiled successfully')
+                else:
+                    logging.info('Compilation failed')
     
-            if p.stdout.read():
-                logging.error(answer + '.tuples doesn\'t contain the proper answers')
-                sys.exit()
+        
+            # Copy the input files, execute the solver and check we got the correct
+            # answers
+            logging.info('Copying the files into compiler directory')
+            data_dir = os.path.join(base_dir, 'examples', example.split('.')[0])
+            input_files =  glob.glob(os.path.join(data_dir, '*.input'))
+            output_files =  glob.glob(os.path.join(data_dir, '*.output'))
+            answer_names = []
+            for pos, src in enumerate(chain(input_files, output_files)):
+                name =  os.path.basename(src).split('.')[0]
+                chunk = '.tuples'
+                if pos >= len (input_files):
+                    chunk = '-CorrectAnswer.tuples'
+                    answer_names.append(name)
+                dst = os.path.join(solver_dir, name + chunk)
+                shutil.copy(src, dst)
+            logging.info('Files copied')
+            logging.info('Executing the solver')
+            #subprocess.call('./solver', shell=SHOW_SHELL)
+            if frontend == 'C':
+                subprocess.call('./solver', shell=SHOW_SHELL)
+            else:
+                subprocess.call('python main.py', shell=SHOW_SHELL)
+                
+            logging.info('Solver finished')
+            logging.info('Checking that the answers are correct')
+        
+            # Compare the results with the results that should be obtained
+            for answer in answer_names:
+                if not os.path.exists(answer + '.tuples'):
+                    logging.error(answer + '.tuples not generated properly')
+                    logging.error("EXITING")
+                    sys.exit()
+                subprocess.Popen(['sort', answer + '.tuples', '-o' + answer + '.tuples'])
+                time.sleep(0.01)
+                #subprocess.Popen(['sort', answer + '-CorrectAnswer.tuples', '-o' + answer + '-CorrectAnswer.tuples'])
+                #time.sleep(0.01)
+                p = subprocess.Popen(['diff', answer + '.tuples', answer + '-CorrectAnswer.tuples'], stdout=subprocess.PIPE)
+        
+                if p.stdout.read():
+                    logging.error(answer + '.tuples doesn\'t contain the proper answers')
+                    sys.exit()
     
-        logging.info('Generated answers are correct')
-        logging.info('FINISHED\n')
+            logging.info('Generated answers are correct')
+            logging.info('FINISHED\n')
     
     
