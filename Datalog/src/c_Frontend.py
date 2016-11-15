@@ -2333,6 +2333,26 @@ def fill_file(filename, orig_file, dest_file):
                     
     return True
               
+# The options represented by the compositionStructures must be a dictionary
+# with the following keys "Paths", "Sets", "Successors"
+#
+# The Paths will represent how to store the different paths represented by the
+# variables and can choose between the next implementations: (all will implement a Trie)
+#    Judy -> A judy array (Fast, memory efficient, non-parallelizable)
+#    HashTable -> A specialized hash table for integers as keys (Fast, parallelizable)
+#    BTree -> A BTree to implement a BTrie.
+#
+# The sets will represent the set of the leaves of the data structure. The compiler
+# can choose between the next implementations:
+#    BitMap -> A bitmap
+#    Judy -> A judy array (non-parallelizable)
+#    AVLTree -> AVLTree implementation as a set
+#    BTree -> Btree implementation as a set
+#
+# The successors will represent how to represent the successors given a path. The
+# compiler can choose between the next implementations:
+#    Queue -> It represents a queue implemented using an array.
+#    Stack -> It represents a stack implemented using a list.
 def generate_code_from_template(output_directory, stratums, 
                                 compositionStructures, predicateTypes, 
                                 answersToStore, printVariables, 
