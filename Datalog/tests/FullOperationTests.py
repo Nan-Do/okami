@@ -124,7 +124,7 @@ for frontend in Frontends:
         GENERATED_DIR = PY_GENERATED_DIR
         COMPILED_FILENAME = PY_COMPILER_NAME
         FRONTEND = ' -f Python'
-        OPTIONS = [' -o backend=' +  x for x in ['Python', 'SQLite']] 
+        OPTIONS = [' -o Backend=' +  x for x in ['Native', 'SQLite']]
         
     # Create the directories
     os.chdir(base_dir)

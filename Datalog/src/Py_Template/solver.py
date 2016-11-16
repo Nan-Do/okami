@@ -2,12 +2,12 @@
 
 import sys
 
-from collections import deque
+%% fillSolverQueueModules
 
 from datastructure import datastructure
 from utils import hypotheses, views
 
-%% fillStrtatumSolverQueues
+%% fillStratumSolverQueues
 
 %% fillPrintAnswer
 

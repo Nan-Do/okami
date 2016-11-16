@@ -405,18 +405,27 @@ USAGE
                                                   predicateTypes, predicateTypes.intensional,
                                                   printVariables, idToStratumLevels)
             else:
-                backend = "Python"
-                # Parse the options for the python frontend so far only the data structure
-                # Right now just the data backend (Python or SQLite)
+                backend = "Native"
+                queue = "Deque"
+                
+                # Parse the options for the python frontend
                 if args.options:
-                    options = options = args.options.split(',')
+                    options = args.options.split(',')
                     options = [ x.split('=') for x in options ]
-                    backend = options[0][1]
+                    
+                    for option, value in options:
+                        if option == 'Backend':
+                            backend = value
+                        elif option == 'Queue':
+                            queue = value
+                        else:
+                            logging.error("Unknown option for the Python frontend")
+                            sys.exit(0)                    
                     
                 py_Frontend.generate_code_from_template(dest_dir, stratums, 
                                                         predicateTypes, predicateTypes.intensional, 
                                                         printVariables, idToStratumLevels, 
-                                                        backend)
+                                                        backend, queue)
             logging.info("Source code generated")
         
         

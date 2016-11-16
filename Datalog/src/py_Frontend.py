@@ -78,7 +78,7 @@ def check_for_python_database_backend(view_func):
     def _decorator(request, *args, **kwargs):
         response = None
         # Make sure we don't call the function if we are using other data back-end than Python
-        if GenerationData.Backend == "Python":
+        if GenerationData.Backend == "Native":
             response = view_func(request, *args, **kwargs)
         return response
     return wraps(view_func)(_decorator)
@@ -267,7 +267,7 @@ def fillInitDataStructure(outfile):
     
     outfile.write('{}def __init__(self):\n'.format(spaces_for_function_definition))
     
-    if backend == 'Python':
+    if backend == 'Native':
         outfile.write('{}self.__root = dict()\n'.format(spaces_for_function_body))
     
         for variable_id in answers_of_length_1.union(predicates_in_rules_of_length_1):
@@ -392,7 +392,7 @@ def fillInsertNodes(outfile):
         spaces_level2 = SPACES * 2
         spaces_level3 = SPACES * 3
         outfile.write('{}def insert1(self, x_1):\n'.format(spaces_level1))
-        if backend == 'Python':
+        if backend == 'Native':
             outfile.write('{}if x_1 not in self.__root:\n'.format(spaces_level2))
             if getDataStructureNodesMaximumLength() > 1:
                 outfile.write('{}self.__root[x_1] = self.__create_node2()\n'.format(spaces_level3))
@@ -435,7 +435,7 @@ def fillInsertNodes(outfile):
                                                                 length,
                                                                 ", ".join(args_to_function)))
         
-        if backend == 'Python':
+        if backend == 'Native':
             # Check key and if it doesn't exist create a node
             print_append_query_to_the_trie(outfile, length, spaces_for_function_body)
             
@@ -493,7 +493,7 @@ def fillGetLevel0Values(outfile):
     spaces_for_function_body = SPACES * 2
     
     outfile.write('{}def get_level0_values(self):\n'.format(spaces_for_function_definition))
-    if backend == 'Python':
+    if backend == 'Native':
         outfile.write('{}return self.__root.iterkeys()\n'.format(spaces_for_function_body))
     else:
         views_query = ''
@@ -534,7 +534,7 @@ def fillGetFunctions(outfile):
                                                              length,
                                                              ", ".join(args_to_function)))
         
-        if backend == 'Python':
+        if backend == 'Native':
             outfile.write('{0}if '.format(spaces_for_function_body))
             for x in xrange(1, length):
                 query = ''
@@ -603,7 +603,7 @@ def fillAppendFunctions(outfile):
                                                                      variable_id.name,
                                                                      ', '.join(args)))
         
-        if backend == 'Python':
+        if backend == 'Native':
             if length == 1:
                 outfile.write('{}self.R_{}.add(x_1)\n'.format(spaces_level_2,
                                                                      variable_id.name))
@@ -656,7 +656,7 @@ def fillContainsFunctions(outfile):
                                                                       variable_id.name,
                                                                       ', '.join(args)))
         
-        if backend == 'Python':
+        if backend == 'Native':
             if length == 1:
                 outfile.write('{}return (x_1 in self.R_{})\n'.format(spaces_for_function_body,
                                                                      variable_id.name))
@@ -743,17 +743,28 @@ def fillPrintRewritingVariable(outfile):
                                                           formatting,
                                                           variables))
 
-def fillStrtatumSolverQueues(outfile):
+def fillStratumSolverQueues(outfile):
+    queue = GenerationData.Queue
     number_of_stratums = len(GenerationData.stratums)
-    queues = "\n".join('solver_queue' + str(x) + ' = deque()' for x in xrange(1, number_of_stratums+1))
-    outfile.write('{}'.format(queues))
-    outfile.write(EMPTY_LINE)
+    
+    if queue == 'Deque':
+        queues = "\n".join('solver_queue' + str(x) + ' = deque()' for x in xrange(1, number_of_stratums+1))
+        outfile.write('{}'.format(queues))
+        outfile.write(EMPTY_LINE)
+    elif queue == 'Redis':
+        outfile.write("redis_connector = redis.Redis(host='localhost')\n")
+        queue_names = '\n'.join("STRATUM_QUEUE" + str(x) + " = 'Solver_queue_stratum" + str(x) + "'"\
+                                for x in xrange(1, number_of_stratums+1))
+        outfile.write('{}'.format(queue_names))
+        outfile.write(EMPTY_LINE)        
+        
     
 def fillStratumQueueInitializers(outfile):
     extensional = list(getExtensionalPredicates())
     extensional_as_set = set(extensional)
     idToStratumLevels = GenerationData.idToStratumLevels
     number_of_stratums = len(GenerationData.stratums)
+    queue = GenerationData.Queue
     
     # Create a new dictionary from idToStratumLevels only containing
     # extensional predicates
@@ -783,9 +794,14 @@ def fillStratumQueueInitializers(outfile):
                                                               idVar.name))
             outfile.write("{}for l in fp.readlines():\n".format(spaces_level_1))
             outfile.write("{}values = map(int, l.strip()[:-2].split('(')[1].split(','))\n".format(spaces_level_2))
-            outfile.write('{}solver_queue{}.append(([hypotheses.{}] + values))\n'.format(spaces_level_2,
-                                                                                         stratum_level,
-                                                                                         idVar.name))
+            if queue == 'Deque':
+                outfile.write('{}solver_queue{}.append(([hypotheses.{}] + values))\n'.format(spaces_level_2,
+                                                                                             stratum_level,
+                                                                                             idVar.name))
+            elif queue == 'Redis':
+                outfile.write('{}redis_connector.rpush(STRATUM_QUEUE{}, ([hypotheses.{}] + values))\n'.format(spaces_level_2,
+                                                                                                              stratum_level,
+                                                                                                              idVar.name))
             outfile.write('{}fp.close()\n'.format(spaces_level_1))
             outfile.write(EMPTY_LINE)
     
@@ -978,13 +994,19 @@ def fillSolverCompute(outfile):
             # contains the required information to emit the code. It takes as a key a variable_id and returns
             # the queue levels in which is required.
             for queue_level in idToStratumLevels[variable_id]:
-                outfile.write('{}solver_queue{}.append(var)\n'.format(spaces, str(queue_level)))
-                
+                if GenerationData.Queue == 'Deque':
+                    outfile.write('{}solver_queue{}.append(var)\n'.format(spaces, str(queue_level)))
+                elif GenerationData.Queue == 'Redis':
+                    outfile.write('{}redis_connector.rpush(STRATUM_QUEUE{}, var)\n'.format(spaces, str(queue_level)))
+                                    
             outfile.write('{}data.append_solution_{}({})\n'.format(spaces,
                                                                     variable_id.name,
                                                                     args))
         else:
-            outfile.write('{}solver_queue1.append(var)\n'.format(spaces))
+            if GenerationData.Queue == 'Deque':
+                outfile.write('{}solver_queue1.append(var)\n'.format(spaces))
+            elif GenerationData.Queue == 'Redis':
+                outfile.write('{}redis_connector.rpush(STRATUM_QUEUE1, var)\n'.format(spaces))
             
     predsToViewNames = dict(chain(*[ view.predsToViewNames.items() for view in getViewsFromAllStratums() ]))
     viewNamesToCombinations = dict(chain(*[ view.viewNamesToCombinations.items() for view in getViewsFromAllStratums() ]))
@@ -993,6 +1015,7 @@ def fillSolverCompute(outfile):
     printVariables = GenerationData.printVariables
     outputTuples = GenerationData.answersToStore
     idToStratumLevels = GenerationData.idToStratumLevels
+    queue = GenerationData.Queue
     
     spaces_level_1 = SPACES
     spaces_level_2 = SPACES * 2
@@ -1007,10 +1030,18 @@ def fillSolverCompute(outfile):
                                                 level))
         outfile.write('{}solver_init_stratum_level{}()\n'.format(spaces_level_1,
                                                                   level))
-        outfile.write('{}while (solver_queue{}):\n'.format(spaces_level_1,
-                                                           level))
-        outfile.write('{}current = solver_queue{}.popleft()\n\n'.format(spaces_level_2,
-                                                                     level))
+        if queue == 'Deque':
+            outfile.write('{}while (solver_queue{}):\n'.format(spaces_level_1,
+                                                               level))
+            outfile.write('{}current = solver_queue{}.popleft()\n\n'.format(spaces_level_2,
+                                                                            level))
+        elif queue == 'Redis':
+            outfile.write('{}while (True):\n'.format(spaces_level_1))
+            outfile.write('{}try:\n'.format(spaces_level_2))
+            outfile.write('{}current = literal_eval(redis_connector.lpop(STRATUM_QUEUE{}))\n'.format(spaces_level_3,
+                                                                                                     level))
+            outfile.write('{}except ValueError:\n'.format(spaces_level_2))
+            outfile.write('{}break\n\n'.format(spaces_level_3))
         
         block1 = stratum.ordering.block1
         block2 = stratum.ordering.block2
@@ -1474,6 +1505,15 @@ def fillSolverEnd(outfile):
         outfile.write('{}fp_{}.close()\n'.format(spaces_level_1,
                                                  ident.name))
     outfile.write(EMPTY_LINE)
+    
+def fillSolverQueueModules(outfile):
+    queue = GenerationData.Queue
+    
+    if queue == 'Deque':
+        outfile.write('from collections import deque\n')
+    elif queue == 'Redis':
+        outfile.write('import redis\n\n')
+        outfile.write('from ast import literal_eval\n')
 
             
 fill_template = {
@@ -1490,11 +1530,12 @@ fill_template = {
         'fillAppendFunctions' : fillAppendFunctions,
         'fillPrintRewritingVariable' : fillPrintRewritingVariable,
         'fillPrintAnswer' : fillPrintAnswer,
-        'fillStrtatumSolverQueues' : fillStrtatumSolverQueues,
+        'fillStratumSolverQueues' : fillStratumSolverQueues,
         'fillStratumQueueInitializers' : fillStratumQueueInitializers,
         'fillSolverInit' : fillSolverInit, 
         'fillSolverCompute' : fillSolverCompute,
-        'fillSolverEnd' : fillSolverEnd
+        'fillSolverEnd' : fillSolverEnd,
+        'fillSolverQueueModules' : fillSolverQueueModules
      }
 
 def fill_file(filename, orig_file, dest_file):
@@ -1528,21 +1569,32 @@ def fill_file(filename, orig_file, dest_file):
                     
     return True
 
-# The options are currently represented by the variable backend. It represents the data backend
+# Options for the module:
+#  Backend, Queue
+#
+# Backend -> It represents the static data is implemented
 # The possible options are:
+#     Native -> It will use a pure python representation of the data structure e
 #     SQLite -> It will use the SQLite module from the standard library
-#     Python -> It will use a pure python representation of the data structure
+# Queue -> It represents how the dynamic queue is implemented
+# The possible options are:
+#     Deque -> A python deque (from the standard library).
+#     Redis -> To use redis key-store database (python-redis must be installed and 
+#                                               a redis server must be running on 
+#                                               the local machine).
 def generate_code_from_template(output_directory, stratums, 
                                 predicateTypes, answersToStore,
                                 printVariables, idToStratumLevels,
-                                backend):
+                                backend, queue):
     # Make the necessary data to generate the source code available to the rest of the functions
     GD = namedtuple('GD', ['stratums', 'predicateTypes', 'answersToStore', 
-                           'printVariables', 'idToStratumLevels', 'Backend'])
+                           'printVariables', 'idToStratumLevels', 'Backend',
+                           'Queue'])
     
     globals()['GenerationData'] = GD(stratums, predicateTypes,
                                      answersToStore, printVariables,
-                                     idToStratumLevels, backend)
+                                     idToStratumLevels, backend,
+                                     queue)
     
     #Check that the output directory exists
     path = os.path.normpath(output_directory + '/Solver_Py_code')
