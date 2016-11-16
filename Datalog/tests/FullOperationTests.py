@@ -23,7 +23,7 @@ SHOW_SHELL = True
 index = os.getcwd().rfind('/')
 base_dir = os.getcwd()[:index]
 
-Frontends = ['C', 'Python']
+Frontends = ['Python']
 Datalog_Examples = ['flights.datalog',
                     'graphClausure.dl',
                     'one-rule.dl',
@@ -124,7 +124,10 @@ for frontend in Frontends:
         GENERATED_DIR = PY_GENERATED_DIR
         COMPILED_FILENAME = PY_COMPILER_NAME
         FRONTEND = ' -f Python'
-        OPTIONS = [' -o Backend=' +  x for x in ['Native', 'SQLite']]
+        backends = ["Backend=" + x for x in ["Native", "SQLite"]]
+        queues = ["Queue=" +  x for x in ["Deque", "Redis"]]
+        #OPTIONS = [' -o Backend=' +  x for x in ['Native', 'SQLite']]
+        OPTIONS = map(lambda x: ' -o ' + ','.join(x), product(backends, queues))
         
     # Create the directories
     os.chdir(base_dir)
