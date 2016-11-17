@@ -23,7 +23,7 @@ SHOW_SHELL = True
 index = os.getcwd().rfind('/')
 base_dir = os.getcwd()[:index]
 
-Frontends = ['Python']
+Frontends = ['C', 'Python']
 Datalog_Examples = ['flights.datalog',
                     'graphClausure.dl',
                     'one-rule.dl',
