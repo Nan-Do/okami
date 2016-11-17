@@ -108,6 +108,7 @@ logging.basicConfig(level=logging.INFO,
                     datefmt="%Y-%m-%d %H:%M:%S")
 
 
+total = 0
 for frontend in Frontends:
     FRONTEND = ''
     
@@ -136,6 +137,7 @@ for frontend in Frontends:
     
     for example in Datalog_Examples:
         for option in OPTIONS:
+            total += 1
             # If the solver directory exists remove it
             if os.path.exists(solver_dir):
                 shutil.rmtree(solver_dir)
@@ -210,5 +212,5 @@ for frontend in Frontends:
     
             logging.info('Generated answers are correct')
             logging.info('FINISHED\n')
-    
-    
+
+print "ALL {} TESTS PASSED CORRECTLY!!!".format(total) 
