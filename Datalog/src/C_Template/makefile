@@ -25,5 +25,5 @@ solver_queue.o: solver_queue.c include/solver_queue.h
 	$(CC) $(FLAGS) $(INCL) -c solver_queue.c
 
 clean:
-	rm -rf *.o datalogsolve
+	rm -rf *.o solver
 
