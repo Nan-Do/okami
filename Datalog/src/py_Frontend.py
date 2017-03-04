@@ -1365,7 +1365,7 @@ def fillSolverCompute(outfile):
                             commonVars_len = number_of_common_vars
                         
                         if argument_constants_consulting_values:
-                                args_common += ', ' + ', '.join(str(x.value) for x in argument_constants_consulting_values)
+                            args_common += ', ' + ', '.join(str(x.value) for x in argument_constants_consulting_values)
                          
                         # Here we have to check if the predicate we are consulting is the type that has all its variables
                         # the same equal card in that case we have to check against the solutions instead of iterating over
