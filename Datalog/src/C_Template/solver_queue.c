@@ -50,6 +50,8 @@ SolverNodePtr Queue_pop(QueuePtr q){
     if (q->head){
         t = q->head;
         q->head = q->head->next;
+        if (!q->head)
+        	q->tail = NULL;
     }
     
     return t;
