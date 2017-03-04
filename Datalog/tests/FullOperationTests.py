@@ -12,18 +12,25 @@ from itertools import chain, product
 TMP_DIR = '/tmp'
 COMPILER_NAME = 'dcompiler.py'
 
+
 C_GENERATED_DIR = 'Solver_C_code'
 C_COMPILED_FILENAME = 'solver'
 
 PY_GENERATED_DIR = 'Solver_Py_code'
-PY_COMPILER_NAME = 'main.py'
+PY_SOLVER_MAINFILE = 'main.py'
+
+JAVA_GENERATED_DIR = 'Solver_Java_code'
+JAVA_SOLVER_MAINFILE = 'StarterMain'
+
+CPP_GENERATED_DIR = 'Solver_CPP_code'
+CPP_COMPILED_FILENAME = 'solver'
 
 SHOW_SHELL = True
 
 index = os.getcwd().rfind('/')
 base_dir = os.getcwd()[:index]
 
-Frontends = ['C', 'Python']
+Frontends = ['C', 'Python', 'Java-1', 'Java-4', 'CPP-1', 'CPP-4']
 Datalog_Examples = ['flights.datalog',
                     'graphClausure.dl',
                     'one-rule.dl',
@@ -121,14 +128,30 @@ for frontend in Frontends:
         sets =  ["Sets=" + x for x in  ["BitMap", "Judy", "AVLTree", "BTree"]]
         successors = ["Successors=" + x for x in ["Queue", "Stack"]]
         OPTIONS = map(lambda x: ' -o ' + ','.join(x), product(paths, sets, successors))
-    else:
+    elif frontend =='Python':
         GENERATED_DIR = PY_GENERATED_DIR
-        COMPILED_FILENAME = PY_COMPILER_NAME
+        COMPILED_FILENAME = PY_SOLVER_MAINFILE
         FRONTEND = ' -f Python'
         backends = ["Backend=" + x for x in ["Native", "SQLite"]]
         queues = ["Queue=" +  x for x in ["Deque", "Redis"]]
         #OPTIONS = [' -o Backend=' +  x for x in ['Native', 'SQLite']]
         OPTIONS = map(lambda x: ' -o ' + ','.join(x), product(backends, queues))
+    elif frontend[0:4] == 'Java':
+        GENERATED_DIR = JAVA_GENERATED_DIR
+        COMPILED_FILENAME = JAVA_SOLVER_MAINFILE
+        FRONTEND = ' -f Java'
+        THREADS = 1
+        if frontend == 'Java-4':
+            THREADS = 4
+        OPTIONS = ['']
+    elif frontend[0:3] == 'CPP':
+        GENERATED_DIR = CPP_GENERATED_DIR
+        COMPILED_FILENAME = CPP_COMPILED_FILENAME
+        FRONTEND = ' -f CPP'
+        THREADS = 1
+        if frontend == 'CPP-4':
+            THREADS = 4
+        OPTIONS = [''] 
         
     # Create the directories
     os.chdir(base_dir)
@@ -159,9 +182,14 @@ for frontend in Frontends:
             # Change to the solver directory, compile it and check that the solver was
             # created
             os.chdir(solver_dir)
-            if frontend == 'C':
+            if frontend == 'C' or frontend[0:3] == 'CPP':
                 logging.info("Compiling the source code")
                 subprocess.call('make', shell=SHOW_SHELL)
+            if frontend[0:4] == 'Java':
+                logging.info("Compiling the source code")
+                subprocess.call('javac ' + COMPILED_FILENAME + '.java', shell=SHOW_SHELL)
+                
+            if frontend == 'C' or frontend[0:4] == 'Java' or frontend[0:3] == 'CPP':
                 if os.path.exists(os.path.join(solver_dir, COMPILED_FILENAME)):
                     logging.info('Compiled successfully')
                 else:
@@ -186,16 +214,30 @@ for frontend in Frontends:
             logging.info('Files copied')
             logging.info('Executing the solver')
             #subprocess.call('./solver', shell=SHOW_SHELL)
-            if frontend == 'C':
+            if frontend == 'C' or frontend[0:3] == 'CPP':
+                if frontend[0:3] == 'CPP':
+                    threads_str = 'Using ' + str(THREADS) + ' thread'
+                    if THREADS > 1:
+                            threads_str += 's'
+                    logging.info(threads_str)
                 subprocess.call('./solver', shell=SHOW_SHELL)
-            else:
+            elif frontend == 'Python':
                 subprocess.call('python main.py', shell=SHOW_SHELL)
+            elif frontend[0:4] == 'Java':
+                threads_str = 'Using ' + str(THREADS) + ' thread'
+                if THREADS > 1:
+                    threads_str += 's'
+                logging.info(threads_str)
+                subprocess.call('java ' + COMPILED_FILENAME + ' ' + str(THREADS), shell=SHOW_SHELL)
                 
             logging.info('Solver finished')
             logging.info('Checking that the answers are correct')
         
             # Compare the results with the results that should be obtained
             for answer in answer_names:
+                if frontend[0:3] == 'CPP':
+                    os.system('cat ' + answer + '-?.tuples' + ' > ' + answer + '.tuples')
+                    
                 if not os.path.exists(answer + '.tuples'):
                     logging.error(answer + '.tuples not generated properly')
                     logging.error("EXITING")
