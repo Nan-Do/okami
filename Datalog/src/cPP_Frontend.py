@@ -1466,7 +1466,12 @@ def fillSolverComputeStratumClasses(outfile):
                                                                                         aliasToViewNames[equation.aliasName],
                                                                                         args_common))
                             outfile.write('{}l1->lock();\n'.format(spaces))
-                            outfile.write('{}for (int t1: *l1->get_array()) {{\n'.format(spaces))
+                            if set(filter(lambda x: isinstance(x, Argument), 
+                                          equation.rightArguments)).intersection(filter(lambda x: isinstance(x, Argument), 
+                                                                                        equation.consultingArguments)) or len(equation.consultingArguments) > 1:
+                                outfile.write('{}for (int t1: *l1->get_array()) {{\n'.format(spaces))
+                            else:
+                                outfile.write('{}if (!l1->get_array()->empty()) {{\n'.format(spaces))
                         else:
                             all_variables_same_equal_card = True
                             outfile.write("{}if (data->contains_solution_{}({})) {{\n".format(spaces,
