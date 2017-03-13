@@ -24,7 +24,7 @@ SOURCE_DIRECTORY = "Java_Template"
 
 SOURCE_FILES = ['StarterMain.java', 'RewritingVariable.java', 'LockBitSet.java', 
                 'Views.java', 'ArrayLockedListInt.java', 'VariableType.java', 
-                'Datastructure.java', 'Solver.java']
+                'Datastructure.java', 'Solver.java', 'generate_jar.sh']
 
 EMPTY_LINE = '\n'
 SPACES = ' ' * 4
