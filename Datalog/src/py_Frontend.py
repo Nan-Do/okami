@@ -22,7 +22,7 @@ DELIMITER = '%%'
 SOURCE_DIRECTORY = "Py_Template"
 #OUTPUT_DIRECTORY = "./"
 
-SOURCE_FILES = ['datastructure.py', 'utils.py', 'main.py', 'solver.py']
+SOURCE_FILES = ['datastructure.py', 'utils.py', 'main.py', 'solver.py', 'generate_one_file.sh']
 
 EMPTY_LINE = '\n'
 SPACES = ' ' * 4
