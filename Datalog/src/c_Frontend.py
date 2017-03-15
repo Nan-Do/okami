@@ -1251,13 +1251,22 @@ def fillIntList(outfile):
     if requires_t0:
         outfile.write('{}unsigned int t0;\n'.format(spaces_level_1))
         
-        # Check if the longest length comes from a rule with no common variables
+        # Check if the longest length comes exclusively from a rule with no common variables
         # if that is the case then we have to subtract 1 to the value as we are already 
         # using t0. 
         no_cvars_max_length = max(len(filter(lambda y: isinstance(y, Argument) and y.type == 'variable', x.consultingArguments)) 
                                   for x in getEquationsFromAllStratums() if x.type == 2 and len(x.commonVariables) == 0)
         
-        if no_cvars_max_length == length:
+        # At this point we now there are rules with no common variables but might be the case that there are no rules
+        # with common variables so we have to make sure we can execute max on the sequence as it throws an exception if
+        # it is run on an empty sequence
+        cvars_max_length = 0
+        cvars_max_length_list = [len(filter(lambda y: isinstance(y, Argument) and y.type == 'variable', x.consultingArguments)) 
+                                  for x in getEquationsFromAllStratums() if x.type == 2 and len(x.commonVariables)]
+        if len(cvars_max_length_list):
+            cvars_max_length = max(cvars_max_length_list)
+        
+        if no_cvars_max_length == length and no_cvars_max_length >= cvars_max_length:
             length -= 1
             
     args = ', '.join(['t{}'.format(str(x+1)) for x in xrange(length)])

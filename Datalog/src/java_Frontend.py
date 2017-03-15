@@ -241,7 +241,16 @@ def fillIntList(outfile, spaces):
         no_cvars_max_length = max(len(filter(lambda y: isinstance(y, Argument) and y.type == 'variable', x.consultingArguments)) 
                                   for x in getEquationsFromAllStratums() if x.type == 2 and len(x.commonVariables) == 0)
         
-        if no_cvars_max_length == length:
+        # At this point we now there are rules with no common variables but might be the case that there are no rules
+        # with common variables so we have to make sure we can execute max on the sequence as it throws an exception if
+        # it is run on an empty sequence
+        cvars_max_length = 0
+        cvars_max_length_list = [len(filter(lambda y: isinstance(y, Argument) and y.type == 'variable', x.consultingArguments)) 
+                                  for x in getEquationsFromAllStratums() if x.type == 2 and len(x.commonVariables)]
+        if len(cvars_max_length_list):
+            cvars_max_length = max(cvars_max_length_list)
+        
+        if no_cvars_max_length == length and no_cvars_max_length >= cvars_max_length:
             length -= 1
             
     # If in the end the length is 0 that means that the intList will be empty. In that
