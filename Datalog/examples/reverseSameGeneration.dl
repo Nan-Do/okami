@@ -1,0 +1,4 @@
+rsg(X, Y) :- flat(X, Y).
+rsg(X, Y) :- rsg(Y1, X1), temp_1(X, X1, Y, Y1).
+temp_1(X, X1, Y, Y1) :- down(Y1, Y), up(X, X1).
+

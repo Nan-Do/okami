@@ -53,6 +53,7 @@ Datalog_Examples = ['flights.datalog',
                     'example14.dl',
                     'example15.dl',
                     'example16.dl',
+                    'reverseSameGeneration.dl',
                     # Here start the examples that contain constant objects
                     'constants1.dl',
                     'constants2.dl',
