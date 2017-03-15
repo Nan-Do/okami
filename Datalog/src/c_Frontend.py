@@ -1266,7 +1266,7 @@ def fillIntList(outfile):
         if len(cvars_max_length_list):
             cvars_max_length = max(cvars_max_length_list)
         
-        if no_cvars_max_length == length and no_cvars_max_length >= cvars_max_length:
+        if no_cvars_max_length == length and no_cvars_max_length > cvars_max_length:
             length -= 1
             
     args = ', '.join(['t{}'.format(str(x+1)) for x in xrange(length)])

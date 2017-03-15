@@ -250,7 +250,7 @@ def fillIntList(outfile, spaces):
         if len(cvars_max_length_list):
             cvars_max_length = max(cvars_max_length_list)
         
-        if no_cvars_max_length == length and no_cvars_max_length >= cvars_max_length:
+        if no_cvars_max_length == length and no_cvars_max_length > cvars_max_length:
             length -= 1
             
     # If in the end the length is 0 that means that the intList will be empty. In that
