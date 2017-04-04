@@ -224,12 +224,16 @@ def fillSolutions(outfile):
 
 def fillAccessViews(outfile):
     #sorted_views = GenerationData.viewsData.viewsOrdering
-    sorted_views = [ view.viewsOrdering for view in getViewsFromAllStratums() ]
+    sorted_views = [ view.viewsOrdering for view in getViewsFromAllStratums()]
     
+    view_name_set = set()
     view_names = []
     views_values = []
     for view_name, view_position in chain(*sorted_views):
+        if view_name in view_name_set:
+            continue
         view_names.append(view_name)
+        view_name_set.add(view_name)
         views_values.append("{}={}".format(view_name,
                                            view_position))
         
